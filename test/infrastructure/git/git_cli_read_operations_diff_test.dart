@@ -1,0 +1,39 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:gitopen/domain/commits/commit_sha.dart';
+import 'package:gitopen/domain/diff/diff_spec.dart';
+import 'package:gitopen/domain/diff/file_diff.dart';
+import 'package:gitopen/domain/repositories/repo_id.dart';
+import 'package:gitopen/domain/repositories/repo_location.dart';
+import 'package:gitopen/infrastructure/git/git_cli_read_operations.dart';
+import '../../_helpers/repo_fixture.dart';
+
+void main() {
+  RepoLocation loc(RepoFixture f) =>
+      RepoLocation(RepoId.newId(), f.path, 'test');
+
+  group('GitCliReadOperations.getDiff', () {
+    test('commit vs parent lists added file', () async {
+      final f = await RepoFixture.withLinearHistory(2);
+      try {
+        final sut = GitCliReadOperations();
+        final diff = await sut.getDiff(loc(f),
+            DiffSpecCommitVsParent(CommitSha(f.headSha)));
+        final added = diff.files.where((d) => d.path == 'file_1.txt');
+        expect(added, hasLength(1));
+        expect(added.first.changeKind, FileChangeKind.added);
+      } finally { await f.dispose(); }
+    });
+
+    test('initial commit (no parent) lists all added', () async {
+      final f = await RepoFixture.withLinearHistory(1);
+      try {
+        final sut = GitCliReadOperations();
+        final diff = await sut.getDiff(loc(f),
+            DiffSpecCommitVsParent(CommitSha(f.headSha)));
+        expect(diff.files, hasLength(1));
+        expect(diff.files.first.path, 'file_0.txt');
+        expect(diff.files.first.changeKind, FileChangeKind.added);
+      } finally { await f.dispose(); }
+    });
+  });
+}

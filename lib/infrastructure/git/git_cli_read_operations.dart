@@ -2,8 +2,11 @@ import '../../application/git/git_read_operations.dart';
 import '../../domain/commits/commit_info.dart';
 import '../../domain/commits/commit_sha.dart';
 import '../../domain/commits/commit_signature.dart';
+import '../../domain/diff/diff_hunk.dart';
+import '../../domain/diff/diff_line.dart';
 import '../../domain/diff/diff_result.dart';
 import '../../domain/diff/diff_spec.dart';
+import '../../domain/diff/file_diff.dart';
 import '../../domain/files/file_tree_entry.dart';
 import '../../domain/refs/branch.dart';
 import '../../domain/refs/remote.dart';
@@ -475,11 +478,270 @@ final class GitCliReadOperations implements GitReadOperations {
   }
 
   @override
-  Future<DiffResult> getDiff(RepoLocation repo, DiffSpec spec) =>
-      throw UnimplementedError();
+  Future<DiffResult> getDiff(RepoLocation repo, DiffSpec spec) async {
+    if (spec is! DiffSpecCommitVsParent) {
+      throw UnsupportedError(
+          'Only DiffSpecCommitVsParent is supported in Slice 1');
+    }
+    final sha = spec.commitSha.value;
+    final stdout = await _runner.run(repo.path, [
+      'show', sha, '--format=', '--raw', '-p', '--no-color',
+    ]);
+
+    final files = <FileDiff>[];
+    final rawByPath = <String, _RawEntry>{};
+
+    final lines = stdout.split('\n');
+    var i = 0;
+
+    // Skip blank lines at start (--format= produces an empty header line)
+    while (i < lines.length && lines[i].trim().isEmpty) {
+      i++;
+    }
+
+    // Parse raw status block (lines starting with ':')
+    while (i < lines.length && lines[i].startsWith(':')) {
+      final line = lines[i].trimRight();
+      final tabIdx = line.indexOf('\t');
+      if (tabIdx >= 0) {
+        final meta = line.substring(0, tabIdx).split(' ');
+        if (meta.length >= 5) {
+          final status = meta[4]; // 'A', 'M', 'R100', etc.
+          final letter = status[0];
+          final parts = line.split('\t');
+          String path;
+          String? oldPath;
+          if ((letter == 'R' || letter == 'C') && parts.length >= 3) {
+            oldPath = parts[1];
+            path = parts[2];
+          } else {
+            path = parts[1];
+          }
+          rawByPath[path] = _RawEntry(letter, oldPath);
+        }
+      }
+      i++;
+    }
+
+    // Parse unified diff blocks
+    while (i < lines.length) {
+      if (!lines[i].startsWith('diff --git ')) {
+        i++;
+        continue;
+      }
+
+      // Extract new path from "diff --git a/<path> b/<path>"
+      final pathMatch =
+          RegExp(r'^diff --git a/(.+) b/(.+)$').firstMatch(lines[i]);
+      if (pathMatch == null) {
+        i++;
+        continue;
+      }
+      final newPath = pathMatch.group(2)!;
+      final raw = rawByPath[newPath];
+      final changeKind = _mapDiffStatus(raw?.status ?? 'M');
+      var isBinary = false;
+      final hunks = <DiffHunk>[];
+      var added = 0;
+      var deleted = 0;
+      i++;
+
+      // Skip header lines until first @@ or next diff --git
+      while (i < lines.length &&
+          !lines[i].startsWith('@@') &&
+          !lines[i].startsWith('diff --git ')) {
+        if (lines[i].contains('Binary files')) {
+          isBinary = true;
+        }
+        i++;
+      }
+
+      DiffHunk? currentHunk;
+      var hunkLines = <DiffLine>[];
+      var oldLine = 0;
+      var newLine = 0;
+
+      while (
+          i < lines.length && !lines[i].startsWith('diff --git ')) {
+        final line = lines[i];
+        if (line.startsWith('@@')) {
+          // Flush previous hunk
+          if (currentHunk != null) {
+            hunks.add(DiffHunk(
+              oldStart: currentHunk.oldStart,
+              oldCount: currentHunk.oldCount,
+              newStart: currentHunk.newStart,
+              newCount: currentHunk.newCount,
+              header: currentHunk.header,
+              lines: hunkLines,
+            ));
+            hunkLines = [];
+          }
+          final m = RegExp(r'^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@')
+              .firstMatch(line);
+          if (m == null) {
+            i++;
+            continue;
+          }
+          final oldStart = int.parse(m.group(1)!);
+          final oldCount =
+              m.group(2) != null ? int.parse(m.group(2)!) : 1;
+          final newStart = int.parse(m.group(3)!);
+          final newCount =
+              m.group(4) != null ? int.parse(m.group(4)!) : 1;
+          oldLine = oldStart;
+          newLine = newStart;
+          currentHunk = DiffHunk(
+            oldStart: oldStart,
+            oldCount: oldCount,
+            newStart: newStart,
+            newCount: newCount,
+            header: line,
+            lines: const [],
+          );
+          i++;
+          continue;
+        }
+
+        if (currentHunk == null) {
+          i++;
+          continue;
+        }
+        if (line.isEmpty) {
+          i++;
+          continue;
+        }
+
+        switch (line[0]) {
+          case '+':
+            if (line.startsWith('+++')) {
+              i++;
+              continue;
+            }
+            hunkLines.add(DiffLine(
+                kind: DiffLineKind.addition,
+                oldLine: null,
+                newLine: newLine++,
+                content: line.substring(1)));
+            added++;
+            break;
+          case '-':
+            if (line.startsWith('---')) {
+              i++;
+              continue;
+            }
+            hunkLines.add(DiffLine(
+                kind: DiffLineKind.deletion,
+                oldLine: oldLine++,
+                newLine: null,
+                content: line.substring(1)));
+            deleted++;
+            break;
+          case ' ':
+            hunkLines.add(DiffLine(
+                kind: DiffLineKind.context,
+                oldLine: oldLine++,
+                newLine: newLine++,
+                content: line.substring(1)));
+            break;
+          case '\\':
+            // "\ No newline at end of file" — ignore
+            break;
+          default:
+            break;
+        }
+        i++;
+      }
+
+      if (currentHunk != null) {
+        hunks.add(DiffHunk(
+          oldStart: currentHunk.oldStart,
+          oldCount: currentHunk.oldCount,
+          newStart: currentHunk.newStart,
+          newCount: currentHunk.newCount,
+          header: currentHunk.header,
+          lines: hunkLines,
+        ));
+      }
+
+      files.add(FileDiff(
+        path: newPath,
+        oldPath: raw?.oldPath,
+        changeKind: changeKind,
+        isBinary: isBinary,
+        linesAdded: added,
+        linesDeleted: deleted,
+        hunks: hunks,
+      ));
+    }
+
+    return DiffResult(files: files);
+  }
+
+  FileChangeKind _mapDiffStatus(String letter) {
+    switch (letter) {
+      case 'A':
+        return FileChangeKind.added;
+      case 'D':
+        return FileChangeKind.deleted;
+      case 'M':
+        return FileChangeKind.modified;
+      case 'R':
+        return FileChangeKind.renamed;
+      case 'C':
+        return FileChangeKind.copied;
+      case 'T':
+        return FileChangeKind.typeChanged;
+      case 'U':
+        return FileChangeKind.unmerged;
+      default:
+        return FileChangeKind.modified;
+    }
+  }
 
   @override
   Future<List<FileTreeEntry>> getFileTree(
-          RepoLocation repo, CommitSha sha, String path) =>
-      throw UnimplementedError();
+      RepoLocation repo, CommitSha sha, String path) async {
+    final ref = path.isEmpty ? sha.value : '${sha.value}:$path';
+    final stdout = await _runner.run(repo.path, ['ls-tree', '-l', ref]);
+    final entries = <FileTreeEntry>[];
+    for (final line in stdout.split('\n')) {
+      if (line.isEmpty) continue;
+      final tabIdx = line.indexOf('\t');
+      if (tabIdx < 0) continue;
+      final meta = line.substring(0, tabIdx).split(RegExp(r'\s+'));
+      if (meta.length < 4) continue;
+      final mode = meta[0];
+      final type = meta[1];
+      // meta[2] is object sha (not needed here)
+      final sizeStr = meta[3];
+      final filePath = line.substring(tabIdx + 1);
+      final name = filePath.contains('/')
+          ? filePath.substring(filePath.lastIndexOf('/') + 1)
+          : filePath;
+      final kind = _mapTreeKind(type, mode);
+      final size = sizeStr == '-' ? null : int.tryParse(sizeStr);
+      entries.add(FileTreeEntry(
+        name: name,
+        fullPath: path.isEmpty ? filePath : '$path/$filePath',
+        kind: kind,
+        sizeBytes: size,
+        containingCommit: sha,
+      ));
+    }
+    return entries;
+  }
+
+  FileTreeKind _mapTreeKind(String type, String mode) {
+    if (type == 'tree') return FileTreeKind.tree;
+    if (type == 'commit') return FileTreeKind.submodule;
+    if (mode == '120000') return FileTreeKind.symlink;
+    return FileTreeKind.blob;
+  }
+}
+
+class _RawEntry {
+  final String status;
+  final String? oldPath;
+  _RawEntry(this.status, this.oldPath);
 }
