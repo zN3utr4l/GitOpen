@@ -310,6 +310,42 @@ public sealed class LibGit2GitReadOperations : IGitReadOperations
         }
     }
 
-    public Task<IReadOnlyList<FileTreeEntry>> GetFileTreeAsync(RepoLocation repo, CommitSha sha, string path, CancellationToken ct)
-        => throw new NotImplementedException();
+    public Task<IReadOnlyList<FileTreeEntry>> GetFileTreeAsync(
+        RepoLocation repo, CommitSha sha, string path, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var lg = new LibGit2Sharp.Repository(repo.Path);
+        var c = lg.Lookup(sha.Value, LibGit2Sharp.ObjectType.Commit) as LibGit2Sharp.Commit
+            ?? throw new InvalidOperationException($"Commit {sha} not found");
+
+        LibGit2Sharp.Tree tree = c.Tree;
+        if (!string.IsNullOrEmpty(path))
+        {
+            var entry = c[path]
+                ?? throw new InvalidOperationException($"Path {path} not found at {sha}");
+            if (entry.TargetType != LibGit2Sharp.TreeEntryTargetType.Tree)
+                return Task.FromResult<IReadOnlyList<FileTreeEntry>>(Array.Empty<FileTreeEntry>());
+            tree = (LibGit2Sharp.Tree)entry.Target;
+        }
+
+        var entries = tree.Select(t =>
+        {
+            var kind = t.TargetType switch
+            {
+                LibGit2Sharp.TreeEntryTargetType.Tree    => FileTreeKind.Tree,
+                LibGit2Sharp.TreeEntryTargetType.GitLink => FileTreeKind.Submodule,
+                _ when t.Mode == LibGit2Sharp.Mode.SymbolicLink => FileTreeKind.Symlink,
+                _ => FileTreeKind.Blob
+            };
+            long? size = t.Target is LibGit2Sharp.Blob b ? b.Size : null;
+            return new FileTreeEntry(
+                Name: t.Name,
+                FullPath: string.IsNullOrEmpty(path) ? t.Name : $"{path}/{t.Name}",
+                Kind: kind,
+                SizeBytes: size,
+                ContainingCommit: sha);
+        }).ToList();
+
+        return Task.FromResult<IReadOnlyList<FileTreeEntry>>(entries);
+    }
 }
