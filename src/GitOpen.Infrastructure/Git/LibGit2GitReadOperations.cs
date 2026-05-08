@@ -144,7 +144,171 @@ public sealed class LibGit2GitReadOperations : IGitReadOperations
     }
 
     public Task<DiffResult> GetDiffAsync(RepoLocation repo, DiffSpec spec, CancellationToken ct)
-        => throw new NotImplementedException();
+    {
+        ct.ThrowIfCancellationRequested();
+        using var lg = new LibGit2Sharp.Repository(repo.Path);
+
+        LibGit2Sharp.Tree? oldTree;
+        LibGit2Sharp.Tree? newTree;
+
+        switch (spec)
+        {
+            case DiffSpec.CommitVsParent cvp:
+                var c = lg.Lookup(cvp.CommitSha.Value, LibGit2Sharp.ObjectType.Commit) as LibGit2Sharp.Commit
+                    ?? throw new InvalidOperationException($"Commit {cvp.CommitSha} not found");
+                newTree = c.Tree;
+                oldTree = c.Parents.FirstOrDefault()?.Tree;
+                break;
+            case DiffSpec.CommitVsCommit cvc:
+                var from = lg.Lookup(cvc.From.Value, LibGit2Sharp.ObjectType.Commit) as LibGit2Sharp.Commit;
+                var to = lg.Lookup(cvc.To.Value, LibGit2Sharp.ObjectType.Commit) as LibGit2Sharp.Commit;
+                oldTree = from?.Tree;
+                newTree = to?.Tree;
+                break;
+            case DiffSpec.IndexVsHead:
+                oldTree = lg.Head.Tip?.Tree;
+                newTree = null;
+                break;
+            case DiffSpec.WorkingTreeVsIndex:
+                oldTree = null;
+                newTree = null;
+                break;
+            default:
+                throw new NotSupportedException();
+        }
+
+        LibGit2Sharp.TreeChanges changes = spec switch
+        {
+            DiffSpec.WorkingTreeVsIndex =>
+                lg.Diff.Compare<LibGit2Sharp.TreeChanges>(
+                    lg.Head.Tip?.Tree,
+                    LibGit2Sharp.DiffTargets.WorkingDirectory | LibGit2Sharp.DiffTargets.Index),
+            DiffSpec.IndexVsHead =>
+                lg.Diff.Compare<LibGit2Sharp.TreeChanges>(
+                    lg.Head.Tip?.Tree, LibGit2Sharp.DiffTargets.Index),
+            _ => lg.Diff.Compare<LibGit2Sharp.TreeChanges>(oldTree, newTree)
+        };
+
+        var patch = spec switch
+        {
+            DiffSpec.WorkingTreeVsIndex =>
+                lg.Diff.Compare<LibGit2Sharp.Patch>(
+                    lg.Head.Tip?.Tree,
+                    LibGit2Sharp.DiffTargets.WorkingDirectory | LibGit2Sharp.DiffTargets.Index),
+            DiffSpec.IndexVsHead =>
+                lg.Diff.Compare<LibGit2Sharp.Patch>(
+                    lg.Head.Tip?.Tree, LibGit2Sharp.DiffTargets.Index),
+            _ => lg.Diff.Compare<LibGit2Sharp.Patch>(oldTree, newTree)
+        };
+
+        var files = new List<FileDiff>();
+        foreach (var change in changes)
+        {
+            ct.ThrowIfCancellationRequested();
+            var p = patch[change.Path];
+            var hunks = ParsePatch(p?.Patch ?? "");
+            files.Add(new FileDiff(
+                Path: change.Path,
+                OldPath: change.OldPath != change.Path ? change.OldPath : null,
+                ChangeKind: MapChangeKind(change.Status),
+                IsBinary: p?.IsBinaryComparison ?? false,
+                LinesAdded: p?.LinesAdded ?? 0,
+                LinesDeleted: p?.LinesDeleted ?? 0,
+                Hunks: hunks));
+        }
+
+        return Task.FromResult(new DiffResult(files));
+    }
+
+    private static FileChangeKind MapChangeKind(LibGit2Sharp.ChangeKind k) => k switch
+    {
+        LibGit2Sharp.ChangeKind.Added       => FileChangeKind.Added,
+        LibGit2Sharp.ChangeKind.Deleted     => FileChangeKind.Deleted,
+        LibGit2Sharp.ChangeKind.Modified    => FileChangeKind.Modified,
+        LibGit2Sharp.ChangeKind.Renamed     => FileChangeKind.Renamed,
+        LibGit2Sharp.ChangeKind.Copied      => FileChangeKind.Copied,
+        LibGit2Sharp.ChangeKind.TypeChanged => FileChangeKind.TypeChanged,
+        LibGit2Sharp.ChangeKind.Conflicted  => FileChangeKind.Unmerged,
+        _ => FileChangeKind.Modified
+    };
+
+    private static IReadOnlyList<DiffHunk> ParsePatch(string patch)
+    {
+        if (string.IsNullOrEmpty(patch)) return Array.Empty<DiffHunk>();
+        var hunks = new List<DiffHunk>();
+        var lines = patch.Split('\n');
+        DiffHunk? current = null;
+        var hunkLines = new List<DiffLine>();
+        var oldLine = 0;
+        var newLine = 0;
+        var oldStart = 0;
+        var oldCount = 0;
+        var newStart = 0;
+        var newCount = 0;
+
+        void Flush()
+        {
+            if (current is null) return;
+            hunks.Add(current with { Lines = hunkLines.ToList() });
+            hunkLines.Clear();
+            current = null;
+        }
+
+        foreach (var raw in lines)
+        {
+            var line = raw.TrimEnd('\r');
+            if (line.StartsWith("@@", StringComparison.Ordinal))
+            {
+                Flush();
+                ParseHunkHeader(line, out oldStart, out oldCount, out newStart, out newCount);
+                oldLine = oldStart;
+                newLine = newStart;
+                current = new DiffHunk(oldStart, oldCount, newStart, newCount, line, Array.Empty<DiffLine>());
+                continue;
+            }
+            if (current is null) continue;
+            if (line.Length == 0) continue;
+            switch (line[0])
+            {
+                case '+': hunkLines.Add(new DiffLine(DiffLineKind.Addition, null, newLine++, line.Substring(1))); break;
+                case '-': hunkLines.Add(new DiffLine(DiffLineKind.Deletion, oldLine++, null, line.Substring(1))); break;
+                case ' ': hunkLines.Add(new DiffLine(DiffLineKind.Context, oldLine++, newLine++, line.Substring(1))); break;
+                default: break;
+            }
+        }
+        Flush();
+        return hunks;
+    }
+
+    private static void ParseHunkHeader(string s, out int oldStart, out int oldCount, out int newStart, out int newCount)
+    {
+        // Format: @@ -oldStart,oldCount +newStart,newCount @@
+        oldStart = oldCount = newStart = newCount = 0;
+        var minus = s.IndexOf('-');
+        var plus = s.IndexOf('+');
+        if (minus < 0 || plus < 0) return;
+        var minusEnd = s.IndexOf(' ', minus);
+        var plusEnd = s.IndexOf(' ', plus);
+        var oldPart = s.Substring(minus + 1, minusEnd - minus - 1);
+        var newPart = s.Substring(plus + 1, plusEnd - plus - 1);
+        ParsePair(oldPart, out oldStart, out oldCount);
+        ParsePair(newPart, out newStart, out newCount);
+    }
+
+    private static void ParsePair(string s, out int start, out int count)
+    {
+        var comma = s.IndexOf(',');
+        if (comma >= 0)
+        {
+            start = int.Parse(s.AsSpan(0, comma), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture);
+            count = int.Parse(s.AsSpan(comma + 1), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture);
+        }
+        else
+        {
+            start = int.Parse(s.AsSpan(), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture);
+            count = 1;
+        }
+    }
 
     public Task<IReadOnlyList<FileTreeEntry>> GetFileTreeAsync(RepoLocation repo, CommitSha sha, string path, CancellationToken ct)
         => throw new NotImplementedException();
