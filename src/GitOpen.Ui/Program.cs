@@ -2,6 +2,7 @@ using GitOpen.Application.DependencyInjection;
 using GitOpen.Infrastructure.DependencyInjection;
 using GitOpen.Infrastructure.Persistence;
 using GitOpen.Ui;
+using GitOpen.Ui.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Photino.Blazor;
@@ -23,7 +24,8 @@ try
     builder.Services
         .AddLogging(lb => lb.AddSerilog())
         .AddGitOpenApplication()
-        .AddGitOpenInfrastructure();
+        .AddGitOpenInfrastructure()
+        .AddSingleton<IFolderPicker, PhotinoFolderPicker>();
     builder.RootComponents.Add<App>("#app");
 
     var app = builder.Build();
