@@ -69,3 +69,24 @@
     color: var(--fg-2);
     font-style: italic;
 }
+
+.stash-row {
+    display: flex;
+    gap: 6px;
+    align-items: baseline;
+    overflow: hidden;
+}
+
+.stash-idx {
+    color: var(--accent-tag);
+    font-family: "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
+    font-size: 11px;
+    flex-shrink: 0;
+}
+
+.stash-msg {
+    color: var(--fg-1);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
