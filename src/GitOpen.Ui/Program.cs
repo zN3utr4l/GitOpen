@@ -59,6 +59,13 @@ internal static class Program
                 .SetContextMenuEnabled(true)
                 .SetDevToolsEnabled(true);
 
+            var maximized = false;
+            app.MainWindow.RegisterWebMessageReceivedHandler((sender, message) =>
+            {
+                try { HandleWebMessage((Photino.NET.PhotinoWindow)sender!, message, ref maximized); }
+                catch (Exception ex) { Log.Warning(ex, "Failed handling web message {Message}", message); }
+            });
+
             AppDomain.CurrentDomain.UnhandledException += (s, e) =>
                 Log.Fatal(e.ExceptionObject as Exception, "Unhandled exception");
 
@@ -93,6 +100,79 @@ internal static class Program
                 Log.Warning(ex, "Failed to reopen workspace {Path}", p);
             }
         }
+    }
+
+    private const int MinWidth = 600;
+    private const int MinHeight = 400;
+
+    private static void HandleWebMessage(Photino.NET.PhotinoWindow window, string message, ref bool maximized)
+    {
+        if (message.StartsWith("drag:", StringComparison.Ordinal))
+        {
+            var parts = message.AsSpan(5);
+            var sep = parts.IndexOf(':');
+            if (sep < 0) return;
+            if (!int.TryParse(parts[..sep], System.Globalization.CultureInfo.InvariantCulture, out var dx)) return;
+            if (!int.TryParse(parts[(sep + 1)..], System.Globalization.CultureInfo.InvariantCulture, out var dy)) return;
+            window.SetLeft(window.Left + dx);
+            window.SetTop(window.Top + dy);
+            return;
+        }
+
+        if (message.StartsWith("resize:", StringComparison.Ordinal))
+        {
+            var rest = message.AsSpan(7);
+            var firstSep = rest.IndexOf(':');
+            if (firstSep < 0) return;
+            var edge = new string(rest[..firstSep]);
+            var deltas = rest[(firstSep + 1)..];
+            var secondSep = deltas.IndexOf(':');
+            if (secondSep < 0) return;
+            if (!int.TryParse(deltas[..secondSep], System.Globalization.CultureInfo.InvariantCulture, out var dx)) return;
+            if (!int.TryParse(deltas[(secondSep + 1)..], System.Globalization.CultureInfo.InvariantCulture, out var dy)) return;
+            ApplyResize(window, edge, dx, dy);
+            return;
+        }
+
+        if (message == "toggleMax")
+        {
+            maximized = !maximized;
+            window.SetMaximized(maximized);
+            return;
+        }
+    }
+
+    private static void ApplyResize(Photino.NET.PhotinoWindow window, string edge, int dx, int dy)
+    {
+        var left = window.Left;
+        var top = window.Top;
+        var width = window.Width;
+        var height = window.Height;
+
+        if (edge.Contains('w'))
+        {
+            var newW = Math.Max(MinWidth, width - dx);
+            left += width - newW;
+            width = newW;
+        }
+        if (edge.Contains('e'))
+        {
+            width = Math.Max(MinWidth, width + dx);
+        }
+        if (edge.Contains('n'))
+        {
+            var newH = Math.Max(MinHeight, height - dy);
+            top += height - newH;
+            height = newH;
+        }
+        if (edge.Contains('s'))
+        {
+            height = Math.Max(MinHeight, height + dy);
+        }
+
+        window.SetLeft(left);
+        window.SetTop(top);
+        window.SetSize(width, height);
     }
 
     private static void PersistAsync(IServiceProvider sp)

@@ -1,6 +1,8 @@
 @inject Photino.NET.PhotinoWindow Window
 
-<div class="titlebar app-drag">
+<div class="titlebar"
+     onpointerdown="gitOpen.startDrag(event)"
+     ondblclick="gitOpen.doubleClickMaximize(event)">
     <div class="brand">
         <span class="logo-dot"></span>
         <span class="brand-name">GitOpen</span>

@@ -3,10 +3,19 @@
     grid-template-columns: auto 70px 1fr 180px 130px;
     align-items: center;
     height: 26px;
+    min-height: 26px;
+    max-height: 26px;
+    box-sizing: border-box;
     padding: 0 var(--gap-md);
     cursor: pointer;
     color: var(--fg-0);
     column-gap: var(--gap-md);
+    overflow: hidden;
+}
+
+.lanes {
+    height: 26px;
+    display: block;
 }
 
 .row:hover { background: var(--bg-4); }
