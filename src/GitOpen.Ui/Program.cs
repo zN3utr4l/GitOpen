@@ -114,8 +114,7 @@ internal static class Program
             if (sep < 0) return;
             if (!int.TryParse(parts[..sep], System.Globalization.CultureInfo.InvariantCulture, out var dx)) return;
             if (!int.TryParse(parts[(sep + 1)..], System.Globalization.CultureInfo.InvariantCulture, out var dy)) return;
-            window.SetLeft(window.Left + dx);
-            window.SetTop(window.Top + dy);
+            window.MoveTo(window.Left + dx, window.Top + dy);
             return;
         }
 
@@ -148,6 +147,8 @@ internal static class Program
         var top = window.Top;
         var width = window.Width;
         var height = window.Height;
+        var origLeft = left;
+        var origTop = top;
 
         if (edge.Contains('w'))
         {
@@ -170,8 +171,7 @@ internal static class Program
             height = Math.Max(MinHeight, height + dy);
         }
 
-        window.SetLeft(left);
-        window.SetTop(top);
+        if (left != origLeft || top != origTop) window.MoveTo(left, top);
         window.SetSize(width, height);
     }
 
