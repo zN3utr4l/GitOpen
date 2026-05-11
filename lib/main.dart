@@ -2,6 +2,8 @@ import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'ui/shell/tab_bar.dart';
+
 void main() {
   runApp(const ProviderScope(child: GitOpenApp()));
 
@@ -47,7 +49,7 @@ class Shell extends StatelessWidget {
             Expanded(
               child: Center(
                 child: Text(
-                  'GitOpen — Phase F (chromeless shell)',
+                  'GitOpen — Phase G (tabs + sidebar coming)',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         color: const Color(0xFFB8B8BC),
                       ),
@@ -71,32 +73,46 @@ class _TitleBar extends StatelessWidget {
         color: const Color(0xFF2C2C31),
         child: Row(
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Row(
-                children: [
-                  Container(
-                    width: 10,
-                    height: 10,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF4EC9B0),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'GitOpen',
-                    style: TextStyle(
-                      color: Color(0xFFD4D4D4),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+            const _Brand(),
+            const SizedBox(width: 8),
+            const Expanded(child: TabsBar()),
+            // A 16-px wide drag handle between tabs and controls
+            SizedBox(width: 16, height: 38, child: MoveWindow()),
+            const _WindowControls(),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Brand extends StatelessWidget {
+  const _Brand();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: MoveWindow(
+        child: Row(
+          children: [
+            Container(
+              width: 10,
+              height: 10,
+              decoration: const BoxDecoration(
+                color: Color(0xFF4EC9B0),
+                shape: BoxShape.circle,
               ),
             ),
-            Expanded(child: MoveWindow()),
-            const _WindowControls(),
+            const SizedBox(width: 8),
+            const Text(
+              'GitOpen',
+              style: TextStyle(
+                color: Color(0xFFD4D4D4),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ],
         ),
       ),

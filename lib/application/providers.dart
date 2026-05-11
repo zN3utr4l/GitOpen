@@ -11,6 +11,7 @@ import '../infrastructure/git/git_process_runner.dart';
 import '../infrastructure/persistence/database.dart';
 import '../infrastructure/persistence/repository_registry_impl.dart';
 import '../infrastructure/persistence/workspace_persistence_impl.dart';
+import '../ui/services/folder_picker.dart';
 
 final appDatabaseProvider = Provider<AppDatabase>((ref) {
   final db = AppDatabase();
@@ -42,3 +43,5 @@ final workspaceManagerProvider =
     StateNotifierProvider<WorkspaceManager, List<Workspace>>((ref) {
   return WorkspaceManager(ref.watch(repositoryRegistryProvider));
 });
+
+final folderPickerProvider = Provider<FolderPicker>((ref) => FolderPicker());
