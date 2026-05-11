@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'application/active_workspace_provider.dart';
 import 'application/providers.dart';
+import 'ui/commit_graph/commit_graph_panel.dart';
 import 'ui/shell/tab_bar.dart';
 import 'ui/sidebar/sidebar.dart';
 
@@ -70,12 +71,7 @@ class Shell extends ConsumerWidget {
                               style: TextStyle(
                                   color: Color(0xFF888892), fontSize: 14),
                             )
-                          : Text(
-                              'Repository: ${active.location.displayName}\n(commit graph coming in Phase H)',
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                  color: Color(0xFFB8B8BC), fontSize: 13),
-                            ),
+                          : CommitGraphPanel(repo: active.location),
                     ),
                   ),
                 ],
