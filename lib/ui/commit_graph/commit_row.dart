@@ -63,22 +63,25 @@ class CommitRow extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Row(
-                    children: [
-                      for (final r in refs)
-                        Padding(
-                          padding: const EdgeInsets.only(right: 4),
-                          child: RefPill(decoration: r),
+                  child: ClipRect(
+                    child: Row(
+                      children: [
+                        for (final r in refs)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 4),
+                            child: RefPill(decoration: r),
+                          ),
+                        if (refs.isNotEmpty) const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            node.commit.summary,
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                            style: TextStyle(color: textColor, fontSize: 12.5),
+                          ),
                         ),
-                      Flexible(
-                        child: Text(
-                          node.commit.summary,
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                          style: TextStyle(color: textColor, fontSize: 12.5),
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),

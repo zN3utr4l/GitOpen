@@ -27,19 +27,77 @@ final commitGraphDataProvider =
   }
   final nodes = layout.compute(commits);
 
-  // Load refs and index by sha
-  final refsBySha = <String, List<RefDecoration>>{};
+  // Load refs and index by sha, with local↔remote merging.
   final branches = await git.getBranches(repo);
+
+  // Bucket all branches by tip sha, splitting locals from remotes.
+  final localsBySha = <String, List<dynamic>>{};
+  final remotesBySha = <String, List<dynamic>>{};
   for (final b in branches) {
     final tip = b.tipSha;
     if (tip == null) continue;
-    (refsBySha[tip.value] ??= []).add(RefDecoration(
-      name: b.name,
-      isRemote: b.isRemote,
-      isTag: false,
-      isCurrent: b.isCurrent,
-    ));
+    final bucket = b.isRemote ? remotesBySha : localsBySha;
+    (bucket[tip.value] ??= []).add(b);
   }
+
+  final refsBySha = <String, List<RefDecoration>>{};
+  final consumedRemotes = <String>{}; // refs/remotes/<full> already merged
+
+  // First pass: locals (possibly merged with their tracked remote(s)).
+  for (final entry in localsBySha.entries) {
+    final sha = entry.key;
+    for (final dynamic b in entry.value) {
+      final merged = <String>[];
+      // A local branch with upstream pointing to a remote that also lives at
+      // this same sha gets merged.
+      if (b.upstreamFullName != null) {
+        final remotesHere = remotesBySha[sha] ?? const [];
+        for (final dynamic r in remotesHere) {
+          if (r.fullName == b.upstreamFullName) {
+            merged.add(r.name); // e.g. "origin/master"
+            consumedRemotes.add(r.fullName);
+          }
+        }
+      }
+      // Also fold remotes that share the bare branch name even without
+      // explicit upstream config (covers detached configurations).
+      final remotesHere = remotesBySha[sha] ?? const [];
+      for (final dynamic r in remotesHere) {
+        if (consumedRemotes.contains(r.fullName)) continue;
+        final remoteBare = r.name.contains('/')
+            ? r.name.substring(r.name.indexOf('/') + 1)
+            : r.name;
+        if (remoteBare == b.name) {
+          merged.add(r.name);
+          consumedRemotes.add(r.fullName);
+        }
+      }
+
+      (refsBySha[sha] ??= []).add(RefDecoration(
+        name: b.name,
+        isRemote: false,
+        isTag: false,
+        isCurrent: b.isCurrent,
+        syncedRemotes: merged,
+      ));
+    }
+  }
+
+  // Second pass: remote refs that weren't merged into any local.
+  for (final entry in remotesBySha.entries) {
+    final sha = entry.key;
+    for (final dynamic r in entry.value) {
+      if (consumedRemotes.contains(r.fullName)) continue;
+      (refsBySha[sha] ??= []).add(RefDecoration(
+        name: r.name,
+        isRemote: true,
+        isTag: false,
+        isCurrent: false,
+      ));
+    }
+  }
+
+  // Tags (never merged with branches).
   final tags = await git.getTags(repo);
   for (final t in tags) {
     (refsBySha[t.targetSha.value] ??= []).add(RefDecoration(
@@ -48,6 +106,21 @@ final commitGraphDataProvider =
       isTag: true,
       isCurrent: false,
     ));
+  }
+
+  // Sort within each sha: current first, then locals, then tags, then remotes.
+  for (final list in refsBySha.values) {
+    list.sort((a, b) {
+      int rank(RefDecoration r) {
+        if (r.isCurrent) return 0;
+        if (!r.isRemote && !r.isTag) return 1;
+        if (r.isTag) return 2;
+        return 3;
+      }
+      final cmp = rank(a).compareTo(rank(b));
+      if (cmp != 0) return cmp;
+      return a.name.compareTo(b.name);
+    });
   }
 
   var maxLane = 0;
