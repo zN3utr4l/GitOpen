@@ -14,7 +14,8 @@ class CommitQuery {
   final int? skip;
   final int? take;
   final String? refSpec;
-  const CommitQuery({this.skip, this.take, this.refSpec});
+  final List<String>? refs;
+  const CommitQuery({this.skip, this.take, this.refSpec, this.refs});
 }
 
 abstract interface class GitReadOperations {

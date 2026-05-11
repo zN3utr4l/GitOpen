@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../application/active_workspace_provider.dart';
+import '../../application/branch_visibility_provider.dart';
 import '../../application/providers.dart';
 import '../../domain/refs/branch.dart';
 import '../../domain/refs/remote.dart';
@@ -232,21 +233,23 @@ class _RefRow extends StatelessWidget {
   }
 }
 
-class BranchTreeView extends StatefulWidget {
+class BranchTreeView extends ConsumerStatefulWidget {
   final List<BranchTreeNode> nodes;
   final int depth;
   const BranchTreeView(
       {super.key, required this.nodes, this.depth = 0});
 
   @override
-  State<BranchTreeView> createState() => _BranchTreeViewState();
+  ConsumerState<BranchTreeView> createState() => _BranchTreeViewState();
 }
 
-class _BranchTreeViewState extends State<BranchTreeView> {
+class _BranchTreeViewState extends ConsumerState<BranchTreeView> {
   final Set<String> _collapsed = {};
 
   @override
   Widget build(BuildContext context) {
+    // Watch hidden refs so the tree re-renders when visibility changes.
+    ref.watch(hiddenRefsProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -258,39 +261,65 @@ class _BranchTreeViewState extends State<BranchTreeView> {
   Widget _renderNode(BranchTreeNode n, int depth) {
     final indent = 6.0 + depth * 14.0;
     if (n.children.isEmpty) {
-      final current = n.branch?.isCurrent ?? false;
-      return InkWell(
-        onTap: () {},
-        child: Padding(
-          padding: EdgeInsets.only(
-              left: indent + 18, right: 12, top: 3, bottom: 3),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 12,
-                child: current
-                    ? const Text('✓',
-                        style: TextStyle(
-                            color: Color(0xFF4EC9B0), fontSize: 11))
-                    : null,
-              ),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  n.name,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: current
-                        ? const Color(0xFF4EC9B0)
-                        : const Color(0xFFB8B8BC),
-                    fontSize: 12.5,
-                    fontWeight: current
-                        ? FontWeight.w600
-                        : FontWeight.normal,
+      final branch = n.branch;
+      final current = branch?.isCurrent ?? false;
+      final fullName = branch?.fullName;
+      final isHidden = fullName != null &&
+          ref.read(hiddenRefsProvider).contains(fullName);
+      return Opacity(
+        opacity: isHidden ? 0.5 : 1.0,
+        child: InkWell(
+          onTap: () {},
+          child: Padding(
+            padding: EdgeInsets.only(
+                left: indent + 18, right: 6, top: 3, bottom: 3),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 12,
+                  child: current
+                      ? const Text('✓',
+                          style: TextStyle(
+                              color: Color(0xFF4EC9B0), fontSize: 11))
+                      : null,
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    n.name,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: current
+                          ? const Color(0xFF4EC9B0)
+                          : const Color(0xFFB8B8BC),
+                      fontSize: 12.5,
+                      fontWeight: current
+                          ? FontWeight.w600
+                          : FontWeight.normal,
+                    ),
                   ),
                 ),
-              ),
-            ],
+                // Visibility eye icon — always visible, click toggles.
+                if (fullName != null)
+                  GestureDetector(
+                    onTap: () => ref
+                        .read(hiddenRefsProvider.notifier)
+                        .toggle(fullName),
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 4),
+                      child: Icon(
+                        isHidden
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                        size: 13,
+                        color: isHidden
+                            ? const Color(0xFF5D5D65)
+                            : const Color(0xFF888892),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       );

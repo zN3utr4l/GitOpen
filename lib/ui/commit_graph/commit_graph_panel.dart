@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../application/active_workspace_provider.dart';
+import '../../application/branch_visibility_provider.dart';
 import '../../application/commit_graph/commit_node.dart';
 import '../../application/git/git_read_operations.dart';
 import '../../application/providers.dart';
@@ -21,14 +22,28 @@ final commitGraphDataProvider =
   final git = ref.watch(gitReadOperationsProvider);
   final layout = ref.watch(commitGraphLayoutProvider);
 
+  // Watch hidden refs so the provider re-runs when visibility changes.
+  final hidden = ref.watch(hiddenRefsProvider);
+
+  // Fetch branches once — used both for the git log refs and for decorations.
+  final branches = await git.getBranches(repo);
+
+  // Compute the set of visible branch fullNames to pass to git log.
+  final visibleBranches =
+      branches.where((b) => !hidden.contains(b.fullName)).toList();
+  final refsForLog = visibleBranches.map((b) => b.fullName).toList();
+
+  // Fall back to HEAD (via --all) when every branch is hidden so the panel
+  // does not go completely empty.
+  final query = refsForLog.isEmpty
+      ? const CommitQuery(take: 5000)
+      : CommitQuery(take: 5000, refs: refsForLog);
+
   final commits = <CommitInfo>[];
-  await for (final c in git.getCommits(repo, const CommitQuery(take: 5000))) {
+  await for (final c in git.getCommits(repo, query)) {
     commits.add(c);
   }
   final nodes = layout.compute(commits);
-
-  // Load refs and index by sha, with local↔remote merging.
-  final branches = await git.getBranches(repo);
 
   // Bucket all branches by tip sha, splitting locals from remotes.
   final localsBySha = <String, List<dynamic>>{};
