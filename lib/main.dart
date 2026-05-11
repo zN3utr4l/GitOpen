@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'application/active_workspace_provider.dart';
 import 'application/providers.dart';
+import 'ui/bottom_panel/bottom_panel.dart';
 import 'ui/commit_graph/commit_graph_panel.dart';
 import 'ui/shell/tab_bar.dart';
 import 'ui/sidebar/sidebar.dart';
@@ -71,7 +72,15 @@ class Shell extends ConsumerWidget {
                               style: TextStyle(
                                   color: Color(0xFF888892), fontSize: 14),
                             )
-                          : CommitGraphPanel(repo: active.location),
+                          : Column(
+                              children: [
+                                Expanded(child: CommitGraphPanel(repo: active.location)),
+                                SizedBox(
+                                  height: 320,
+                                  child: BottomPanel(repo: active.location),
+                                ),
+                              ],
+                            ),
                     ),
                   ),
                 ],
