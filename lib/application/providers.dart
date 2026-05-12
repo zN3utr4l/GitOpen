@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'auth/credentials_store.dart';
 import 'commit_graph/commit_graph_layout.dart';
 import 'git/git_read_operations.dart';
 import 'git/git_write_operations.dart';
@@ -9,6 +10,7 @@ import 'workspaces/repository_registry.dart';
 import 'workspaces/workspace.dart';
 import 'workspaces/workspace_manager.dart';
 import 'workspaces/workspace_persistence.dart';
+import '../infrastructure/auth/secure_credentials_store.dart';
 import '../infrastructure/git/git_cli_read_operations.dart';
 import '../infrastructure/git/git_cli_write_operations.dart';
 import '../infrastructure/git/git_process_runner.dart';
@@ -62,3 +64,7 @@ final activityLogRepositoryProvider = Provider<ActivityLogRepository>((ref) {
 final operationsProvider = StateNotifierProvider<OperationsNotifier, List<RunningOperation>>((ref) {
   return OperationsNotifier(ref.watch(activityLogRepositoryProvider));
 });
+
+final credentialsStoreProvider = Provider<CredentialsStore>(
+  (ref) => SecureCredentialsStore(),
+);
