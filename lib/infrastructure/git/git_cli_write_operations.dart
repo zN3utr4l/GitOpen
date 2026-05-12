@@ -15,9 +15,37 @@ final class GitCliWriteOperations implements GitWriteOperations {
       : _runner = runner ?? GitProcessRunner();
 
   @override
-  Future<GitResult<void>> stageFiles(RepoLocation r, List<String> paths) => throw UnimplementedError();
+  Future<GitResult<void>> stageFiles(RepoLocation r, List<String> paths) async {
+    if (paths.isEmpty) return const GitSuccess(null);
+    try {
+      await _runner.run(r.path, ['add', '--', ...paths]);
+      return const GitSuccess(null);
+    } on GitProcessException catch (e) {
+      return GitFailure(_classify(e), e.stderr, e.stderr);
+    }
+  }
+
   @override
-  Future<GitResult<void>> unstageFiles(RepoLocation r, List<String> paths) => throw UnimplementedError();
+  Future<GitResult<void>> unstageFiles(RepoLocation r, List<String> paths) async {
+    if (paths.isEmpty) return const GitSuccess(null);
+    try {
+      await _runner.run(r.path, ['restore', '--staged', '--', ...paths]);
+      return const GitSuccess(null);
+    } on GitProcessException catch (e) {
+      return GitFailure(_classify(e), e.stderr, e.stderr);
+    }
+  }
+
+  GitErrorKind _classify(GitProcessException e) {
+    final s = e.stderr.toLowerCase();
+    if (s.contains('auth') || s.contains('401') || s.contains('permission denied')) return GitErrorKind.auth;
+    if (s.contains('network') || s.contains('could not resolve') || s.contains('connection')) return GitErrorKind.network;
+    if (s.contains('non-fast-forward') || s.contains('rejected')) return GitErrorKind.nonFastForward;
+    if (s.contains('conflict')) return GitErrorKind.conflict;
+    if (s.contains('would be overwritten')) return GitErrorKind.dirtyWorkingTree;
+    if (s.contains('unknown revision') || s.contains('not a valid ref')) return GitErrorKind.unknownRef;
+    return GitErrorKind.other;
+  }
   @override
   Future<GitResult<void>> stagePatch(RepoLocation r, String unifiedDiff) => throw UnimplementedError();
   @override
