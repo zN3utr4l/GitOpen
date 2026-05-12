@@ -9,6 +9,7 @@ import '../../application/git/git_write_operations.dart';
 import '../../application/git/merge_outcome.dart';
 import '../../domain/commits/commit_sha.dart';
 import '../../domain/repositories/repo_location.dart';
+import 'credential_helper.dart';
 import 'git_process_runner.dart';
 import 'git_progress_parser.dart';
 
@@ -241,23 +242,26 @@ final class GitCliWriteOperations implements GitWriteOperations {
 
   Stream<GitProgress> _runProgressStream(String cwd, List<String> args,
       {AuthSpec? auth}) async* {
-    final env = <String, String>{};
-    if (auth is AuthSsh) {
-      env['GIT_SSH_COMMAND'] =
-          'ssh -i ${auth.privateKeyPath} -F /dev/null -o IdentitiesOnly=yes';
-    }
-    final p = await Process.start(_runner.executable, args,
+    final helper = await CredentialHelper.setup(auth, '');
+    try {
+      final proc = await Process.start(
+        _runner.executable,
+        args,
         workingDirectory: cwd,
-        environment: env.isEmpty ? null : env);
-    await for (final line in p.stderr
-        .transform(utf8.decoder)
-        .transform(const LineSplitter())) {
-      final parsed = GitProgressParser.parse(line);
-      if (parsed != null) yield parsed;
-    }
-    final exit = await p.exitCode;
-    if (exit != 0) {
-      throw GitProcessException(args, exit, '');
+        environment: helper.env.isEmpty ? null : helper.env,
+      );
+      await for (final line in proc.stderr
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())) {
+        final parsed = GitProgressParser.parse(line);
+        if (parsed != null) yield parsed;
+      }
+      final exit = await proc.exitCode;
+      if (exit != 0) {
+        throw GitProcessException(args, exit, '');
+      }
+    } finally {
+      helper.dispose();
     }
   }
   @override
