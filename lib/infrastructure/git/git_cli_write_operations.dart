@@ -68,7 +68,15 @@ final class GitCliWriteOperations implements GitWriteOperations {
     }
   }
   @override
-  Future<GitResult<void>> discardChanges(RepoLocation r, List<String> paths) => throw UnimplementedError();
+  Future<GitResult<void>> discardChanges(RepoLocation r, List<String> paths) async {
+    if (paths.isEmpty) return const GitSuccess(null);
+    try {
+      await _runner.run(r.path, ['checkout', '--', ...paths]);
+      return const GitSuccess(null);
+    } on GitProcessException catch (e) {
+      return GitFailure(_classify(e), e.stderr, e.stderr);
+    }
+  }
 
   @override
   Future<GitResult<CommitSha>> commit(RepoLocation r, CommitRequest req) async {
@@ -155,9 +163,28 @@ final class GitCliWriteOperations implements GitWriteOperations {
     }
   }
   @override
-  Future<GitResult<void>> createTag(RepoLocation r, String name, {CommitSha? at, String? message}) => throw UnimplementedError();
+  Future<GitResult<void>> createTag(RepoLocation r, String name, {CommitSha? at, String? message}) async {
+    try {
+      final args = <String>['tag'];
+      if (message != null) args.addAll(['-a', '-m', message]);
+      args.add(name);
+      if (at != null) args.add(at.value);
+      await _runner.run(r.path, args);
+      return const GitSuccess(null);
+    } on GitProcessException catch (e) {
+      return GitFailure(_classify(e), e.stderr, e.stderr);
+    }
+  }
+
   @override
-  Future<GitResult<void>> deleteTag(RepoLocation r, String name) => throw UnimplementedError();
+  Future<GitResult<void>> deleteTag(RepoLocation r, String name) async {
+    try {
+      await _runner.run(r.path, ['tag', '-d', name]);
+      return const GitSuccess(null);
+    } on GitProcessException catch (e) {
+      return GitFailure(_classify(e), e.stderr, e.stderr);
+    }
+  }
   @override
   Stream<GitProgress> fetch(RepoLocation r, {String? remote, bool all = false, AuthSpec? auth}) => throw UnimplementedError();
   @override
