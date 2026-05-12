@@ -30,6 +30,23 @@ class GitProcessRunner {
     return result.stdout.toString();
   }
 
+  Future<String> runWithStdin(
+      String workingDir, List<String> args, String input) async {
+    final proc =
+        await Process.start(executable, args, workingDirectory: workingDir);
+    proc.stdin.add(utf8.encode(input));
+    await proc.stdin.close();
+    final outBuf = StringBuffer();
+    final errBuf = StringBuffer();
+    await Future.wait([
+      proc.stdout.transform(utf8.decoder).forEach(outBuf.write),
+      proc.stderr.transform(utf8.decoder).forEach(errBuf.write),
+    ]);
+    final exit = await proc.exitCode;
+    if (exit != 0) throw GitProcessException(args, exit, errBuf.toString());
+    return outBuf.toString();
+  }
+
   Stream<String> streamLines(String workingDir, List<String> args) async* {
     final p = await Process.start(executable, args,
         workingDirectory: workingDir);

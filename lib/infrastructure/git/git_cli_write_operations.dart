@@ -47,9 +47,26 @@ final class GitCliWriteOperations implements GitWriteOperations {
     return GitErrorKind.other;
   }
   @override
-  Future<GitResult<void>> stagePatch(RepoLocation r, String unifiedDiff) => throw UnimplementedError();
+  Future<GitResult<void>> stagePatch(RepoLocation r, String unifiedDiff) async {
+    try {
+      await _runner.runWithStdin(
+          r.path, ['apply', '--cached', '--whitespace=nowarn', '-'], unifiedDiff);
+      return const GitSuccess(null);
+    } on GitProcessException catch (e) {
+      return GitFailure(_classify(e), e.stderr, e.stderr);
+    }
+  }
+
   @override
-  Future<GitResult<void>> unstagePatch(RepoLocation r, String unifiedDiff) => throw UnimplementedError();
+  Future<GitResult<void>> unstagePatch(RepoLocation r, String unifiedDiff) async {
+    try {
+      await _runner.runWithStdin(r.path,
+          ['apply', '--cached', '--reverse', '--whitespace=nowarn', '-'], unifiedDiff);
+      return const GitSuccess(null);
+    } on GitProcessException catch (e) {
+      return GitFailure(_classify(e), e.stderr, e.stderr);
+    }
+  }
   @override
   Future<GitResult<void>> discardChanges(RepoLocation r, List<String> paths) => throw UnimplementedError();
   @override
