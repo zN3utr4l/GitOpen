@@ -35,3 +35,41 @@ Run on both Windows and Ubuntu before each release.
 ## Resilience
 - [ ] Open a very large repo (10k+ commits) — initial load < 5 s
 - [ ] Open an empty repo (no commits) — graph panel shows "No commits"
+
+---
+
+# Manual QA Checklist (Slice 2 — Write operations)
+
+Run on Windows before the `slice-2-write-ops` release tag.
+
+## Clone
+- [ ] Clone a public GitHub repo via Clone dialog (HTTPS, no auth)
+
+## Commit workflow
+- [ ] Open Working Copy → stage a hunk → type a message → commit → see new commit in graph
+- [ ] Open Working Copy → tick "Amend last commit" → update message → commit
+
+## Branch operations
+- [ ] Create a new branch from HEAD → switch to it → make a commit → graph shows new branch tip
+
+## Sync operations
+- [ ] Fetch / Pull / Push to a remote (use a personal test repo) — progress toast appears and dismisses
+
+## Stash
+- [ ] Stash changes (with a message) → verify working copy is clean → Pop → verify changes restored
+
+## Conflict resolution
+- [ ] Trigger a merge conflict → conflict resolution panel appears → open conflicting file in VS Code → resolve → Continue → merge commit visible in graph
+
+## Cherry-pick
+- [ ] Cherry-pick a commit from another branch → new commit appears on current branch
+
+## Reset
+- [ ] Right-click a commit row → Reset (hard) → confirmation dialog → graph rewinds
+
+## Tags
+- [ ] Tag a commit via context menu → tag pill appears in graph → delete the tag → pill disappears
+
+## Keyboard shortcuts
+- [ ] With Working Copy open, Ctrl+Enter triggers commit (when message is non-empty)
+- [ ] F5 triggers fetch for the active repo (toast appears)
