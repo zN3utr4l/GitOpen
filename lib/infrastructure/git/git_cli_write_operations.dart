@@ -69,8 +69,25 @@ final class GitCliWriteOperations implements GitWriteOperations {
   }
   @override
   Future<GitResult<void>> discardChanges(RepoLocation r, List<String> paths) => throw UnimplementedError();
+
   @override
-  Future<GitResult<CommitSha>> commit(RepoLocation r, CommitRequest req) => throw UnimplementedError();
+  Future<GitResult<CommitSha>> commit(RepoLocation r, CommitRequest req) async {
+    final args = <String>['commit', '-m', req.message];
+    if (req.amend) args.add('--amend');
+    if (req.signOff) args.add('--signoff');
+    if (req.authorName != null && req.authorEmail != null) {
+      args.addAll(['--author', '${req.authorName} <${req.authorEmail}>']);
+    }
+    // Allow empty commits only on amend (to update msg of last commit)
+    if (req.amend) args.add('--allow-empty');
+    try {
+      await _runner.run(r.path, args);
+      final sha = (await _runner.run(r.path, ['rev-parse', 'HEAD'])).trim();
+      return GitSuccess(CommitSha(sha));
+    } on GitProcessException catch (e) {
+      return GitFailure(_classify(e), e.stderr, e.stderr);
+    }
+  }
   @override
   Future<GitResult<void>> createBranch(RepoLocation r, String name, {CommitSha? at, bool checkout = false}) => throw UnimplementedError();
   @override
