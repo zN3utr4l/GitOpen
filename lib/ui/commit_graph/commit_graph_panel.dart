@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../application/active_workspace_provider.dart';
 import '../../application/branch_visibility_provider.dart';
 import '../../application/commit_graph/commit_node.dart';
 import '../../application/git/git_read_operations.dart';
+import '../../application/git/git_write_operations.dart';
 import '../../application/providers.dart';
-import '../../domain/commits/commit_info.dart';
+import '../../domain/commits/commit_sha.dart';
 import '../../domain/repositories/repo_location.dart';
+import '../dialogs/branch_create_dialog.dart';
+import '../dialogs/confirm_dialog.dart';
 import 'commit_row.dart';
 import 'local_changes_row.dart';
 import 'ref_decoration.dart';
@@ -40,11 +44,11 @@ final commitGraphDataProvider =
       ? const CommitQuery(take: 5000)
       : CommitQuery(take: 5000, refs: refsForLog);
 
-  final commits = <CommitInfo>[];
+  final commits = <dynamic>[];
   await for (final c in git.getCommits(repo, query)) {
     commits.add(c);
   }
-  final nodes = layout.compute(commits);
+  final nodes = layout.compute(commits.cast());
 
   // Bucket all branches by tip sha, splitting locals from remotes.
   final localsBySha = <String, List<dynamic>>{};
@@ -194,6 +198,12 @@ class CommitGraphPanel extends ConsumerWidget {
                         ref.read(localChangesSelectedProvider.notifier).state =
                             false;
                       },
+                      onSecondaryTap: (globalPos) => _showCommitContextMenu(
+                        context,
+                        ref,
+                        node.commit.sha,
+                        globalPos,
+                      ),
                     );
                   },
                 ),
@@ -208,6 +218,167 @@ class CommitGraphPanel extends ConsumerWidget {
             child: Text('Failed to load graph: $e',
                 style: const TextStyle(color: Color(0xFFF48771))),
           ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showCommitContextMenu(
+    BuildContext context,
+    WidgetRef ref,
+    CommitSha sha,
+    Offset globalPos,
+  ) async {
+    final rect = RelativeRect.fromLTRB(
+        globalPos.dx, globalPos.dy, globalPos.dx, globalPos.dy);
+
+    final selected = await showMenu<String>(
+      context: context,
+      position: rect,
+      items: [
+        const PopupMenuItem(
+            value: 'cherry_pick', child: Text('Cherry-pick into current')),
+        const PopupMenuItem(
+            value: 'branch_here', child: Text('Create branch here…')),
+        const PopupMenuItem(value: 'tag_here', child: Text('Tag here…')),
+        const PopupMenuDivider(),
+        const PopupMenuItem(value: 'copy_sha', child: Text('Copy SHA')),
+        const PopupMenuItem(
+            value: 'copy_short_sha', child: Text('Copy short SHA')),
+        const PopupMenuDivider(),
+        PopupMenuItem(
+          value: 'reset_submenu',
+          child: _ResetSubmenuTile(
+            sha: sha,
+            repo: repo,
+            onAction: (mode) async {
+              Navigator.pop(context, '__reset_handled__');
+              if (!context.mounted) return;
+              await _doReset(context, ref, sha, mode);
+            },
+          ),
+        ),
+      ],
+    );
+
+    if (selected == null || selected == '__reset_handled__' || !context.mounted) {
+      return;
+    }
+
+    final write = ref.read(gitWriteOperationsProvider);
+
+    switch (selected) {
+      case 'cherry_pick':
+        await write.cherryPick(repo, sha);
+        ref.invalidate(gitReadOperationsProvider);
+
+      case 'branch_here':
+        await BranchCreateDialog.show(context, repo, at: sha);
+        ref.invalidate(gitReadOperationsProvider);
+
+      case 'tag_here':
+        if (!context.mounted) return;
+        final tagName = await _promptText(context, 'Tag here', label: 'Tag name');
+        if (tagName == null || tagName.trim().isEmpty) return;
+        await write.createTag(repo, tagName.trim(), at: sha);
+        ref.invalidate(gitReadOperationsProvider);
+
+      case 'copy_sha':
+        await Clipboard.setData(ClipboardData(text: sha.value));
+
+      case 'copy_short_sha':
+        await Clipboard.setData(ClipboardData(text: sha.short()));
+    }
+  }
+
+  Future<void> _doReset(
+    BuildContext context,
+    WidgetRef ref,
+    CommitSha sha,
+    ResetMode mode,
+  ) async {
+    if (mode == ResetMode.hard) {
+      if (!context.mounted) return;
+      final confirmed = await ConfirmDialog.show(
+        context,
+        title: 'Hard reset',
+        body: 'This will discard all uncommitted changes and rewrite history. Are you sure?',
+        confirmLabel: 'Reset',
+        dangerous: true,
+      );
+      if (!confirmed) return;
+    }
+    await ref.read(gitWriteOperationsProvider).reset(repo, sha, mode);
+    ref.invalidate(gitReadOperationsProvider);
+  }
+
+  Future<String?> _promptText(BuildContext context, String title,
+      {required String label, String? initial}) async {
+    final ctl = TextEditingController(text: initial);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: ctl,
+          autofocus: true,
+          decoration: InputDecoration(labelText: label),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel')),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, ctl.text),
+              child: const Text('OK')),
+        ],
+      ),
+    );
+    ctl.dispose();
+    return result;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Reset submenu tile — inline submenu within the context menu
+// ---------------------------------------------------------------------------
+
+class _ResetSubmenuTile extends StatelessWidget {
+  final CommitSha sha;
+  final RepoLocation repo;
+  final void Function(ResetMode mode) onAction;
+
+  const _ResetSubmenuTile({
+    required this.sha,
+    required this.repo,
+    required this.onAction,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return MenuAnchor(
+      menuChildren: [
+        MenuItemButton(
+          onPressed: () => onAction(ResetMode.soft),
+          child: const Text('Soft'),
+        ),
+        MenuItemButton(
+          onPressed: () => onAction(ResetMode.mixed),
+          child: const Text('Mixed'),
+        ),
+        MenuItemButton(
+          onPressed: () => onAction(ResetMode.hard),
+          child: const Text('Hard…'),
+        ),
+      ],
+      builder: (context, controller, child) => InkWell(
+        onTap: () =>
+            controller.isOpen ? controller.close() : controller.open(),
+        child: Row(
+          children: const [
+            Expanded(child: Text('Reset to here')),
+            Icon(Icons.chevron_right, size: 16),
+          ],
         ),
       ),
     );

@@ -11,6 +11,9 @@ class CommitRow extends StatelessWidget {
   final List<RefDecoration> refs;
   final bool isSelected;
   final VoidCallback onTap;
+  /// Called when the user right-clicks / secondary-taps on this row.
+  /// Receives the global position of the tap for context-menu placement.
+  final void Function(Offset globalPosition)? onSecondaryTap;
 
   const CommitRow({
     super.key,
@@ -19,6 +22,7 @@ class CommitRow extends StatelessWidget {
     required this.refs,
     required this.isSelected,
     required this.onTap,
+    this.onSecondaryTap,
   });
 
   static final _dateFmt = DateFormat('yyyy-MM-dd HH:mm');
@@ -33,80 +37,85 @@ class CommitRow extends StatelessWidget {
 
     return Material(
       color: bg,
-      child: InkWell(
-        onTap: onTap,
-        hoverColor: const Color(0xFF34343A),
-        child: SizedBox(
-          height: kRowHeight,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: svgWidth(maxLane),
-                  height: kRowHeight,
-                  child: CustomPaint(
-                    painter: LanePainter(node: node, maxLane: maxLane),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                SizedBox(
-                  width: 70,
-                  child: Text(
-                    node.commit.sha.short(),
-                    style: TextStyle(
-                      color: shaColor,
-                      fontFamily: 'monospace',
-                      fontSize: 11.5,
+      child: GestureDetector(
+        onSecondaryTapDown: onSecondaryTap != null
+            ? (details) => onSecondaryTap!(details.globalPosition)
+            : null,
+        child: InkWell(
+          onTap: onTap,
+          hoverColor: const Color(0xFF34343A),
+          child: SizedBox(
+            height: kRowHeight,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: svgWidth(maxLane),
+                    height: kRowHeight,
+                    child: CustomPaint(
+                      painter: LanePainter(node: node, maxLane: maxLane),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ClipRect(
-                    child: Row(
-                      children: [
-                        for (final r in refs)
-                          Padding(
-                            padding: const EdgeInsets.only(right: 4),
-                            child: RefPill(decoration: r),
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    width: 70,
+                    child: Text(
+                      node.commit.sha.short(),
+                      style: TextStyle(
+                        color: shaColor,
+                        fontFamily: 'monospace',
+                        fontSize: 11.5,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ClipRect(
+                      child: Row(
+                        children: [
+                          for (final r in refs)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 4),
+                              child: RefPill(decoration: r),
+                            ),
+                          if (refs.isNotEmpty) const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              node.commit.summary,
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                              style: TextStyle(color: textColor, fontSize: 12.5),
+                            ),
                           ),
-                        if (refs.isNotEmpty) const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                            node.commit.summary,
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
-                            style: TextStyle(color: textColor, fontSize: 12.5),
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                SizedBox(
-                  width: 180,
-                  child: Text(
-                    node.commit.author.name,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: mutedColor, fontSize: 12),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                SizedBox(
-                  width: 130,
-                  child: Text(
-                    _dateFmt.format(node.commit.author.when.toLocal()),
-                    style: TextStyle(
-                      color: dateColor,
-                      fontSize: 11.5,
-                      fontFeatures: const [FontFeature.tabularFigures()],
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    width: 180,
+                    child: Text(
+                      node.commit.author.name,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: mutedColor, fontSize: 12),
                     ),
-                    textAlign: TextAlign.right,
                   ),
-                ),
-              ],
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    width: 130,
+                    child: Text(
+                      _dateFmt.format(node.commit.author.when.toLocal()),
+                      style: TextStyle(
+                        color: dateColor,
+                        fontSize: 11.5,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                      textAlign: TextAlign.right,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
