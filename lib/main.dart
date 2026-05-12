@@ -12,6 +12,7 @@ import 'ui/commit_graph/commit_graph_panel.dart';
 import 'ui/operations/toast_overlay.dart';
 import 'ui/shell/repo_selector.dart';
 import 'ui/sidebar/sidebar.dart';
+import 'ui/toolbar/git_toolbar.dart';
 import 'ui/working_copy/working_copy_panel.dart';
 
 final _log = Logger();
@@ -170,6 +171,9 @@ class _TitleBar extends StatelessWidget {
             Expanded(child: MoveWindow()),
             // Repo selector dropdown — non-draggable interactive area.
             const RepoSelector(),
+            const SizedBox(width: 8),
+            // Fetch / Pull / Push toolbar buttons.
+            const GitToolbar(),
             // Right drag spacer.
             Expanded(child: MoveWindow()),
             // Window controls (min/max/close) — interactive.
