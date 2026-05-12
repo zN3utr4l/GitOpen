@@ -89,15 +89,71 @@ final class GitCliWriteOperations implements GitWriteOperations {
     }
   }
   @override
-  Future<GitResult<void>> createBranch(RepoLocation r, String name, {CommitSha? at, bool checkout = false}) => throw UnimplementedError();
+  Future<GitResult<void>> createBranch(RepoLocation r, String name, {CommitSha? at, bool checkout = false}) async {
+    try {
+      final args = checkout ? ['checkout', '-b', name] : ['branch', name];
+      if (at != null) args.add(at.value);
+      await _runner.run(r.path, args);
+      return const GitSuccess(null);
+    } on GitProcessException catch (e) {
+      return GitFailure(_classify(e), e.stderr, e.stderr);
+    }
+  }
+
   @override
-  Future<GitResult<void>> checkout(RepoLocation r, String ref, {bool force = false}) => throw UnimplementedError();
+  Future<GitResult<void>> checkout(RepoLocation r, String ref, {bool force = false}) async {
+    try {
+      final args = <String>['checkout'];
+      if (force) args.add('--force');
+      args.add(ref);
+      await _runner.run(r.path, args);
+      return const GitSuccess(null);
+    } on GitProcessException catch (e) {
+      return GitFailure(_classify(e), e.stderr, e.stderr);
+    }
+  }
+
   @override
-  Future<GitResult<void>> deleteBranch(RepoLocation r, String name, {bool force = false, bool remote = false}) => throw UnimplementedError();
+  Future<GitResult<void>> deleteBranch(RepoLocation r, String name, {bool force = false, bool remote = false}) async {
+    try {
+      if (remote) {
+        // Delete remote branch via push --delete
+        final parts = name.split('/');
+        if (parts.length < 2) {
+          return const GitFailure(GitErrorKind.invalidArgument, 'remote branch name must be <remote>/<branch>');
+        }
+        final remoteName = parts.first;
+        final branchName = parts.sublist(1).join('/');
+        await _runner.run(r.path, ['push', remoteName, '--delete', branchName]);
+      } else {
+        final flag = force ? '-D' : '-d';
+        await _runner.run(r.path, ['branch', flag, name]);
+      }
+      return const GitSuccess(null);
+    } on GitProcessException catch (e) {
+      return GitFailure(_classify(e), e.stderr, e.stderr);
+    }
+  }
+
   @override
-  Future<GitResult<void>> renameBranch(RepoLocation r, String oldName, String newName) => throw UnimplementedError();
+  Future<GitResult<void>> renameBranch(RepoLocation r, String oldName, String newName) async {
+    try {
+      await _runner.run(r.path, ['branch', '-m', oldName, newName]);
+      return const GitSuccess(null);
+    } on GitProcessException catch (e) {
+      return GitFailure(_classify(e), e.stderr, e.stderr);
+    }
+  }
+
   @override
-  Future<GitResult<void>> setUpstream(RepoLocation r, String branch, String upstream) => throw UnimplementedError();
+  Future<GitResult<void>> setUpstream(RepoLocation r, String branch, String upstream) async {
+    try {
+      await _runner.run(r.path, ['branch', '--set-upstream-to=$upstream', branch]);
+      return const GitSuccess(null);
+    } on GitProcessException catch (e) {
+      return GitFailure(_classify(e), e.stderr, e.stderr);
+    }
+  }
   @override
   Future<GitResult<void>> createTag(RepoLocation r, String name, {CommitSha? at, String? message}) => throw UnimplementedError();
   @override
