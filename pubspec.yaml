@@ -50,8 +50,23 @@ dev_dependencies:
   # Drift codegen
   drift_dev: ^2.21.0
   build_runner: ^2.4.13
+  msix: ^3.16.13
 
 flutter:
   uses-material-design: true
   assets:
     - assets/icon/
+
+msix_config:
+  display_name: GitOpen
+  publisher_display_name: s.porta
+  identity_name: com.gitopen.desktop
+  msix_version: 1.0.0.0
+  logo_path: assets/icon/app_icon.png
+  start_menu_icon_path: assets/icon/app_icon.png
+  tile_icon_path: assets/icon/app_icon.png
+  install_certificate: false
+  store: false
+  capabilities: 'internetClient'
+  output_path: build/windows/x64/runner/Release
+  output_name: gitopen
