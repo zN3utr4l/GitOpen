@@ -159,10 +159,12 @@ class _ShellState extends ConsumerState<Shell> {
       },
       child: Focus(
         autofocus: true,
-        child: Scaffold(
-          backgroundColor: const Color(0xFF1F1F23),
+        child: Builder(builder: (context) {
+          final palette = AppPalette.of(context);
+          return Scaffold(
+          backgroundColor: palette.bg1,
           body: WindowBorder(
-            color: const Color(0xFF2C2C31),
+            color: palette.bg3,
             width: 1,
             child: Stack(children: [
               Column(
@@ -174,7 +176,7 @@ class _ShellState extends ConsumerState<Shell> {
                         const Sidebar(),
                         Expanded(
                           child: Container(
-                            color: const Color(0xFF1F1F23),
+                            color: palette.bg1,
                             alignment: Alignment.center,
                             child: workspaces.isEmpty
                                 ? const WelcomeScreen()
@@ -220,7 +222,8 @@ class _ShellState extends ConsumerState<Shell> {
               const ToastOverlay(),
             ]),
           ),
-        ),
+        );
+        }),
       ),
     );
   }
@@ -231,9 +234,10 @@ class _TitleBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
     return WindowTitleBarBox(
       child: Container(
-        color: const Color(0xFF2C2C31),
+        color: palette.bg3,
         child: Row(
           children: [
             // Brand: small, on its own draggable surface.
@@ -261,6 +265,7 @@ class _Brand extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Row(
@@ -269,16 +274,16 @@ class _Brand extends StatelessWidget {
           Container(
             width: 10,
             height: 10,
-            decoration: const BoxDecoration(
-              color: Color(0xFF4EC9B0),
+            decoration: BoxDecoration(
+              color: palette.accentCurrent,
               shape: BoxShape.circle,
             ),
           ),
           const SizedBox(width: 8),
-          const Text(
+          Text(
             'GitOpen',
             style: TextStyle(
-              color: Color(0xFFD4D4D4),
+              color: palette.fg0,
               fontSize: 13,
               fontWeight: FontWeight.w600,
             ),
@@ -294,17 +299,18 @@ class _WindowControls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
     final colors = WindowButtonColors(
-      iconNormal: const Color(0xFFB8B8BC),
-      mouseOver: const Color(0xFF34343A),
-      mouseDown: const Color(0xFF3D3D44),
-      iconMouseOver: const Color(0xFFD4D4D4),
-      iconMouseDown: const Color(0xFFD4D4D4),
+      iconNormal: palette.fg1,
+      mouseOver: palette.bg4,
+      mouseDown: palette.bg5,
+      iconMouseOver: palette.fg0,
+      iconMouseDown: palette.fg0,
     );
     final closeColors = WindowButtonColors(
-      iconNormal: const Color(0xFFB8B8BC),
-      mouseOver: const Color(0xFFC4314B),
-      mouseDown: const Color(0xFFA52739),
+      iconNormal: palette.fg1,
+      mouseOver: palette.accentErr,
+      mouseDown: palette.accentErr,
       iconMouseOver: Colors.white,
       iconMouseDown: Colors.white,
     );

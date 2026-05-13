@@ -11,6 +11,7 @@ import '../../application/git/git_result.dart';
 import '../../application/git/merge_outcome.dart';
 import '../../domain/repositories/repo_location.dart';
 import '../dialogs/confirm_dialog.dart';
+import '../theme/app_palette.dart';
 import 'branch_tree.dart';
 
 class _SidebarData {
@@ -45,18 +46,19 @@ class Sidebar extends ConsumerWidget {
             .cast<dynamic>()
             .firstOrNull;
 
+    final palette = AppPalette.of(context);
     return Container(
       width: 260,
-      decoration: const BoxDecoration(
-        color: Color(0xFF25252A),
-        border: Border(right: BorderSide(color: Color(0xFF313137))),
+      decoration: BoxDecoration(
+        color: palette.bg2,
+        border: Border(right: BorderSide(color: palette.border)),
       ),
       child: activeWs == null
-          ? const Center(
+          ? Center(
               child: Text(
                 'No repository selected',
                 style: TextStyle(
-                    color: Color(0xFF888892), fontStyle: FontStyle.italic),
+                    color: palette.fg2, fontStyle: FontStyle.italic),
               ),
             )
           : Consumer(builder: (context, ref, _) {
@@ -72,7 +74,7 @@ class Sidebar extends ConsumerWidget {
                     padding: const EdgeInsets.all(16),
                     child: Text('Error: $e',
                         style:
-                            const TextStyle(color: Color(0xFFF48771))),
+                            TextStyle(color: palette.accentErr)),
                   ),
                 ),
               );
@@ -115,8 +117,8 @@ class _SidebarContent extends ConsumerWidget {
                             left: 14, top: 4, bottom: 2),
                         child: Text(
                           r.name.toUpperCase(),
-                          style: const TextStyle(
-                            color: Color(0xFF888892),
+                          style: TextStyle(
+                            color: AppPalette.of(context).fg2,
                             fontSize: 10.5,
                             letterSpacing: 0.4,
                           ),
@@ -181,7 +183,7 @@ class _TagRow extends ConsumerWidget {
           child: Text(
             tag.name,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: Color(0xFFB8B8BC), fontSize: 12.5),
+            style: TextStyle(color: AppPalette.of(context).fg1, fontSize: 12.5),
           ),
         ),
       ),
@@ -258,7 +260,7 @@ class _StashRow extends ConsumerWidget {
           child: Text(
             'stash@{${stash.index}} — ${stash.message}',
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: Color(0xFFB8B8BC), fontSize: 12.5),
+            style: TextStyle(color: AppPalette.of(context).fg1, fontSize: 12.5),
           ),
         ),
       ),
@@ -323,6 +325,7 @@ class _SectionState extends State<_Section> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -335,13 +338,13 @@ class _SectionState extends State<_Section> {
               Icon(
                 _open ? Icons.expand_more : Icons.chevron_right,
                 size: 14,
-                color: const Color(0xFF5D5D65),
+                color: palette.fg3,
               ),
               const SizedBox(width: 4),
               Text(
                 widget.title,
-                style: const TextStyle(
-                  color: Color(0xFF888892),
+                style: TextStyle(
+                  color: palette.fg2,
                   fontSize: 10.5,
                   letterSpacing: 0.5,
                 ),
@@ -366,8 +369,8 @@ class _EmptyHint extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
         child: Text(text,
-            style: const TextStyle(
-                color: Color(0xFF5D5D65),
+            style: TextStyle(
+                color: AppPalette.of(context).fg3,
                 fontSize: 11.5,
                 fontStyle: FontStyle.italic)),
       );
@@ -440,7 +443,7 @@ class _BranchTreeViewState extends ConsumerState<BranchTreeView> {
             SnackBar(
               content: Text(
                   'Merge conflict in ${outcome.conflictedPaths.length} file(s). Full conflict UI coming in 2D.'),
-              backgroundColor: const Color(0xFFC4314B),
+              backgroundColor: AppPalette.of(context).accentErr,
             ),
           );
         }
@@ -525,9 +528,9 @@ class _BranchTreeViewState extends ConsumerState<BranchTreeView> {
                   SizedBox(
                     width: 12,
                     child: current
-                        ? const Text('✓',
+                        ? Text('✓',
                             style: TextStyle(
-                                color: Color(0xFF4EC9B0), fontSize: 11))
+                                color: AppPalette.of(context).accentCurrent, fontSize: 11))
                         : null,
                   ),
                   const SizedBox(width: 4),
@@ -537,8 +540,8 @@ class _BranchTreeViewState extends ConsumerState<BranchTreeView> {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: current
-                            ? const Color(0xFF4EC9B0)
-                            : const Color(0xFFB8B8BC),
+                            ? AppPalette.of(context).accentCurrent
+                            : AppPalette.of(context).fg1,
                         fontSize: 12.5,
                         fontWeight: current
                             ? FontWeight.w600
@@ -560,8 +563,8 @@ class _BranchTreeViewState extends ConsumerState<BranchTreeView> {
                               : Icons.visibility,
                           size: 13,
                           color: isHidden
-                              ? const Color(0xFF5D5D65)
-                              : const Color(0xFF888892),
+                              ? AppPalette.of(context).fg3
+                              : AppPalette.of(context).fg2,
                         ),
                       ),
                     ),
@@ -591,14 +594,14 @@ class _BranchTreeViewState extends ConsumerState<BranchTreeView> {
               Icon(
                 open ? Icons.expand_more : Icons.chevron_right,
                 size: 14,
-                color: const Color(0xFF5D5D65),
+                color: AppPalette.of(context).fg3,
               ),
               const SizedBox(width: 4),
               Expanded(
                 child: Text(n.name,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xFFB8B8BC),
+                    style: TextStyle(
+                      color: AppPalette.of(context).fg1,
                       fontSize: 12.5,
                       fontWeight: FontWeight.w500,
                     )),

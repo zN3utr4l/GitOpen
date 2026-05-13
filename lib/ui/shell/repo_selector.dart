@@ -5,6 +5,7 @@ import '../../application/providers.dart';
 import '../../application/workspaces/workspace.dart';
 import '../../domain/repositories/repo_id.dart';
 import '../dialogs/clone_dialog.dart';
+import '../theme/app_palette.dart';
 
 /// Dropdown placed in the title bar that picks the active workspace.
 /// Replaces the tab strip — the title bar gains drag area on either side.
@@ -28,12 +29,13 @@ class _RepoSelectorState extends ConsumerState<RepoSelector> {
               orElse: () => null,
             );
 
+    final palette = AppPalette.of(context);
     return MenuAnchor(
       controller: _menu,
       style: MenuStyle(
-        backgroundColor: WidgetStateProperty.all(const Color(0xFF25252A)),
+        backgroundColor: WidgetStateProperty.all(palette.bg2),
         side: WidgetStateProperty.all(
-          const BorderSide(color: Color(0xFF313137)),
+          BorderSide(color: palette.border),
         ),
         shape: WidgetStateProperty.all(
           RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
@@ -45,11 +47,11 @@ class _RepoSelectorState extends ConsumerState<RepoSelector> {
       ),
       menuChildren: [
         if (workspaces.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Text(
               'No repositories open',
-              style: TextStyle(color: Color(0xFF888892), fontSize: 12, fontStyle: FontStyle.italic),
+              style: TextStyle(color: palette.fg2, fontSize: 12, fontStyle: FontStyle.italic),
             ),
           )
         else
@@ -63,35 +65,35 @@ class _RepoSelectorState extends ConsumerState<RepoSelector> {
               },
               onClose: () => _close(w.location.id),
             ),
-        const Divider(height: 1, color: Color(0xFF313137)),
+        Divider(height: 1, color: palette.border),
         MenuItemButton(
           style: ButtonStyle(
             padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: 16, vertical: 10)),
             backgroundColor: WidgetStateProperty.resolveWith((states) {
-              if (states.contains(WidgetState.hovered)) return const Color(0xFF34343A);
+              if (states.contains(WidgetState.hovered)) return palette.bg4;
               return Colors.transparent;
             }),
           ),
-          leadingIcon: const Icon(Icons.folder_open, size: 16, color: Color(0xFFB8B8BC)),
+          leadingIcon: Icon(Icons.folder_open, size: 16, color: palette.fg1),
           onPressed: _openRepo,
-          child: const Text(
+          child: Text(
             'Open repository...',
-            style: TextStyle(color: Color(0xFFD4D4D4), fontSize: 12.5),
+            style: TextStyle(color: palette.fg0, fontSize: 12.5),
           ),
         ),
         MenuItemButton(
           style: ButtonStyle(
             padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: 16, vertical: 10)),
             backgroundColor: WidgetStateProperty.resolveWith((states) {
-              if (states.contains(WidgetState.hovered)) return const Color(0xFF34343A);
+              if (states.contains(WidgetState.hovered)) return palette.bg4;
               return Colors.transparent;
             }),
           ),
-          leadingIcon: const Icon(Icons.download, size: 16, color: Color(0xFFB8B8BC)),
+          leadingIcon: Icon(Icons.download, size: 16, color: palette.fg1),
           onPressed: _cloneRepo,
-          child: const Text(
+          child: Text(
             'Clone repository...',
-            style: TextStyle(color: Color(0xFFD4D4D4), fontSize: 12.5),
+            style: TextStyle(color: palette.fg0, fontSize: 12.5),
           ),
         ),
       ],
@@ -157,6 +159,7 @@ class _SelectorButtonState extends State<_SelectorButton> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
     return MouseRegion(
       onEnter: (_) => setState(() => _hover = true),
       onExit: (_) => setState(() => _hover = false),
@@ -168,21 +171,21 @@ class _SelectorButtonState extends State<_SelectorButton> {
           constraints: const BoxConstraints(minWidth: 200, maxWidth: 420),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           decoration: BoxDecoration(
-            color: _hover ? const Color(0xFF34343A) : const Color(0xFF25252A),
-            border: Border.all(color: const Color(0xFF404048)),
+            color: _hover ? palette.bg4 : palette.bg2,
+            border: Border.all(color: palette.borderStrong),
             borderRadius: BorderRadius.circular(6),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.folder_outlined, size: 14, color: Color(0xFFB8B8BC)),
+              Icon(Icons.folder_outlined, size: 14, color: palette.fg1),
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
                   widget.label,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: widget.isEmpty ? const Color(0xFF888892) : const Color(0xFFD4D4D4),
+                    color: widget.isEmpty ? palette.fg2 : palette.fg0,
                     fontSize: 12.5,
                     fontWeight: FontWeight.w500,
                     fontStyle: widget.isEmpty ? FontStyle.italic : FontStyle.normal,
@@ -190,7 +193,7 @@ class _SelectorButtonState extends State<_SelectorButton> {
                 ),
               ),
               const SizedBox(width: 6),
-              const Icon(Icons.expand_more, size: 16, color: Color(0xFF888892)),
+              Icon(Icons.expand_more, size: 16, color: palette.fg2),
             ],
           ),
         ),
@@ -220,6 +223,7 @@ class _RepoMenuItemState extends State<_RepoMenuItem> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
     return MouseRegion(
       onEnter: (_) => setState(() => _hover = true),
       onExit: (_) => setState(() => _hover = false),
@@ -227,7 +231,7 @@ class _RepoMenuItemState extends State<_RepoMenuItem> {
         onTap: widget.onSelect,
         behavior: HitTestBehavior.opaque,
         child: Container(
-          color: _hover ? const Color(0xFF34343A) : Colors.transparent,
+          color: _hover ? palette.bg4 : Colors.transparent,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           constraints: const BoxConstraints(minWidth: 280, maxWidth: 480),
           child: Row(
@@ -235,7 +239,7 @@ class _RepoMenuItemState extends State<_RepoMenuItem> {
               SizedBox(
                 width: 14,
                 child: widget.isActive
-                    ? const Icon(Icons.check, size: 14, color: Color(0xFF4EC9B0))
+                    ? Icon(Icons.check, size: 14, color: palette.accentCurrent)
                     : null,
               ),
               const SizedBox(width: 8),
@@ -247,7 +251,7 @@ class _RepoMenuItemState extends State<_RepoMenuItem> {
                       widget.workspace.location.displayName,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: widget.isActive ? const Color(0xFFD4D4D4) : const Color(0xFFB8B8BC),
+                        color: widget.isActive ? palette.fg0 : palette.fg1,
                         fontSize: 12.5,
                         fontWeight: widget.isActive ? FontWeight.w600 : FontWeight.normal,
                       ),
@@ -255,8 +259,8 @@ class _RepoMenuItemState extends State<_RepoMenuItem> {
                     Text(
                       widget.workspace.location.path,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF5D5D65),
+                      style: TextStyle(
+                        color: palette.fg3,
                         fontSize: 11,
                       ),
                     ),
@@ -274,10 +278,10 @@ class _RepoMenuItemState extends State<_RepoMenuItem> {
                     width: 20,
                     height: 20,
                     decoration: BoxDecoration(
-                      color: _hover ? const Color(0xFF3D3D44) : Colors.transparent,
+                      color: _hover ? palette.bg5 : Colors.transparent,
                       borderRadius: BorderRadius.circular(3),
                     ),
-                    child: const Icon(Icons.close, size: 13, color: Color(0xFF888892)),
+                    child: Icon(Icons.close, size: 13, color: palette.fg2),
                   ),
                 ),
               ),
