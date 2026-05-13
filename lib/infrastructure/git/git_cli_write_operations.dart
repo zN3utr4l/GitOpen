@@ -393,6 +393,51 @@ final class GitCliWriteOperations implements GitWriteOperations {
   }
 
   @override
+  Future<GitResult<RevertOutcome>> revert(RepoLocation r, CommitSha sha) async {
+    final result = await Process.run(
+      _runner.executable, ['revert', '--no-edit', sha.value],
+      workingDirectory: r.path,
+      stdoutEncoding: utf8,
+      stderrEncoding: utf8,
+    );
+    final combined = '${result.stdout}\n${result.stderr}';
+    if (result.exitCode == 0) {
+      final head = (await _runner.run(r.path, ['rev-parse', 'HEAD'])).trim();
+      return GitSuccess(RevertApplied(CommitSha(head)));
+    }
+    if (combined.contains('CONFLICT')) {
+      final status = await _runner.run(r.path, ['diff', '--name-only', '--diff-filter=U']);
+      return GitSuccess(RevertConflict(status.split('\n').where((l) => l.isNotEmpty).toList()));
+    }
+    return GitFailure(
+      _classify(GitProcessException(['revert'], result.exitCode, result.stderr.toString())),
+      result.stderr.toString(),
+      combined,
+    );
+  }
+
+  @override
+  Future<GitResult<void>> revertAbort(RepoLocation r) async {
+    try {
+      await _runner.run(r.path, ['revert', '--abort']);
+      return const GitSuccess(null);
+    } on GitProcessException catch (e) {
+      return GitFailure(_classify(e), e.stderr, e.stderr);
+    }
+  }
+
+  @override
+  Future<GitResult<CommitSha>> revertContinue(RepoLocation r) async {
+    try {
+      await _runner.run(r.path, ['revert', '--continue', '--no-edit']);
+      final head = (await _runner.run(r.path, ['rev-parse', 'HEAD'])).trim();
+      return GitSuccess(CommitSha(head));
+    } on GitProcessException catch (e) {
+      return GitFailure(_classify(e), e.stderr, e.stderr);
+    }
+  }
+
+  @override
   Future<GitResult<void>> reset(RepoLocation r, CommitSha to, ResetMode mode) async {
     final flag = switch (mode) {
       ResetMode.soft => '--soft',

@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import '../../domain/repositories/repo_location.dart';
 
-enum InProgressOp { none, merge, cherryPick, rebase }
+enum InProgressOp { none, merge, cherryPick, rebase, revert }
 
 final repoStateProvider =
     FutureProvider.family.autoDispose<InProgressOp, RepoLocation>(
@@ -13,5 +13,6 @@ final repoStateProvider =
   if (await exists('MERGE_HEAD')) return InProgressOp.merge;
   if (await exists('CHERRY_PICK_HEAD')) return InProgressOp.cherryPick;
   if (await exists('REBASE_HEAD')) return InProgressOp.rebase;
+  if (await exists('REVERT_HEAD')) return InProgressOp.revert;
   return InProgressOp.none;
 });

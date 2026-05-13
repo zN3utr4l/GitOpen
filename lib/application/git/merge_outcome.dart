@@ -32,3 +32,17 @@ final class CherryPickConflict extends CherryPickOutcome {
   final List<String> conflictedPaths;
   const CherryPickConflict(this.conflictedPaths);
 }
+
+sealed class RevertOutcome {
+  const RevertOutcome();
+}
+
+final class RevertApplied extends RevertOutcome {
+  final CommitSha newCommit;
+  const RevertApplied(this.newCommit);
+}
+
+final class RevertConflict extends RevertOutcome {
+  final List<String> conflictedPaths;
+  const RevertConflict(this.conflictedPaths);
+}

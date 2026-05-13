@@ -48,6 +48,10 @@ abstract interface class GitWriteOperations {
   Future<GitResult<void>> cherryPickAbort(RepoLocation r);
   Future<GitResult<CommitSha>> cherryPickContinue(RepoLocation r);
 
+  Future<GitResult<RevertOutcome>> revert(RepoLocation r, CommitSha sha);
+  Future<GitResult<void>> revertAbort(RepoLocation r);
+  Future<GitResult<CommitSha>> revertContinue(RepoLocation r);
+
   Future<GitResult<void>> reset(RepoLocation r, CommitSha to, ResetMode mode);
 
   Stream<GitProgress> clone(String url, String destination, {AuthSpec? auth});
