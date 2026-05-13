@@ -6,6 +6,7 @@ import '../../application/git/git_result.dart';
 import '../../application/providers.dart';
 import '../../domain/commits/commit_sha.dart';
 import '../../domain/repositories/repo_location.dart';
+import '../theme/app_palette.dart';
 
 class CommitCompose extends ConsumerStatefulWidget {
   final RepoLocation repo;
@@ -32,22 +33,23 @@ class _CommitComposeState extends ConsumerState<CommitCompose> {
         if (mounted) _commit();
       });
     }
+    final palette = AppPalette.of(context);
     return Container(
-      color: const Color(0xFF25252A),
+      color: palette.bg2,
       padding: const EdgeInsets.all(12),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         TextField(
           controller: _ctl,
           maxLines: 4, minLines: 2,
-          decoration: const InputDecoration(hintText: 'Commit message', filled: true, fillColor: Color(0xFF1F1F23)),
+          decoration: InputDecoration(hintText: 'Commit message', filled: true, fillColor: palette.bg1),
         ),
         const SizedBox(height: 8),
         Row(children: [
           Checkbox(value: _amend, onChanged: (v) => setState(() => _amend = v ?? false)),
-          const Text('Amend last commit', style: TextStyle(color: Color(0xFFB8B8BC), fontSize: 12)),
+          Text('Amend last commit', style: TextStyle(color: palette.fg1, fontSize: 12)),
           const SizedBox(width: 16),
           Checkbox(value: _signOff, onChanged: (v) => setState(() => _signOff = v ?? false)),
-          const Text('Sign off', style: TextStyle(color: Color(0xFFB8B8BC), fontSize: 12)),
+          Text('Sign off', style: TextStyle(color: palette.fg1, fontSize: 12)),
           const Spacer(),
           ElevatedButton(onPressed: _busy ? null : _commit, child: const Text('Commit')),
         ]),

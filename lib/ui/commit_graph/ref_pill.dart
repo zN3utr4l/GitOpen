@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_palette.dart';
 import 'ref_decoration.dart';
 
 /// Fork-style ref pill. Renders as a single pill split into two halves
@@ -11,7 +12,8 @@ class RefPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final palette = _palette();
+    final appPalette = AppPalette.of(context);
+    final palette = _palette(appPalette);
 
     final localSide = _Section(
       icon: _leadingIcon(palette),
@@ -67,7 +69,7 @@ class RefPill extends StatelessWidget {
 
   Widget _leadingIcon(_PillPalette palette) {
     if (decoration.isCurrent) {
-      return const Icon(Icons.check, size: 11, color: Color(0xFF4EC9B0));
+      return Icon(Icons.check, size: 11, color: palette.fg);
     }
     if (decoration.isTag) {
       return Icon(Icons.local_offer_outlined, size: 10, color: palette.fg);
@@ -78,40 +80,40 @@ class RefPill extends StatelessWidget {
     return Icon(Icons.commit_outlined, size: 10, color: palette.fg);
   }
 
-  _PillPalette _palette() {
+  _PillPalette _palette(AppPalette p) {
     if (decoration.isTag) {
-      return const _PillPalette(
-        bg: Color(0xFF2C2A22),
-        border: Color(0xFF5A4E2D),
-        fg: Color(0xFFD7BA7D),
-        remoteTintBg: Color(0xFF1E2A36),
-        remoteFg: Color(0xFF7FB3DE),
+      return _PillPalette(
+        bg: p.bg3,
+        border: p.accentTag,
+        fg: p.accentTag,
+        remoteTintBg: p.bg1,
+        remoteFg: p.accentRemote,
       );
     }
     if (decoration.isRemote) {
-      return const _PillPalette(
-        bg: Color(0xFF1E2A36),
-        border: Color(0xFF3F5F7F),
-        fg: Color(0xFF7FB3DE),
-        remoteTintBg: Color(0xFF1E2A36),
-        remoteFg: Color(0xFF7FB3DE),
+      return _PillPalette(
+        bg: p.bg1,
+        border: p.accentRemote,
+        fg: p.accentRemote,
+        remoteTintBg: p.bg1,
+        remoteFg: p.accentRemote,
       );
     }
     if (decoration.isCurrent) {
-      return const _PillPalette(
-        bg: Color(0xFF1F3128),
-        border: Color(0xFF4EC9B0),
-        fg: Color(0xFFA5E4D2),
-        remoteTintBg: Color(0xFF1E2A36),
-        remoteFg: Color(0xFF7FB3DE),
+      return _PillPalette(
+        bg: p.bg1,
+        border: p.accentCurrent,
+        fg: p.accentCurrent,
+        remoteTintBg: p.bg1,
+        remoteFg: p.accentRemote,
       );
     }
-    return const _PillPalette(
-      bg: Color(0xFF252A28),
-      border: Color(0xFF3F5F55),
-      fg: Color(0xFF8FD4C0),
-      remoteTintBg: Color(0xFF1E2A36),
-      remoteFg: Color(0xFF7FB3DE),
+    return _PillPalette(
+      bg: p.bg2,
+      border: p.accentCurrent,
+      fg: p.accentCurrent,
+      remoteTintBg: p.bg1,
+      remoteFg: p.accentRemote,
     );
   }
 }

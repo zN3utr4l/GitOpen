@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../application/active_workspace_provider.dart';
 import '../../application/providers.dart';
 import '../../domain/repositories/repo_location.dart';
+import '../theme/app_palette.dart';
 
 final repoStatusProvider = FutureProvider.family.autoDispose((ref, RepoLocation r) async {
   final git = ref.watch(gitReadOperationsProvider);
@@ -21,8 +22,9 @@ class LocalChangesRow extends ConsumerWidget {
       data: (status) {
         if (status.entries.isEmpty) return const SizedBox.shrink();
         final count = status.entries.length;
+        final palette = AppPalette.of(context);
         return Material(
-          color: selected ? const Color(0xFF094771) : Colors.transparent,
+          color: selected ? palette.bgAccent : Colors.transparent,
           child: InkWell(
             onTap: () {
               ref.read(localChangesSelectedProvider.notifier).state = true;
@@ -32,11 +34,11 @@ class LocalChangesRow extends ConsumerWidget {
               height: 26,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Row(children: [
-                const Icon(Icons.edit_note, size: 16, color: Color(0xFFD7BA7D)),
+                Icon(Icons.edit_note, size: 16, color: palette.accentTag),
                 const SizedBox(width: 8),
                 Text('Local Changes ($count)',
                     style: TextStyle(
-                      color: selected ? Colors.white : const Color(0xFFD7BA7D),
+                      color: selected ? Colors.white : palette.accentTag,
                       fontSize: 12.5, fontWeight: FontWeight.w600,
                     )),
               ]),

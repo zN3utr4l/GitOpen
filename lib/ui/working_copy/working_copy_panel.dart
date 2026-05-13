@@ -7,6 +7,7 @@ import '../../domain/diff/diff_spec.dart';
 import '../../domain/diff/file_diff.dart';
 import '../../domain/repositories/repo_location.dart';
 import '../../domain/status/working_file_entry.dart';
+import '../theme/app_palette.dart';
 import 'commit_compose.dart';
 
 final _workingCopyStatusProvider =
@@ -68,11 +69,12 @@ class WorkingCopyPanel extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(_workingCopyStatusProvider(repo));
+    final palette = AppPalette.of(context);
     return Container(
-      color: const Color(0xFF1F1F23),
+      color: palette.bg1,
       child: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e', style: const TextStyle(color: Color(0xFFC4314B)))),
+        error: (e, _) => Center(child: Text('Error: $e', style: TextStyle(color: palette.accentErr))),
         data: (entries) {
           final unstaged = entries.where((e) =>
               e.workingTreeState != WorkingFileState.unmodified).toList();
@@ -84,7 +86,7 @@ class WorkingCopyPanel extends ConsumerWidget {
               Expanded(child: _FileList(
                 repo: repo, unstaged: unstaged, staged: staged,
               )),
-              const Divider(height: 1, color: Color(0xFF313137)),
+              Divider(height: 1, color: palette.border),
               CommitCompose(repo: repo),
             ],
           );
@@ -136,11 +138,12 @@ class _Header extends StatelessWidget {
   const _Header({required this.title, this.action, this.onAction});
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      color: const Color(0xFF25252A),
+      color: palette.bg2,
       child: Row(children: [
-        Text(title, style: const TextStyle(color: Color(0xFFB8B8BC), fontSize: 11.5, fontWeight: FontWeight.w600)),
+        Text(title, style: TextStyle(color: palette.fg1, fontSize: 11.5, fontWeight: FontWeight.w600)),
         const Spacer(),
         if (action != null && onAction != null)
           TextButton(onPressed: onAction, child: Text(action!)),
@@ -244,7 +247,7 @@ class _FileRowState extends ConsumerState<_FileRow> {
                 child: Icon(
                   _expanded ? Icons.expand_more : Icons.chevron_right,
                   size: 14,
-                  color: const Color(0xFF888892),
+                  color: AppPalette.of(context).fg2,
                 ),
               ),
             )
@@ -252,13 +255,13 @@ class _FileRowState extends ConsumerState<_FileRow> {
             const SizedBox(width: 18),
           // Stage/unstage checkbox
           Icon(widget.isStaged ? Icons.check_box : Icons.check_box_outline_blank,
-              size: 14, color: const Color(0xFFB8B8BC)),
+              size: 14, color: AppPalette.of(context).fg1),
           const SizedBox(width: 8),
           _StateBadge(state: widget.isStaged ? widget.entry.indexState : widget.entry.workingTreeState),
           const SizedBox(width: 8),
           Expanded(child: Text(widget.entry.path,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: Color(0xFFD4D4D4), fontSize: 12.5))),
+              style: TextStyle(color: AppPalette.of(context).fg0, fontSize: 12.5))),
           // "Stage selected hunks" button — shown when at least one hunk checked
           if (_checkedHunks.isNotEmpty)
             _buildStageSelectedButton(),
@@ -300,7 +303,7 @@ class _FileRowState extends ConsumerState<_FileRow> {
       error: (e, _) => Padding(
         padding: const EdgeInsets.only(left: 32, top: 2, bottom: 2),
         child: Text('Diff error: $e',
-            style: const TextStyle(color: Color(0xFFC4314B), fontSize: 11)),
+            style: TextStyle(color: AppPalette.of(context).accentErr, fontSize: 11)),
       ),
       data: (fileDiff) {
         if (fileDiff == null || fileDiff.isBinary || fileDiff.hunks.isEmpty) {
@@ -340,24 +343,25 @@ class _HunkRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
     return InkWell(
       onTap: onToggle,
       child: Container(
-        color: const Color(0xFF1A1A1E),
+        color: palette.bg0,
         padding: const EdgeInsets.only(left: 32, right: 12, top: 3, bottom: 3),
         child: Row(children: [
           Icon(
             isChecked ? Icons.check_box : Icons.check_box_outline_blank,
             size: 13,
-            color: const Color(0xFF888892),
+            color: palette.fg2,
           ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               hunk.header,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Color(0xFF6FA8DC),
+              style: TextStyle(
+                color: palette.accentRemote,
                 fontSize: 11,
                 fontFamily: 'monospace',
               ),
@@ -376,7 +380,8 @@ class _StateBadge extends StatelessWidget {
   const _StateBadge({required this.state});
   @override
   Widget build(BuildContext context) {
-    final (label, color) = _info(state);
+    final p = AppPalette.of(context);
+    final (label, color) = _info(state, p);
     if (label.isEmpty) return const SizedBox.shrink();
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
@@ -385,15 +390,15 @@ class _StateBadge extends StatelessWidget {
       child: Text(label, style: TextStyle(color: color, fontSize: 9, fontWeight: FontWeight.w600)),
     );
   }
-  (String, Color) _info(WorkingFileState s) {
+  (String, Color) _info(WorkingFileState s, AppPalette p) {
     switch (s) {
-      case WorkingFileState.added: return ('A', const Color(0xFF4EC9B0));
-      case WorkingFileState.modified: return ('M', const Color(0xFFD7BA7D));
-      case WorkingFileState.deleted: return ('D', const Color(0xFFC4314B));
-      case WorkingFileState.renamed: return ('R', const Color(0xFF6FA8DC));
-      case WorkingFileState.untracked: return ('?', const Color(0xFF888892));
-      case WorkingFileState.conflicted: return ('U', const Color(0xFFF48771));
-      case WorkingFileState.ignored: return ('I', const Color(0xFF5D5D65));
+      case WorkingFileState.added: return ('A', p.accentCurrent);
+      case WorkingFileState.modified: return ('M', p.accentTag);
+      case WorkingFileState.deleted: return ('D', p.accentErr);
+      case WorkingFileState.renamed: return ('R', p.accentRemote);
+      case WorkingFileState.untracked: return ('?', p.fg2);
+      case WorkingFileState.conflicted: return ('U', p.accentWarn);
+      case WorkingFileState.ignored: return ('I', p.fg3);
       default: return ('', Colors.transparent);
     }
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../application/commit_graph/commit_node.dart';
+import '../theme/app_palette.dart';
 import 'lane_painter.dart';
 import 'ref_decoration.dart';
 import 'ref_pill.dart';
@@ -29,11 +30,12 @@ class CommitRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = isSelected ? const Color(0xFF094771) : Colors.transparent;
-    final textColor = isSelected ? Colors.white : const Color(0xFFD4D4D4);
-    final mutedColor = isSelected ? Colors.white70 : const Color(0xFFB8B8BC);
-    final dateColor = isSelected ? Colors.white70 : const Color(0xFF888892);
-    final shaColor = isSelected ? Colors.white : const Color(0xFF6FA8DC);
+    final palette = AppPalette.of(context);
+    final bg = isSelected ? palette.bgAccent : Colors.transparent;
+    final textColor = isSelected ? Colors.white : palette.fg0;
+    final mutedColor = isSelected ? Colors.white70 : palette.fg1;
+    final dateColor = isSelected ? Colors.white70 : palette.fg2;
+    final shaColor = isSelected ? Colors.white : palette.accentRemote;
 
     return Material(
       color: bg,
@@ -43,7 +45,7 @@ class CommitRow extends StatelessWidget {
             : null,
         child: InkWell(
           onTap: onTap,
-          hoverColor: const Color(0xFF34343A),
+          hoverColor: palette.bg4,
           child: SizedBox(
             height: kRowHeight,
             child: Padding(
@@ -54,7 +56,11 @@ class CommitRow extends StatelessWidget {
                     width: svgWidth(maxLane),
                     height: kRowHeight,
                     child: CustomPaint(
-                      painter: LanePainter(node: node, maxLane: maxLane),
+                      painter: LanePainter(
+                        node: node,
+                        maxLane: maxLane,
+                        lanePalette: palette.lanePalette,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),

@@ -7,19 +7,6 @@ const double kLanePad = 12.0;
 const double kRowHeight = 26.0;
 const double kHalfHeight = 13.0;
 
-const List<Color> kLanePalette = [
-  Color(0xFF5FB3A1),
-  Color(0xFFD6C068),
-  Color(0xFF6FA8DC),
-  Color(0xFFC97C5D),
-  Color(0xFFB787B3),
-  Color(0xFF7A98C9),
-  Color(0xFFC79A5D),
-  Color(0xFFC97078),
-];
-
-Color laneColor(int idx) => kLanePalette[idx.abs() % kLanePalette.length];
-
 double laneX(int lane) => kLanePad + lane * kLaneSpacing;
 
 double svgWidth(int maxLane) => kLanePad * 2 + kLaneSpacing * (maxLane + 1);
@@ -27,7 +14,17 @@ double svgWidth(int maxLane) => kLanePad * 2 + kLaneSpacing * (maxLane + 1);
 class LanePainter extends CustomPainter {
   final CommitNode node;
   final int maxLane;
-  const LanePainter({required this.node, required this.maxLane});
+  /// The lane colour palette, passed in from the caller that has a
+  /// [BuildContext] (and therefore access to [AppPalette]).
+  final List<Color> lanePalette;
+
+  const LanePainter({
+    required this.node,
+    required this.maxLane,
+    required this.lanePalette,
+  });
+
+  Color _laneColor(int idx) => lanePalette[idx.abs() % lanePalette.length];
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -37,18 +34,18 @@ class LanePainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
 
     for (final s in node.topSegments) {
-      paint.color = laneColor(s.color);
+      paint.color = _laneColor(s.color);
       _drawSegment(canvas, paint, s, fromY: 0, toY: kHalfHeight);
     }
     for (final s in node.bottomSegments) {
-      paint.color = laneColor(s.color);
+      paint.color = _laneColor(s.color);
       _drawSegment(canvas, paint, s, fromY: kHalfHeight, toY: kRowHeight);
     }
 
     // Commit dot
     final dot = Paint()
       ..style = PaintingStyle.fill
-      ..color = laneColor(node.color);
+      ..color = _laneColor(node.color);
     canvas.drawCircle(Offset(laneX(node.lane), kHalfHeight), 4, dot);
   }
 
@@ -70,5 +67,5 @@ class LanePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant LanePainter old) =>
-      old.node != node || old.maxLane != maxLane;
+      old.node != node || old.maxLane != maxLane || old.lanePalette != lanePalette;
 }

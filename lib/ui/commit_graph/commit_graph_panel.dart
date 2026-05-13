@@ -11,6 +11,7 @@ import '../../domain/commits/commit_sha.dart';
 import '../../domain/repositories/repo_location.dart';
 import '../dialogs/branch_create_dialog.dart';
 import '../dialogs/confirm_dialog.dart';
+import '../theme/app_palette.dart';
 import 'commit_row.dart';
 import 'local_changes_row.dart';
 import 'ref_decoration.dart';
@@ -165,14 +166,15 @@ class CommitGraphPanel extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(commitGraphDataProvider(repo));
+    final palette = AppPalette.of(context);
     return Container(
-      color: const Color(0xFF1F1F23),
+      color: palette.bg1,
       child: async.when(
         data: (data) {
           if (data.nodes.isEmpty) {
-            return const Center(
+            return Center(
               child: Text('No commits in this repository.',
-                  style: TextStyle(color: Color(0xFF888892))),
+                  style: TextStyle(color: palette.fg2)),
             );
           }
           final selected = ref.watch(selectedCommitShaProvider);
@@ -216,7 +218,7 @@ class CommitGraphPanel extends ConsumerWidget {
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Text('Failed to load graph: $e',
-                style: const TextStyle(color: Color(0xFFF48771))),
+                style: TextStyle(color: palette.accentErr)),
           ),
         ),
       ),
