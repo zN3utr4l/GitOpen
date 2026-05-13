@@ -10,12 +10,14 @@ import 'application/git/repo_state_provider.dart';
 import 'application/operations/running_operation.dart';
 import 'application/providers.dart';
 import 'application/settings/app_settings.dart';
+import 'application/settings/settings_open_provider.dart';
 import 'application/workspaces/workspace.dart';
 import 'ui/theme/app_palette.dart';
 import 'ui/bottom_panel/bottom_panel.dart';
 import 'ui/commit_graph/commit_graph_panel.dart';
 import 'ui/conflicts/conflict_resolution_panel.dart';
 import 'ui/operations/toast_overlay.dart';
+import 'ui/settings/settings_page.dart';
 import 'ui/shell/repo_selector.dart';
 import 'ui/sidebar/sidebar.dart';
 import 'ui/toolbar/git_toolbar.dart';
@@ -147,6 +149,7 @@ class _ShellState extends ConsumerState<Shell> {
     final active = activeId == null
         ? null
         : workspaces.firstWhereOrNull((w) => w.location.id == activeId);
+    final settingsOpen = ref.watch(settingsOpenProvider);
 
     return CallbackShortcuts(
       bindings: <ShortcutActivator, VoidCallback>{
@@ -182,36 +185,38 @@ class _ShellState extends ConsumerState<Shell> {
                                 ? const WelcomeScreen()
                                 : active == null
                                     ? const WelcomeScreen()
-                                    : Builder(builder: (context) {
-                                        final localChanges = ref
-                                            .watch(localChangesSelectedProvider);
-                                        final repoStateAsync = ref.watch(
-                                            repoStateProvider(active.location));
-                                        final inProgressOp =
-                                            repoStateAsync.valueOrNull;
-                                        final hasConflict =
-                                            inProgressOp == InProgressOp.merge ||
-                                            inProgressOp ==
-                                                InProgressOp.cherryPick;
-                                        return Column(
-                                          children: [
-                                            Expanded(
-                                                child: CommitGraphPanel(
-                                                    repo: active.location)),
-                                            SizedBox(
-                                              height: 320,
-                                              child: hasConflict
-                                                  ? ConflictResolutionPanel(
-                                                      repo: active.location)
-                                                  : localChanges
-                                                      ? WorkingCopyPanel(
+                                    : settingsOpen
+                                        ? const SettingsPage()
+                                        : Builder(builder: (context) {
+                                            final localChanges = ref
+                                                .watch(localChangesSelectedProvider);
+                                            final repoStateAsync = ref.watch(
+                                                repoStateProvider(active.location));
+                                            final inProgressOp =
+                                                repoStateAsync.valueOrNull;
+                                            final hasConflict =
+                                                inProgressOp == InProgressOp.merge ||
+                                                inProgressOp ==
+                                                    InProgressOp.cherryPick;
+                                            return Column(
+                                              children: [
+                                                Expanded(
+                                                    child: CommitGraphPanel(
+                                                        repo: active.location)),
+                                                SizedBox(
+                                                  height: 320,
+                                                  child: hasConflict
+                                                      ? ConflictResolutionPanel(
                                                           repo: active.location)
-                                                      : BottomPanel(
-                                                          repo: active.location),
-                                            ),
-                                          ],
-                                        );
-                                      }),
+                                                      : localChanges
+                                                          ? WorkingCopyPanel(
+                                                              repo: active.location)
+                                                          : BottomPanel(
+                                                              repo: active.location),
+                                                ),
+                                              ],
+                                            );
+                                          }),
                           ),
                         ),
                       ],
@@ -229,11 +234,11 @@ class _ShellState extends ConsumerState<Shell> {
   }
 }
 
-class _TitleBar extends StatelessWidget {
+class _TitleBar extends ConsumerWidget {
   const _TitleBar();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final palette = AppPalette.of(context);
     return WindowTitleBarBox(
       child: Container(
@@ -251,6 +256,13 @@ class _TitleBar extends StatelessWidget {
             const GitToolbar(),
             // Right drag spacer.
             Expanded(child: MoveWindow()),
+            // Settings icon button.
+            IconButton(
+              icon: Icon(Icons.settings, size: 16, color: palette.fg1),
+              tooltip: 'Settings',
+              onPressed: () =>
+                  ref.read(settingsOpenProvider.notifier).state = true,
+            ),
             // Window controls (min/max/close) — interactive.
             const _WindowControls(),
           ],
