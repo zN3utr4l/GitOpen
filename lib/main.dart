@@ -9,7 +9,9 @@ import 'application/active_workspace_provider.dart';
 import 'application/git/repo_state_provider.dart';
 import 'application/operations/running_operation.dart';
 import 'application/providers.dart';
+import 'application/settings/app_settings.dart';
 import 'application/workspaces/workspace.dart';
+import 'ui/theme/app_palette.dart';
 import 'ui/bottom_panel/bottom_panel.dart';
 import 'ui/commit_graph/commit_graph_panel.dart';
 import 'ui/conflicts/conflict_resolution_panel.dart';
@@ -81,16 +83,21 @@ void _subscribePersistence(ProviderContainer container) {
   );
 }
 
-class GitOpenApp extends StatelessWidget {
+class GitOpenApp extends ConsumerWidget {
   const GitOpenApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = ref.watch(appSettingsProvider.select((s) => s.theme));
+    final palette = theme == AppTheme.dark ? AppPalette.dark() : AppPalette.light();
     return MaterialApp(
       title: 'GitOpen',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark(useMaterial3: true).copyWith(
-        scaffoldBackgroundColor: const Color(0xFF1F1F23),
+      theme: ThemeData(
+        useMaterial3: true,
+        brightness: theme == AppTheme.dark ? Brightness.dark : Brightness.light,
+        scaffoldBackgroundColor: palette.bg1,
+        extensions: [palette],
       ),
       home: const Shell(),
     );
