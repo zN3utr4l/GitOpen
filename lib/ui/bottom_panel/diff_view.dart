@@ -8,6 +8,7 @@ import '../../domain/diff/diff_result.dart';
 import '../../domain/diff/diff_spec.dart';
 import '../../domain/diff/file_diff.dart';
 import '../../domain/repositories/repo_location.dart';
+import '../theme/app_palette.dart';
 
 final _diffProvider = FutureProvider.family
     .autoDispose<DiffResult, ({RepoLocation repo, CommitSha sha})>((ref, key) async {
@@ -22,11 +23,12 @@ class DiffView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final palette = AppPalette.of(context);
     final async = ref.watch(_diffProvider((repo: repo, sha: sha)));
     return async.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Error: $e',
-          style: const TextStyle(color: Color(0xFFF48771)))),
+          style: TextStyle(color: palette.accentErr))),
       data: (d) => ListView.builder(
         padding: const EdgeInsets.all(12),
         itemCount: d.files.length,
@@ -42,38 +44,40 @@ class _FileDiffBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF1F1F23),
-        border: Border.all(color: const Color(0xFF313137)),
+        color: palette.bg1,
+        border: Border.all(color: palette.border),
         borderRadius: BorderRadius.circular(5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _header(),
+          _header(context),
           if (file.isBinary)
-            const Padding(
-              padding: EdgeInsets.all(12),
+            Padding(
+              padding: const EdgeInsets.all(12),
               child: Text('Binary file (no preview)',
-                  style: TextStyle(color: Color(0xFF888892), fontStyle: FontStyle.italic)),
+                  style: TextStyle(color: palette.fg2, fontStyle: FontStyle.italic)),
             )
           else
-            for (final h in file.hunks) _hunk(h),
+            for (final h in file.hunks) _hunk(context, h),
         ],
       ),
     );
   }
 
-  Widget _header() {
+  Widget _header(BuildContext context) {
+    final palette = AppPalette.of(context);
     final pathLabel = file.oldPath != null && file.oldPath != file.path
         ? '${file.oldPath} → ${file.path}'
         : file.path;
     return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFF2C2C31),
-        border: Border(bottom: BorderSide(color: Color(0xFF313137))),
+      decoration: BoxDecoration(
+        color: palette.bg3,
+        border: Border(bottom: BorderSide(color: palette.border)),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       child: Row(
@@ -84,28 +88,29 @@ class _FileDiffBlock extends StatelessWidget {
             child: Text(
               pathLabel,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: Color(0xFFD4D4D4), fontSize: 12),
+              style: TextStyle(color: palette.fg0, fontSize: 12),
             ),
           ),
           Text(
             '+${file.linesAdded} -${file.linesDeleted}',
-            style: const TextStyle(color: Color(0xFF888892), fontSize: 11),
+            style: TextStyle(color: palette.fg2, fontSize: 11),
           ),
         ],
       ),
     );
   }
 
-  Widget _hunk(DiffHunk h) {
+  Widget _hunk(BuildContext context, DiffHunk h) {
+    final palette = AppPalette.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Container(
-          color: const Color(0xFF25252A),
+          color: palette.bg2,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           child: Text(h.header,
-              style: const TextStyle(
-                  color: Color(0xFF888892),
+              style: TextStyle(
+                  color: palette.fg2,
                   fontSize: 11.5,
                   fontStyle: FontStyle.italic,
                   fontFamily: 'monospace')),
@@ -122,13 +127,14 @@ class _DiffLineRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
     Color bg;
     String prefix;
     switch (line.kind) {
       case DiffLineKind.addition:
-        bg = const Color(0x1A4EC9B0); prefix = '+'; break;
+        bg = palette.accentCurrent.withValues(alpha: 0.10); prefix = '+'; break;
       case DiffLineKind.deletion:
-        bg = const Color(0x1FF48771); prefix = '-'; break;
+        bg = palette.accentErr.withValues(alpha: 0.12); prefix = '-'; break;
       case DiffLineKind.context:
         bg = Colors.transparent; prefix = ' '; break;
     }
@@ -140,18 +146,18 @@ class _DiffLineRow extends StatelessWidget {
         children: [
           SizedBox(width: 40, child: Text(line.oldLine?.toString() ?? '',
               textAlign: TextAlign.right,
-              style: const TextStyle(color: Color(0xFF5D5D65), fontSize: 11, fontFamily: 'monospace'))),
+              style: TextStyle(color: palette.fg3, fontSize: 11, fontFamily: 'monospace'))),
           const SizedBox(width: 6),
           SizedBox(width: 40, child: Text(line.newLine?.toString() ?? '',
               textAlign: TextAlign.right,
-              style: const TextStyle(color: Color(0xFF5D5D65), fontSize: 11, fontFamily: 'monospace'))),
+              style: TextStyle(color: palette.fg3, fontSize: 11, fontFamily: 'monospace'))),
           const SizedBox(width: 6),
           SizedBox(width: 14, child: Text(prefix,
-              style: const TextStyle(color: Color(0xFF5D5D65), fontSize: 12, fontFamily: 'monospace'))),
+              style: TextStyle(color: palette.fg3, fontSize: 12, fontFamily: 'monospace'))),
           Expanded(
             child: Text(
               line.content,
-              style: const TextStyle(color: Color(0xFFD4D4D4), fontSize: 12, fontFamily: 'monospace'),
+              style: TextStyle(color: palette.fg0, fontSize: 12, fontFamily: 'monospace'),
               softWrap: false,
               overflow: TextOverflow.clip,
             ),
@@ -168,7 +174,8 @@ class _KindBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (bg, fg) = _palette(kind.toString());
+    final p = AppPalette.of(context);
+    final (bg, fg) = _palette(kind.toString(), p);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
       decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(3)),
@@ -179,11 +186,11 @@ class _KindBadge extends StatelessWidget {
     );
   }
 
-  (Color, Color) _palette(String s) {
-    if (s.contains('added'))    return (const Color(0x2E4EC9B0), const Color(0xFF4EC9B0));
-    if (s.contains('deleted'))  return (const Color(0x2EF48771), const Color(0xFFF48771));
-    if (s.contains('modified')) return (const Color(0x2ED7BA7D), const Color(0xFFD7BA7D));
-    if (s.contains('renamed'))  return (const Color(0x2E569CD6), const Color(0xFF569CD6));
-    return (const Color(0xFF34343A), const Color(0xFFB8B8BC));
+  (Color, Color) _palette(String s, AppPalette p) {
+    if (s.contains('added'))    return (p.accentCurrent.withValues(alpha: 0.18), p.accentCurrent);
+    if (s.contains('deleted'))  return (p.accentErr.withValues(alpha: 0.18), p.accentErr);
+    if (s.contains('modified')) return (p.accentTag.withValues(alpha: 0.18), p.accentTag);
+    if (s.contains('renamed'))  return (p.accentRemote.withValues(alpha: 0.18), p.accentRemote);
+    return (p.bg4, p.fg1);
   }
 }

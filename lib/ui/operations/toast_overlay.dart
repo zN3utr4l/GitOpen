@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../application/operations/running_operation.dart';
 import '../../application/providers.dart';
+import '../theme/app_palette.dart';
 import 'activity_panel.dart';
 
 class ToastOverlay extends ConsumerWidget {
@@ -43,14 +44,15 @@ class _ToastItem extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final palette = AppPalette.of(context);
     final isError = op.status == OperationStatus.failed;
     final isRunning = op.status == OperationStatus.running;
     return Container(
       margin: const EdgeInsets.only(top: 8),
       constraints: const BoxConstraints(maxWidth: 360, minWidth: 280),
       decoration: BoxDecoration(
-        color: const Color(0xFF25252A),
-        border: Border.all(color: isError ? const Color(0xFFC4314B) : const Color(0xFF404048)),
+        color: palette.bg2,
+        border: Border.all(color: isError ? palette.accentErr : palette.borderStrong),
         borderRadius: BorderRadius.circular(6),
         boxShadow: const [BoxShadow(color: Color(0x80000000), blurRadius: 12, offset: Offset(0, 4))],
       ),
@@ -69,12 +71,12 @@ class _ToastItem extends ConsumerWidget {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   ),
                   if (!isRunning) Icon(isError ? Icons.error_outline : Icons.check_circle_outline,
-                      size: 16, color: isError ? const Color(0xFFC4314B) : const Color(0xFF4EC9B0)),
+                      size: 16, color: isError ? palette.accentErr : palette.accentCurrent),
                   const SizedBox(width: 8),
-                  Expanded(child: Text(op.label, style: const TextStyle(color: Color(0xFFD4D4D4), fontSize: 12.5))),
+                  Expanded(child: Text(op.label, style: TextStyle(color: palette.fg0, fontSize: 12.5))),
                   if (isRunning)
                     IconButton(
-                      icon: const Icon(Icons.close, size: 14, color: Color(0xFF888892)),
+                      icon: Icon(Icons.close, size: 14, color: palette.fg2),
                       onPressed: () => ref.read(operationsProvider.notifier).cancel(op.id),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
@@ -88,13 +90,13 @@ class _ToastItem extends ConsumerWidget {
                 if (op.phase.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
-                    child: Text(op.phase, style: const TextStyle(color: Color(0xFF888892), fontSize: 11)),
+                    child: Text(op.phase, style: TextStyle(color: palette.fg2, fontSize: 11)),
                   ),
               ],
               if (isError && op.errorMessage != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
-                  child: Text(op.errorMessage!, style: const TextStyle(color: Color(0xFFC4314B), fontSize: 11)),
+                  child: Text(op.errorMessage!, style: TextStyle(color: palette.accentErr, fontSize: 11)),
                 ),
             ],
           ),

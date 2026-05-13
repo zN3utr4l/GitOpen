@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../application/git/auth_spec.dart';
 import '../../application/providers.dart';
 import '../../infrastructure/auth/github_device_flow.dart';
+import '../theme/app_palette.dart';
 
 class AuthDialog extends ConsumerStatefulWidget {
   final String host;
@@ -51,8 +52,9 @@ class _AuthDialogState extends ConsumerState<AuthDialog>
   @override
   Widget build(BuildContext context) {
     final isGitHub = widget.host == 'github.com';
+    final palette = AppPalette.of(context);
     return Dialog(
-      backgroundColor: const Color(0xFF1F1F23),
+      backgroundColor: palette.bg1,
       child: SizedBox(
         width: 460,
         child: Column(
@@ -62,8 +64,8 @@ class _AuthDialogState extends ConsumerState<AuthDialog>
               padding: const EdgeInsets.all(16),
               child: Text(
                 'Authentication required for ${widget.host}',
-                style: const TextStyle(
-                  color: Color(0xFFD4D4D4),
+                style: TextStyle(
+                  color: palette.fg0,
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),
@@ -96,9 +98,9 @@ class _AuthDialogState extends ConsumerState<AuthDialog>
                     value: _save,
                     onChanged: (v) => setState(() => _save = v ?? true),
                   ),
-                  const Text(
+                  Text(
                     'Save for this host',
-                    style: TextStyle(color: Color(0xFFB8B8BC)),
+                    style: TextStyle(color: AppPalette.of(context).fg1),
                   ),
                   const Spacer(),
                   TextButton(
@@ -219,12 +221,13 @@ class _GitHubOAuthTabState extends State<_GitHubOAuthTab> {
   }
 
   Widget _buildWaiting() {
+    final palette = AppPalette.of(context);
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const Text(
+        Text(
           'Enter this code on GitHub:',
-          style: TextStyle(color: Color(0xFFB8B8BC), fontSize: 12),
+          style: TextStyle(color: palette.fg1, fontSize: 12),
         ),
         const SizedBox(height: 10),
         Row(
@@ -232,8 +235,8 @@ class _GitHubOAuthTabState extends State<_GitHubOAuthTab> {
           children: [
             SelectableText(
               _userCode ?? '',
-              style: const TextStyle(
-                color: Color(0xFFD4D4D4),
+              style: TextStyle(
+                color: palette.fg0,
                 fontSize: 22,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 4,
@@ -242,7 +245,7 @@ class _GitHubOAuthTabState extends State<_GitHubOAuthTab> {
             ),
             const SizedBox(width: 8),
             IconButton(
-              icon: const Icon(Icons.copy, size: 16, color: Color(0xFF888892)),
+              icon: Icon(Icons.copy, size: 16, color: palette.fg2),
               tooltip: 'Copy code',
               onPressed: () => Clipboard.setData(
                 ClipboardData(text: _userCode ?? ''),
@@ -263,24 +266,25 @@ class _GitHubOAuthTabState extends State<_GitHubOAuthTab> {
           child: CircularProgressIndicator(strokeWidth: 2),
         ),
         const SizedBox(height: 6),
-        const Text(
+        Text(
           'Waiting for authorisation…',
-          style: TextStyle(color: Color(0xFF888892), fontSize: 11),
+          style: TextStyle(color: palette.fg2, fontSize: 11),
         ),
       ],
     );
   }
 
   Widget _buildPolling() {
-    return const Center(
+    final palette = AppPalette.of(context);
+    return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          CircularProgressIndicator(),
-          SizedBox(height: 12),
+          const CircularProgressIndicator(),
+          const SizedBox(height: 12),
           Text(
             'Waiting for GitHub authorisation…',
-            style: TextStyle(color: Color(0xFFB8B8BC), fontSize: 12),
+            style: TextStyle(color: palette.fg1, fontSize: 12),
           ),
         ],
       ),
@@ -288,15 +292,16 @@ class _GitHubOAuthTabState extends State<_GitHubOAuthTab> {
   }
 
   Widget _buildError() {
+    final palette = AppPalette.of(context);
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(Icons.error_outline, color: Colors.redAccent.shade100, size: 32),
+        Icon(Icons.error_outline, color: palette.accentErr, size: 32),
         const SizedBox(height: 8),
         Text(
           _errorMessage ?? 'Unknown error',
           textAlign: TextAlign.center,
-          style: const TextStyle(color: Color(0xFFC4314B), fontSize: 12),
+          style: TextStyle(color: palette.accentErr, fontSize: 12),
         ),
         const SizedBox(height: 12),
         TextButton(

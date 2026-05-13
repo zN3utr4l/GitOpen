@@ -5,6 +5,7 @@ import '../../application/git/repo_state_provider.dart';
 import '../../application/providers.dart';
 import '../../domain/repositories/repo_location.dart';
 import '../../domain/status/working_file_entry.dart';
+import '../theme/app_palette.dart';
 
 final _conflictsProvider =
     FutureProvider.family.autoDispose<List<String>, RepoLocation>(
@@ -25,8 +26,9 @@ class ConflictResolutionPanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final opAsync = ref.watch(repoStateProvider(repo));
     final filesAsync = ref.watch(_conflictsProvider(repo));
+    final palette = AppPalette.of(context);
     return Container(
-      color: const Color(0xFF1F1F23),
+      color: palette.bg1,
       child: opAsync.when(
         loading: () => const SizedBox.shrink(),
         error: (e, _) => Center(child: Text('$e')),
@@ -41,17 +43,17 @@ class ConflictResolutionPanel extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Container(
-                  color: const Color(0xFF3D2A1A),
+                  color: palette.accentWarn.withValues(alpha: 0.15),
                   padding: const EdgeInsets.all(12),
                   child: Row(children: [
-                    const Icon(Icons.warning_amber,
-                        color: Color(0xFFD7BA7D), size: 16),
+                    Icon(Icons.warning_amber,
+                        color: palette.accentTag, size: 16),
                     const SizedBox(width: 8),
                     Text(
                       '${op == InProgressOp.merge ? "Merge" : "Cherry-pick"} in progress — '
                       '${files.length} conflict${files.length == 1 ? "" : "s"}',
-                      style: const TextStyle(
-                          color: Color(0xFFD4D4D4),
+                      style: TextStyle(
+                          color: palette.fg0,
                           fontWeight: FontWeight.w600),
                     ),
                   ]),
@@ -61,11 +63,11 @@ class ConflictResolutionPanel extends ConsumerWidget {
                     children: [
                       for (final path in files)
                         ListTile(
-                          leading: const Icon(Icons.error_outline,
-                              color: Color(0xFFC4314B), size: 18),
+                          leading: Icon(Icons.error_outline,
+                              color: palette.accentErr, size: 18),
                           title: Text(path,
-                              style: const TextStyle(
-                                  color: Color(0xFFD4D4D4), fontSize: 12.5)),
+                              style: TextStyle(
+                                  color: palette.fg0, fontSize: 12.5)),
                           trailing:
                               Row(mainAxisSize: MainAxisSize.min, children: [
                             TextButton(

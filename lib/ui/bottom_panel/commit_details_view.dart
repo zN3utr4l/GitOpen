@@ -5,6 +5,7 @@ import '../../application/providers.dart';
 import '../../domain/commits/commit_info.dart';
 import '../../domain/commits/commit_sha.dart';
 import '../../domain/repositories/repo_location.dart';
+import '../theme/app_palette.dart';
 
 final _commitInfoProvider = FutureProvider.family
     .autoDispose<CommitInfo?, ({RepoLocation repo, CommitSha sha})>((ref, key) async {
@@ -22,11 +23,12 @@ class CommitDetailsView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final palette = AppPalette.of(context);
     final async = ref.watch(_commitInfoProvider((repo: repo, sha: sha)));
     return async.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Error: $e',
-          style: const TextStyle(color: Color(0xFFF48771)))),
+          style: TextStyle(color: palette.accentErr))),
       data: (c) => c == null
           ? const SizedBox.shrink()
           : SingleChildScrollView(
@@ -34,23 +36,23 @@ class CommitDetailsView extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _row('SHA', c.sha.value),
-                  _row('AUTHOR', '${c.author.name} <${c.author.email}>  —  ${c.author.when.toLocal()}'),
-                  _row('COMMITTER', '${c.committer.name} <${c.committer.email}>'),
-                  _row('PARENTS', c.parentShas.map((p) => p.short()).join(', ')),
+                  _row(context, 'SHA', c.sha.value),
+                  _row(context, 'AUTHOR', '${c.author.name} <${c.author.email}>  —  ${c.author.when.toLocal()}'),
+                  _row(context, 'COMMITTER', '${c.committer.name} <${c.committer.email}>'),
+                  _row(context, 'PARENTS', c.parentShas.map((p) => p.short()).join(', ')),
                   const SizedBox(height: 12),
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF25252A),
-                      border: Border.all(color: const Color(0xFF313137)),
+                      color: palette.bg2,
+                      border: Border.all(color: palette.border),
                       borderRadius: BorderRadius.circular(5),
                     ),
                     child: SelectableText(
                       c.message,
-                      style: const TextStyle(
-                        color: Color(0xFFD4D4D4),
+                      style: TextStyle(
+                        color: palette.fg0,
                         fontFamily: 'monospace',
                         fontSize: 12,
                         height: 1.5,
@@ -63,7 +65,8 @@ class CommitDetailsView extends ConsumerWidget {
     );
   }
 
-  Widget _row(String label, String value) {
+  Widget _row(BuildContext context, String label, String value) {
+    final palette = AppPalette.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Row(
@@ -73,8 +76,8 @@ class CommitDetailsView extends ConsumerWidget {
             width: 90,
             child: Text(
               label,
-              style: const TextStyle(
-                color: Color(0xFF888892),
+              style: TextStyle(
+                color: palette.fg2,
                 fontSize: 10.5,
                 fontWeight: FontWeight.w500,
                 letterSpacing: 0.4,
@@ -84,7 +87,7 @@ class CommitDetailsView extends ConsumerWidget {
           Expanded(
             child: SelectableText(
               value,
-              style: const TextStyle(color: Color(0xFFD4D4D4), fontSize: 12.5),
+              style: TextStyle(color: palette.fg0, fontSize: 12.5),
             ),
           ),
         ],

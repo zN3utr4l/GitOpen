@@ -4,6 +4,7 @@ import '../../application/providers.dart';
 import '../../domain/commits/commit_sha.dart';
 import '../../domain/files/file_tree_entry.dart';
 import '../../domain/repositories/repo_location.dart';
+import '../theme/app_palette.dart';
 
 final _fileTreeProvider = FutureProvider.family
     .autoDispose<List<FileTreeEntry>, ({RepoLocation repo, CommitSha sha})>((ref, key) async {
@@ -18,11 +19,12 @@ class FileTreeViewWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final palette = AppPalette.of(context);
     final async = ref.watch(_fileTreeProvider((repo: repo, sha: sha)));
     return async.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Error: $e',
-          style: const TextStyle(color: Color(0xFFF48771)))),
+          style: TextStyle(color: palette.accentErr))),
       data: (entries) {
         final sorted = [...entries]
           ..sort((a, b) {
@@ -44,8 +46,8 @@ class FileTreeViewWidget extends ConsumerWidget {
                         ? Icons.link_outlined
                         : Icons.insert_drive_file_outlined;
             final iconColor = e.kind == FileTreeKind.tree
-                ? const Color(0xFFD7BA7D)
-                : const Color(0xFF888892);
+                ? palette.accentTag
+                : palette.fg2;
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 8),
               child: Row(
@@ -56,7 +58,7 @@ class FileTreeViewWidget extends ConsumerWidget {
                     child: Text(
                       e.name,
                       style: TextStyle(
-                        color: const Color(0xFFD4D4D4),
+                        color: palette.fg0,
                         fontSize: 12.5,
                         fontWeight: e.kind == FileTreeKind.tree ? FontWeight.w500 : FontWeight.normal,
                       ),
@@ -64,10 +66,10 @@ class FileTreeViewWidget extends ConsumerWidget {
                   ),
                   if (e.sizeBytes != null)
                     Text('${e.sizeBytes}',
-                        style: const TextStyle(
-                          color: Color(0xFF5D5D65),
+                        style: TextStyle(
+                          color: palette.fg3,
                           fontSize: 11,
-                          fontFeatures: [FontFeature.tabularFigures()],
+                          fontFeatures: const [FontFeature.tabularFigures()],
                         )),
                 ],
               ),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../application/active_workspace_provider.dart';
 import '../../domain/commits/commit_sha.dart';
 import '../../domain/repositories/repo_location.dart';
+import '../theme/app_palette.dart';
 import 'commit_details_view.dart';
 import 'diff_view.dart';
 import 'file_tree_view.dart';
@@ -21,25 +22,27 @@ class _BottomPanelState extends ConsumerState<BottomPanel> {
   @override
   Widget build(BuildContext context) {
     final sha = ref.watch(selectedCommitShaProvider);
+    final palette = AppPalette.of(context);
     return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFF1F1F23),
-        border: Border(top: BorderSide(color: Color(0xFF313137))),
+      decoration: BoxDecoration(
+        color: palette.bg1,
+        border: Border(top: BorderSide(color: palette.border)),
       ),
       child: Column(
         children: [
           _TabsBar(active: _tab, onSelect: (v) => setState(() => _tab = v)),
-          Expanded(child: _body(sha)),
+          Expanded(child: _body(context, sha)),
         ],
       ),
     );
   }
 
-  Widget _body(CommitSha? sha) {
+  Widget _body(BuildContext context, CommitSha? sha) {
+    final palette = AppPalette.of(context);
     if (sha == null) {
-      return const Center(
+      return Center(
         child: Text('Select a commit.',
-            style: TextStyle(color: Color(0xFF888892), fontStyle: FontStyle.italic)),
+            style: TextStyle(color: palette.fg2, fontStyle: FontStyle.italic)),
       );
     }
     switch (_tab) {
@@ -61,8 +64,9 @@ class _TabsBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
     return Container(
-      color: const Color(0xFF2C2C31),
+      color: palette.bg3,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Row(
         children: [
@@ -89,6 +93,7 @@ class _Tab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
     final isActive = active == value;
     return InkWell(
       onTap: () => onSelect(value),
@@ -98,7 +103,7 @@ class _Tab extends StatelessWidget {
           decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(
-                color: isActive ? const Color(0xFF4EC9B0) : Colors.transparent,
+                color: isActive ? palette.accentCurrent : Colors.transparent,
                 width: 2,
               ),
             ),
@@ -107,7 +112,7 @@ class _Tab extends StatelessWidget {
           child: Text(
             label,
             style: TextStyle(
-              color: isActive ? const Color(0xFFD4D4D4) : const Color(0xFFB8B8BC),
+              color: isActive ? palette.fg0 : palette.fg1,
               fontSize: 12,
             ),
           ),

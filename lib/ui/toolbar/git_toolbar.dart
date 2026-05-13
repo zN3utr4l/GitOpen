@@ -12,6 +12,7 @@ import '../../domain/repositories/repo_location.dart';
 import '../dialogs/auth_dialog.dart';
 import '../dialogs/branch_create_dialog.dart';
 import '../dialogs/confirm_dialog.dart';
+import '../theme/app_palette.dart';
 
 /// Three-button toolbar for Fetch / Pull / Push, plus Branch and Stash dropdowns.
 ///
@@ -588,6 +589,7 @@ class _ToolbarButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
     return Opacity(
       opacity: enabled ? 1.0 : 0.4,
       child: InkWell(
@@ -598,12 +600,12 @@ class _ToolbarButton extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 14, color: const Color(0xFFB8B8BC)),
+              Icon(icon, size: 14, color: palette.fg1),
               const SizedBox(width: 5),
               Text(
                 label,
-                style: const TextStyle(
-                  color: Color(0xFFD4D4D4),
+                style: TextStyle(
+                  color: palette.fg0,
                   fontSize: 12,
                 ),
               ),
@@ -632,6 +634,7 @@ class _ToolbarDropdownButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
     return Opacity(
       opacity: enabled ? 1.0 : 0.4,
       child: InkWell(
@@ -642,17 +645,17 @@ class _ToolbarDropdownButton extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 14, color: const Color(0xFFB8B8BC)),
+              Icon(icon, size: 14, color: palette.fg1),
               const SizedBox(width: 5),
               Text(
                 label,
-                style: const TextStyle(
-                  color: Color(0xFFD4D4D4),
+                style: TextStyle(
+                  color: palette.fg0,
                   fontSize: 12,
                 ),
               ),
               const SizedBox(width: 3),
-              const Icon(Icons.expand_more, size: 12, color: Color(0xFF888892)),
+              Icon(Icons.expand_more, size: 12, color: palette.fg2),
             ],
           ),
         ),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../application/providers.dart';
 import '../../domain/commits/commit_sha.dart';
 import '../../domain/repositories/repo_location.dart';
+import '../theme/app_palette.dart';
 
 class BranchCreateDialog extends ConsumerStatefulWidget {
   final RepoLocation repo;
@@ -29,7 +30,7 @@ class _State extends ConsumerState<BranchCreateDialog> {
       content: Column(mainAxisSize: MainAxisSize.min, children: [
         TextField(controller: _ctl, autofocus: true, decoration: const InputDecoration(labelText: 'Branch name')),
         const SizedBox(height: 8),
-        if (widget.at != null) Text('From: ${widget.at!.short()}', style: const TextStyle(color: Color(0xFF888892))),
+        if (widget.at != null) Text('From: ${widget.at!.short()}', style: TextStyle(color: AppPalette.of(context).fg2)),
         Row(children: [
           Checkbox(value: _checkout, onChanged: (v) => setState(() => _checkout = v ?? true)),
           const Text('Switch to this branch'),

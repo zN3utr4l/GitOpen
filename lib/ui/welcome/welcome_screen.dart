@@ -3,30 +3,32 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../application/active_workspace_provider.dart';
 import '../../application/providers.dart';
 import '../dialogs/clone_dialog.dart';
+import '../theme/app_palette.dart';
 
 class WelcomeScreen extends ConsumerWidget {
   const WelcomeScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final palette = AppPalette.of(context);
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.folder_special, size: 48, color: Color(0xFF4EC9B0)),
+          Icon(Icons.folder_special, size: 48, color: palette.accentCurrent),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'Welcome to GitOpen',
             style: TextStyle(
-              color: Color(0xFFD4D4D4),
+              color: palette.fg0,
               fontSize: 18,
               fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Open or clone a repository to begin.',
-            style: TextStyle(color: Color(0xFF888892)),
+            style: TextStyle(color: palette.fg2),
           ),
           const SizedBox(height: 24),
           Row(mainAxisSize: MainAxisSize.min, children: [
