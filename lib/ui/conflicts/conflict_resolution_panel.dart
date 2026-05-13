@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -71,7 +73,7 @@ class ConflictResolutionPanel extends ConsumerWidget {
                           trailing:
                               Row(mainAxisSize: MainAxisSize.min, children: [
                             TextButton(
-                              onPressed: () => _openInEditor(repo.path, path),
+                              onPressed: () => _openInEditor(ref, repo.path, path),
                               child: const Text('Open'),
                             ),
                             TextButton(
@@ -111,9 +113,15 @@ class ConflictResolutionPanel extends ConsumerWidget {
     );
   }
 
-  Future<void> _openInEditor(String repoPath, String filePath) async {
-    final url = Uri.file('$repoPath/$filePath');
-    await launchUrl(url);
+  Future<void> _openInEditor(WidgetRef ref, String repoPath, String filePath) async {
+    final settingsPath = ref.read(appSettingsProvider).externalEditorPath;
+    if (settingsPath != null && settingsPath.isNotEmpty) {
+      final fullPath = '$repoPath/$filePath';
+      await Process.run(settingsPath, [fullPath]);
+    } else {
+      final url = Uri.file('$repoPath/$filePath');
+      await launchUrl(url);
+    }
   }
 
   Future<void> _abort(WidgetRef ref, InProgressOp op) async {

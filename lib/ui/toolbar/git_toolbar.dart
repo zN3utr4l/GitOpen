@@ -8,6 +8,7 @@ import '../../application/git/auth_spec.dart';
 import '../../application/git/git_write_operations.dart';
 import '../../application/operations/running_operation.dart';
 import '../../application/providers.dart';
+import '../../application/settings/app_settings.dart';
 import '../../domain/repositories/repo_location.dart';
 import '../dialogs/auth_dialog.dart';
 import '../dialogs/branch_create_dialog.dart';
@@ -73,12 +74,19 @@ class _GitToolbarState extends ConsumerState<GitToolbar> {
         (auth) => ref.read(gitWriteOperationsProvider).fetch(repo, auth: auth),
       );
 
-  Future<void> _pull(RepoLocation repo) => _runStream(
-        OpKind.pull,
-        'Pulling',
-        repo,
-        (auth) => ref.read(gitWriteOperationsProvider).pull(repo, PullStrategy.merge, auth: auth),
-      );
+  Future<void> _pull(RepoLocation repo) {
+    final strategy = switch (ref.read(appSettingsProvider).defaultPullStrategy) {
+      DefaultPullStrategy.ffOnly => PullStrategy.ffOnly,
+      DefaultPullStrategy.merge => PullStrategy.merge,
+      DefaultPullStrategy.rebase => PullStrategy.rebase,
+    };
+    return _runStream(
+      OpKind.pull,
+      'Pulling',
+      repo,
+      (auth) => ref.read(gitWriteOperationsProvider).pull(repo, strategy, auth: auth),
+    );
+  }
 
   Future<void> _push(RepoLocation repo) => _runStream(
         OpKind.push,

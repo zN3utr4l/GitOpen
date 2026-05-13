@@ -23,6 +23,16 @@ class _CommitComposeState extends ConsumerState<CommitCompose> {
   int _lastTrigger = 0;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final s = ref.read(appSettingsProvider);
+      if (s.commitSignoffDefault) setState(() => _signOff = true);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     // React to keyboard shortcut (Ctrl+Enter) via triggerCommitProvider.
     final triggerCount = ref.watch(triggerCommitProvider);
