@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../application/active_workspace_provider.dart';
+import '../../application/main_view_provider.dart';
 import '../../application/providers.dart';
 import '../../domain/repositories/repo_location.dart';
 import '../theme/app_palette.dart';
@@ -17,17 +18,16 @@ class LocalChangesRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(repoStatusProvider(repo));
-    final selected = ref.watch(localChangesSelectedProvider);
     return async.when(
       data: (status) {
         if (status.entries.isEmpty) return const SizedBox.shrink();
         final count = status.entries.length;
         final palette = AppPalette.of(context);
         return Material(
-          color: selected ? palette.bgAccent : Colors.transparent,
+          color: Colors.transparent,
           child: InkWell(
             onTap: () {
-              ref.read(localChangesSelectedProvider.notifier).state = true;
+              ref.read(mainViewProvider.notifier).state = MainView.changes;
               ref.read(selectedCommitShaProvider.notifier).state = null;
             },
             child: Container(
@@ -38,7 +38,7 @@ class LocalChangesRow extends ConsumerWidget {
                 const SizedBox(width: 8),
                 Text('Local Changes ($count)',
                     style: TextStyle(
-                      color: selected ? Colors.white : palette.accentTag,
+                      color: palette.accentTag,
                       fontSize: 12.5, fontWeight: FontWeight.w600,
                     )),
               ]),

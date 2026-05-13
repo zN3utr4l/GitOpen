@@ -199,8 +199,6 @@ class CommitGraphPanel extends ConsumerWidget {
                       onTap: () {
                         ref.read(selectedCommitShaProvider.notifier).state =
                             node.commit.sha;
-                        ref.read(localChangesSelectedProvider.notifier).state =
-                            false;
                       },
                       onSecondaryTap: (globalPos) => _showCommitContextMenu(
                         context,

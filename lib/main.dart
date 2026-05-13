@@ -8,6 +8,7 @@ import 'package:logger/logger.dart';
 
 import 'application/active_workspace_provider.dart';
 import 'application/git/repo_state_provider.dart';
+import 'application/main_view_provider.dart';
 import 'application/operations/running_operation.dart';
 import 'application/providers.dart';
 import 'application/settings/app_settings.dart';
@@ -20,6 +21,7 @@ import 'ui/conflicts/conflict_resolution_panel.dart';
 import 'ui/operations/toast_overlay.dart';
 import 'ui/settings/settings_page.dart';
 import 'ui/shell/repo_selector.dart';
+import 'ui/shell/view_selector.dart';
 import 'ui/sidebar/sidebar.dart';
 import 'ui/status_bar/status_bar.dart';
 import 'ui/toolbar/git_toolbar.dart';
@@ -231,8 +233,7 @@ class _ShellState extends ConsumerState<Shell> {
                                     : settingsOpen
                                         ? const SettingsPage()
                                         : Builder(builder: (context) {
-                                            final localChanges = ref
-                                                .watch(localChangesSelectedProvider);
+                                            final view = ref.watch(mainViewProvider);
                                             final repoStateAsync = ref.watch(
                                                 repoStateProvider(active.location));
                                             final inProgressOp =
@@ -243,19 +244,26 @@ class _ShellState extends ConsumerState<Shell> {
                                                 inProgressOp == InProgressOp.revert;
                                             return Column(
                                               children: [
+                                                const ViewSelector(),
                                                 Expanded(
-                                                    child: CommitGraphPanel(
-                                                        repo: active.location)),
-                                                SizedBox(
-                                                  height: 320,
                                                   child: hasConflict
                                                       ? ConflictResolutionPanel(
                                                           repo: active.location)
-                                                      : localChanges
+                                                      : view == MainView.changes
                                                           ? WorkingCopyPanel(
                                                               repo: active.location)
-                                                          : BottomPanel(
-                                                              repo: active.location),
+                                                          : Column(
+                                                              children: [
+                                                                Expanded(
+                                                                    child: CommitGraphPanel(
+                                                                        repo: active.location)),
+                                                                SizedBox(
+                                                                  height: 320,
+                                                                  child: BottomPanel(
+                                                                      repo: active.location),
+                                                                ),
+                                                              ],
+                                                            ),
                                                 ),
                                                 const StatusBar(),
                                               ],

@@ -17,9 +17,13 @@ final _workingCopyStatusProvider =
   return status.entries;
 });
 
-/// Provider that fetches the working-tree-vs-index diff for a single file.
-/// Keyed by (repo, filePath). Returns null if the file has no diff entry.
-final _fileDiffProvider = FutureProvider.family
+/// Currently selected file path in the working copy panel.
+/// `null` means no preview is shown.
+final _selectedFileProvider =
+    StateProvider.autoDispose<({String path, bool staged})?>((_) => null);
+
+/// Working-tree-vs-index diff, keyed by (repo, filePath).
+final _unstagedFileDiffProvider = FutureProvider.family
     .autoDispose<FileDiff?, (RepoLocation, String)>((ref, args) async {
   final (repo, filePath) = args;
   final git = ref.read(gitReadOperationsProvider);
@@ -31,8 +35,19 @@ final _fileDiffProvider = FutureProvider.family
   }
 });
 
-/// Returns whether a [WorkingFileEntry] can have hunks expanded.
-/// Untracked files have no index entry so git diff yields nothing useful.
+/// Index-vs-HEAD diff, keyed by (repo, filePath).
+final _stagedFileDiffProvider = FutureProvider.family
+    .autoDispose<FileDiff?, (RepoLocation, String)>((ref, args) async {
+  final (repo, filePath) = args;
+  final git = ref.read(gitReadOperationsProvider);
+  final result = await git.getDiff(repo, const DiffSpecIndexVsHead());
+  try {
+    return result.files.firstWhere((f) => f.path == filePath);
+  } catch (_) {
+    return null;
+  }
+});
+
 bool _canExpandHunks(WorkingFileEntry entry) {
   return entry.workingTreeState != WorkingFileState.untracked &&
       entry.workingTreeState != WorkingFileState.ignored;
@@ -80,14 +95,24 @@ class WorkingCopyPanel extends ConsumerWidget {
               e.workingTreeState != WorkingFileState.unmodified).toList();
           final staged = entries.where((e) =>
               e.indexState != WorkingFileState.unmodified).toList();
-          return Column(
+          return Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(child: _FileList(
-                repo: repo, unstaged: unstaged, staged: staged,
-              )),
-              Divider(height: 1, color: palette.border),
-              CommitCompose(repo: repo),
+              SizedBox(
+                width: 380,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(child: _FileList(
+                      repo: repo, unstaged: unstaged, staged: staged,
+                    )),
+                    Divider(height: 1, color: palette.border),
+                    CommitCompose(repo: repo),
+                  ],
+                ),
+              ),
+              VerticalDivider(width: 1, color: palette.border),
+              Expanded(child: _DiffPreviewPane(repo: repo)),
             ],
           );
         },
@@ -154,10 +179,9 @@ class _Header extends StatelessWidget {
 
 // ---------------------------------------------------------------------------
 
-/// A file row in the working-copy list. For unstaged files that are not
-/// untracked/binary it can be expanded to show individual hunks, each with
-/// its own checkbox. When at least one hunk is checked, a "Stage selected
-/// hunks" button appears.
+/// A file row. Clicking the row selects the file (shows its diff in the
+/// preview pane). The checkbox icon toggles stage/unstage. The chevron
+/// expands hunk-level staging.
 class _FileRow extends ConsumerStatefulWidget {
   final RepoLocation repo;
   final WorkingFileEntry entry;
@@ -189,15 +213,13 @@ class _FileRowState extends ConsumerState<_FileRow> {
     });
   }
 
-  Future<void> _stageFile() async {
+  Future<void> _toggleStage() async {
     final write = ref.read(gitWriteOperationsProvider);
-    await write.stageFiles(widget.repo, [widget.entry.path]);
-    ref.invalidate(_workingCopyStatusProvider(widget.repo));
-  }
-
-  Future<void> _unstageFile() async {
-    final write = ref.read(gitWriteOperationsProvider);
-    await write.unstageFiles(widget.repo, [widget.entry.path]);
+    if (widget.isStaged) {
+      await write.unstageFiles(widget.repo, [widget.entry.path]);
+    } else {
+      await write.stageFiles(widget.repo, [widget.entry.path]);
+    }
     ref.invalidate(_workingCopyStatusProvider(widget.repo));
   }
 
@@ -226,52 +248,66 @@ class _FileRowState extends ConsumerState<_FileRow> {
   }
 
   Widget _buildFileRowHeader() {
-    return InkWell(
-      onTap: () async {
-        if (widget.isStaged) {
-          await _unstageFile();
-        } else {
-          await _stageFile();
-        }
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        child: Row(children: [
-          // Chevron for expansion (unstaged, non-untracked only)
-          if (_canExpand)
+    final palette = AppPalette.of(context);
+    final sel = ref.watch(_selectedFileProvider);
+    final isSelected = sel != null &&
+        sel.path == widget.entry.path &&
+        sel.staged == widget.isStaged;
+    return Material(
+      color: isSelected ? palette.bgAccent : Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          ref.read(_selectedFileProvider.notifier).state =
+              (path: widget.entry.path, staged: widget.isStaged);
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          child: Row(children: [
+            if (_canExpand)
+              GestureDetector(
+                onTap: _toggleExpanded,
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: Icon(
+                    _expanded ? Icons.expand_more : Icons.chevron_right,
+                    size: 14,
+                    color: isSelected ? Colors.white70 : palette.fg2,
+                  ),
+                ),
+              )
+            else
+              const SizedBox(width: 18),
             GestureDetector(
-              onTap: _toggleExpanded,
+              onTap: _toggleStage,
               behavior: HitTestBehavior.opaque,
               child: Padding(
-                padding: const EdgeInsets.only(right: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
                 child: Icon(
-                  _expanded ? Icons.expand_more : Icons.chevron_right,
+                  widget.isStaged ? Icons.check_box : Icons.check_box_outline_blank,
                   size: 14,
-                  color: AppPalette.of(context).fg2,
+                  color: isSelected ? Colors.white : palette.fg1,
                 ),
               ),
-            )
-          else
-            const SizedBox(width: 18),
-          // Stage/unstage checkbox
-          Icon(widget.isStaged ? Icons.check_box : Icons.check_box_outline_blank,
-              size: 14, color: AppPalette.of(context).fg1),
-          const SizedBox(width: 8),
-          _StateBadge(state: widget.isStaged ? widget.entry.indexState : widget.entry.workingTreeState),
-          const SizedBox(width: 8),
-          Expanded(child: Text(widget.entry.path,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: AppPalette.of(context).fg0, fontSize: 12.5))),
-          // "Stage selected hunks" button — shown when at least one hunk checked
-          if (_checkedHunks.isNotEmpty)
-            _buildStageSelectedButton(),
-        ]),
+            ),
+            const SizedBox(width: 6),
+            _StateBadge(state: widget.isStaged ? widget.entry.indexState : widget.entry.workingTreeState),
+            const SizedBox(width: 8),
+            Expanded(child: Text(widget.entry.path,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    color: isSelected ? Colors.white : palette.fg0,
+                    fontSize: 12.5))),
+            if (_checkedHunks.isNotEmpty)
+              _buildStageSelectedButton(),
+          ]),
+        ),
       ),
     );
   }
 
   Widget _buildStageSelectedButton() {
-    final diffAsync = ref.watch(_fileDiffProvider((widget.repo, widget.entry.path)));
+    final diffAsync = ref.watch(_unstagedFileDiffProvider((widget.repo, widget.entry.path)));
     return diffAsync.maybeWhen(
       data: (fileDiff) {
         if (fileDiff == null) return const SizedBox.shrink();
@@ -294,7 +330,7 @@ class _FileRowState extends ConsumerState<_FileRow> {
   }
 
   Widget _buildHunkSection() {
-    final diffAsync = ref.watch(_fileDiffProvider((widget.repo, widget.entry.path)));
+    final diffAsync = ref.watch(_unstagedFileDiffProvider((widget.repo, widget.entry.path)));
     return diffAsync.when(
       loading: () => const Padding(
         padding: EdgeInsets.only(left: 32, top: 4, bottom: 4),
@@ -328,7 +364,6 @@ class _FileRowState extends ConsumerState<_FileRow> {
 
 // ---------------------------------------------------------------------------
 
-/// A single hunk sub-row displayed below an expanded file row.
 class _HunkRow extends StatelessWidget {
   final DiffHunk hunk;
   final int index;
@@ -401,5 +436,206 @@ class _StateBadge extends StatelessWidget {
       case WorkingFileState.ignored: return ('I', p.fg3);
       default: return ('', Colors.transparent);
     }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Diff preview pane — renders the selected file's diff.
+// ---------------------------------------------------------------------------
+
+class _DiffPreviewPane extends ConsumerWidget {
+  final RepoLocation repo;
+  const _DiffPreviewPane({required this.repo});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = AppPalette.of(context);
+    final sel = ref.watch(_selectedFileProvider);
+    if (sel == null) {
+      return Container(
+        color: palette.bg1,
+        alignment: Alignment.center,
+        child: Text(
+          'Select a file to preview changes',
+          style: TextStyle(
+            color: palette.fg3,
+            fontSize: 12.5,
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      );
+    }
+    final provider = sel.staged
+        ? _stagedFileDiffProvider((repo, sel.path))
+        : _unstagedFileDiffProvider((repo, sel.path));
+    final async = ref.watch(provider);
+    return Container(
+      color: palette.bg1,
+      child: async.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(
+          child: Text('Diff error: $e',
+              style: TextStyle(color: palette.accentErr)),
+        ),
+        data: (fileDiff) {
+          if (fileDiff == null) {
+            return Center(
+              child: Text(
+                'No diff available (untracked or unchanged)',
+                style: TextStyle(color: palette.fg3, fontSize: 12),
+              ),
+            );
+          }
+          if (fileDiff.isBinary) {
+            return Center(
+              child: Text(
+                'Binary file (no preview)',
+                style: TextStyle(color: palette.fg2, fontStyle: FontStyle.italic),
+              ),
+            );
+          }
+          return ListView(
+            padding: const EdgeInsets.all(8),
+            children: [
+              _DiffHeader(path: sel.path, fileDiff: fileDiff),
+              for (final h in fileDiff.hunks) _HunkBlock(hunk: h),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _DiffHeader extends StatelessWidget {
+  final String path;
+  final FileDiff fileDiff;
+  const _DiffHeader({required this.path, required this.fileDiff});
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return Container(
+      decoration: BoxDecoration(
+        color: palette.bg3,
+        border: Border.all(color: palette.border),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(path,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: palette.fg0, fontSize: 12)),
+          ),
+          Text(
+            '+${fileDiff.linesAdded} -${fileDiff.linesDeleted}',
+            style: TextStyle(color: palette.fg2, fontSize: 11),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HunkBlock extends StatelessWidget {
+  final DiffHunk hunk;
+  const _HunkBlock({required this.hunk});
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        border: Border.all(color: palette.border),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            color: palette.bg2,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            child: Text(hunk.header,
+                style: TextStyle(
+                  color: palette.fg2,
+                  fontSize: 11.5,
+                  fontStyle: FontStyle.italic,
+                  fontFamily: 'monospace',
+                )),
+          ),
+          for (final line in hunk.lines) _DiffLine(line: line),
+        ],
+      ),
+    );
+  }
+}
+
+class _DiffLine extends StatelessWidget {
+  final DiffLine line;
+  const _DiffLine({required this.line});
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final Color bg;
+    final String prefix;
+    switch (line.kind) {
+      case DiffLineKind.addition:
+        bg = palette.accentCurrent.withValues(alpha: 0.10);
+        prefix = '+';
+      case DiffLineKind.deletion:
+        bg = palette.accentErr.withValues(alpha: 0.12);
+        prefix = '-';
+      case DiffLineKind.context:
+        bg = Colors.transparent;
+        prefix = ' ';
+    }
+    return Container(
+      color: bg,
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 34,
+            child: Text(line.oldLine?.toString() ?? '',
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                    color: palette.fg3, fontSize: 11, fontFamily: 'monospace')),
+          ),
+          const SizedBox(width: 6),
+          SizedBox(
+            width: 34,
+            child: Text(line.newLine?.toString() ?? '',
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                    color: palette.fg3, fontSize: 11, fontFamily: 'monospace')),
+          ),
+          const SizedBox(width: 6),
+          SizedBox(
+            width: 12,
+            child: Text(prefix,
+                style: TextStyle(
+                    color: palette.fg3, fontSize: 12, fontFamily: 'monospace')),
+          ),
+          Expanded(
+            child: Text(
+              line.content,
+              style: TextStyle(
+                color: palette.fg0,
+                fontSize: 12,
+                fontFamily: 'monospace',
+              ),
+              softWrap: false,
+              overflow: TextOverflow.clip,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

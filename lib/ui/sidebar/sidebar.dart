@@ -10,6 +10,7 @@ import '../../domain/refs/tag.dart';
 import '../../application/git/git_result.dart';
 import '../../application/git/merge_outcome.dart';
 import '../../domain/repositories/repo_location.dart';
+import '../checkout/safe_checkout.dart';
 import '../dialogs/confirm_dialog.dart';
 import '../theme/app_palette.dart';
 import 'branch_tree.dart';
@@ -177,7 +178,15 @@ class _TagRow extends ConsumerWidget {
       onSecondaryTapDown: (details) =>
           _showContextMenu(context, ref, details.globalPosition),
       child: InkWell(
-        onTap: () {},
+        onTap: () async {
+          final ok = await safeCheckout(
+            context: context,
+            ref: ref,
+            repo: repo,
+            targetRef: tag.name,
+          );
+          if (ok) onRefresh();
+        },
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 3),
           child: Text(
@@ -519,7 +528,17 @@ class _BranchTreeViewState extends ConsumerState<BranchTreeView> {
           onSecondaryTapDown: (details) =>
               _handleContextMenu(context, n, details.globalPosition),
           child: InkWell(
-            onTap: () {},
+            onTap: branch == null || current
+                ? () {}
+                : () async {
+                    final ok = await safeCheckout(
+                      context: context,
+                      ref: ref,
+                      repo: widget.repo,
+                      targetRef: branch.name,
+                    );
+                    if (ok) _refresh();
+                  },
             child: Padding(
               padding: EdgeInsets.only(
                   left: indent + 18, right: 6, top: 3, bottom: 3),
