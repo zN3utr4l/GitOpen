@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../application/active_workspace_provider.dart';
 import '../../application/branch_visibility_provider.dart';
+import '../../application/main_view_provider.dart';
 import '../../application/providers.dart';
+import '../../application/scroll_request_provider.dart';
+import '../../domain/commits/commit_sha.dart';
 import '../../domain/refs/branch.dart';
 import '../../domain/refs/remote.dart';
 import '../../domain/refs/stash.dart';
@@ -14,6 +17,15 @@ import '../checkout/safe_checkout.dart';
 import '../dialogs/confirm_dialog.dart';
 import '../theme/app_palette.dart';
 import 'branch_tree.dart';
+
+/// Selects [sha] in the graph and asks the graph panel to scroll it into
+/// view. Also switches the main view back to the graph if the user is
+/// currently looking at the working-copy changes.
+void _revealCommit(WidgetRef ref, CommitSha sha) {
+  ref.read(mainViewProvider.notifier).state = MainView.graph;
+  ref.read(selectedCommitShaProvider.notifier).state = sha;
+  ref.read(scrollRequestProvider.notifier).state = sha;
+}
 
 class _SidebarData {
   final List<Branch> branches;
@@ -178,7 +190,8 @@ class _TagRow extends ConsumerWidget {
       onSecondaryTapDown: (details) =>
           _showContextMenu(context, ref, details.globalPosition),
       child: InkWell(
-        onTap: () async {
+        onTap: () => _revealCommit(ref, tag.targetSha),
+        onDoubleTap: () async {
           final ok = await safeCheckout(
             context: context,
             ref: ref,
@@ -528,8 +541,11 @@ class _BranchTreeViewState extends ConsumerState<BranchTreeView> {
           onSecondaryTapDown: (details) =>
               _handleContextMenu(context, n, details.globalPosition),
           child: InkWell(
-            onTap: branch == null || current
-                ? () {}
+            onTap: branch?.tipSha == null
+                ? null
+                : () => _revealCommit(ref, branch!.tipSha!),
+            onDoubleTap: branch == null || current
+                ? null
                 : () async {
                     final ok = await safeCheckout(
                       context: context,

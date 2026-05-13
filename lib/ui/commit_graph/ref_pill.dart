@@ -8,10 +8,16 @@ import 'ref_decoration.dart';
 /// remote name(s) prefixed with ⇄ to signal the sync.
 class RefPill extends StatelessWidget {
   final RefDecoration decoration;
-  /// Invoked when the user left-clicks the pill. When null the pill is
-  /// rendered without any tap handling.
+  /// Invoked when the user single-clicks the pill.
   final VoidCallback? onTap;
-  const RefPill({super.key, required this.decoration, this.onTap});
+  /// Invoked when the user double-clicks the pill (typically: checkout).
+  final VoidCallback? onDoubleTap;
+  const RefPill({
+    super.key,
+    required this.decoration,
+    this.onTap,
+    this.onDoubleTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -69,11 +75,12 @@ class RefPill extends StatelessWidget {
       );
     }
 
-    if (onTap == null) return pill;
+    if (onTap == null && onDoubleTap == null) return pill;
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
         onTap: onTap,
+        onDoubleTap: onDoubleTap,
         behavior: HitTestBehavior.opaque,
         child: pill,
       ),

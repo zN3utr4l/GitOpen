@@ -9,6 +9,7 @@ import '../../application/git/git_result.dart';
 import '../../application/git/git_write_operations.dart';
 import '../../application/git/repo_state_provider.dart';
 import '../../application/providers.dart';
+import '../../application/scroll_request_provider.dart';
 import '../../domain/commits/commit_sha.dart';
 import '../../domain/repositories/repo_location.dart';
 import '../checkout/safe_checkout.dart';
@@ -162,14 +163,57 @@ final commitGraphDataProvider =
   return _GraphData(nodes, refsBySha, maxLane);
 });
 
-class CommitGraphPanel extends ConsumerWidget {
+class CommitGraphPanel extends ConsumerStatefulWidget {
   final RepoLocation repo;
   const CommitGraphPanel({super.key, required this.repo});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CommitGraphPanel> createState() => _CommitGraphPanelState();
+}
+
+class _CommitGraphPanelState extends ConsumerState<CommitGraphPanel> {
+  final ScrollController _controller = ScrollController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _scrollToSha(CommitSha sha, List<dynamic> nodes) {
+    final index = nodes.indexWhere((n) => n.commit.sha == sha);
+    if (index < 0 || !_controller.hasClients) return;
+    final target = index * 26.0;
+    final position = _controller.position;
+    final viewport = position.viewportDimension;
+    final maxScroll = position.maxScrollExtent;
+    // Center the row in the viewport if possible.
+    final centered = (target - viewport / 2 + 13).clamp(0.0, maxScroll);
+    _controller.animateTo(
+      centered,
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final repo = widget.repo;
     final async = ref.watch(commitGraphDataProvider(repo));
     final palette = AppPalette.of(context);
+
+    // Listen for scroll requests from the sidebar / other panels.
+    ref.listen<CommitSha?>(scrollRequestProvider, (prev, next) {
+      if (next == null) return;
+      final data = ref.read(commitGraphDataProvider(repo)).valueOrNull;
+      if (data == null) return;
+      // Schedule after the current frame so the ListView has measured.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollToSha(next, data.nodes);
+        ref.read(scrollRequestProvider.notifier).state = null;
+      });
+    });
+
     return Container(
       color: palette.bg1,
       child: async.when(
@@ -187,6 +231,7 @@ class CommitGraphPanel extends ConsumerWidget {
               LocalChangesRow(repo: repo),
               Expanded(
                 child: ListView.builder(
+                  controller: _controller,
                   itemExtent: 26,
                   itemCount: data.nodes.length,
                   itemBuilder: (context, i) {
@@ -207,11 +252,15 @@ class CommitGraphPanel extends ConsumerWidget {
                         node.commit.sha,
                         globalPos,
                       ),
-                      onRefTap: (r) async {
+                      onRefTap: (r) {
+                        ref.read(selectedCommitShaProvider.notifier).state =
+                            node.commit.sha;
+                      },
+                      onRefDoubleTap: (r) async {
                         final ok = await safeCheckout(
                           context: context,
                           ref: ref,
-                          repo: repo,
+                          repo: widget.repo,
                           targetRef: r.name,
                         );
                         if (ok) {
@@ -266,7 +315,7 @@ class CommitGraphPanel extends ConsumerWidget {
           value: 'reset_submenu',
           child: _ResetSubmenuTile(
             sha: sha,
-            repo: repo,
+            repo: widget.repo,
             onAction: (mode) async {
               Navigator.pop(context, '__reset_handled__');
               if (!context.mounted) return;
@@ -283,6 +332,7 @@ class CommitGraphPanel extends ConsumerWidget {
 
     final write = ref.read(gitWriteOperationsProvider);
 
+    final repo = widget.repo;
     switch (selected) {
       case 'cherry_pick':
         await write.cherryPick(repo, sha);
@@ -333,7 +383,7 @@ class CommitGraphPanel extends ConsumerWidget {
       );
       if (!confirmed) return;
     }
-    await ref.read(gitWriteOperationsProvider).reset(repo, sha, mode);
+    await ref.read(gitWriteOperationsProvider).reset(widget.repo, sha, mode);
     ref.invalidate(gitReadOperationsProvider);
   }
 

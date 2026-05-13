@@ -17,6 +17,8 @@ class CommitRow extends StatelessWidget {
   final void Function(Offset globalPosition)? onSecondaryTap;
   /// Called when the user left-clicks one of the ref pills.
   final void Function(RefDecoration ref)? onRefTap;
+  /// Called when the user double-clicks one of the ref pills.
+  final void Function(RefDecoration ref)? onRefDoubleTap;
 
   const CommitRow({
     super.key,
@@ -27,6 +29,7 @@ class CommitRow extends StatelessWidget {
     required this.onTap,
     this.onSecondaryTap,
     this.onRefTap,
+    this.onRefDoubleTap,
   });
 
   static final _dateFmt = DateFormat('yyyy-MM-dd HH:mm');
@@ -88,9 +91,12 @@ class CommitRow extends StatelessWidget {
                               padding: const EdgeInsets.only(right: 4),
                               child: RefPill(
                                 decoration: r,
-                                onTap: onRefTap == null || r.isCurrent
+                                onTap:
+                                    onRefTap == null ? null : () => onRefTap!(r),
+                                onDoubleTap: onRefDoubleTap == null ||
+                                        r.isCurrent
                                     ? null
-                                    : () => onRefTap!(r),
+                                    : () => onRefDoubleTap!(r),
                               ),
                             ),
                           if (refs.isNotEmpty) const SizedBox(width: 4),
