@@ -164,10 +164,11 @@ class _ShellState extends ConsumerState<Shell> {
     final repo = active.location;
     final ops = ref.read(operationsProvider.notifier);
     final id = ops.start(OpKind.fetch, 'Fetching origin', repo: repo);
+    final auth = await ref.read(authResolverProvider).resolveForRepo(repo);
     try {
       await for (final ev in ref
           .read(gitWriteOperationsProvider)
-          .fetch(repo, auth: null)) {
+          .fetch(repo, auth: auth)) {
         ops.updateProgress(
           id,
           (ev as dynamic).fraction as double?,

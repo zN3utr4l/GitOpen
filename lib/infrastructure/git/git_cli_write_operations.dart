@@ -243,10 +243,16 @@ final class GitCliWriteOperations implements GitWriteOperations {
   Stream<GitProgress> _runProgressStream(String cwd, List<String> args,
       {AuthSpec? auth}) async* {
     final helper = await CredentialHelper.setup(auth, '');
+    // When we have credentials to inject, disable any inherited credential
+    // helper (notably Git Credential Manager on Windows) so git uses our
+    // GIT_ASKPASS instead of popping a system account-picker dialog.
+    final effectiveArgs = helper.env.isEmpty
+        ? args
+        : <String>['-c', 'credential.helper=', ...args];
     try {
       final proc = await Process.start(
         _runner.executable,
-        args,
+        effectiveArgs,
         workingDirectory: cwd,
         environment: helper.env.isEmpty ? null : helper.env,
       );

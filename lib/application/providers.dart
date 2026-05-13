@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'auth/auth_resolver.dart';
 import 'auth/credentials_store.dart';
 import 'commit_graph/commit_graph_layout.dart';
 import 'git/git_read_operations.dart';
@@ -72,6 +73,10 @@ final operationsProvider = StateNotifierProvider<OperationsNotifier, List<Runnin
 
 final credentialsStoreProvider = Provider<CredentialsStore>(
   (ref) => SecureCredentialsStore(),
+);
+
+final authResolverProvider = Provider<AuthResolver>(
+  (ref) => AuthResolver(ref.watch(credentialsStoreProvider)),
 );
 
 final settingsRepositoryProvider = Provider<SettingsRepository>((ref) {

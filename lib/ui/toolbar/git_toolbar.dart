@@ -110,6 +110,11 @@ class _GitToolbarState extends ConsumerState<GitToolbar> {
   }) async {
     final ops = ref.read(operationsProvider.notifier);
     final id = ops.start(kind, label, repo: repo);
+    // If the caller did not pass an explicit auth (typical first attempt),
+    // look up any credential stored in-app for this repo's remote host.
+    // This avoids falling through to the system credential manager (GCM on
+    // Windows) which would pop an account-picker dialog.
+    auth ??= await ref.read(authResolverProvider).resolveForRepo(repo);
     try {
       await for (final ev in streamFactory(auth)) {
         ops.updateProgress(
