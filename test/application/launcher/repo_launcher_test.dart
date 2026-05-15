@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show VoidCallback;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gitopen/application/launcher/process_runner.dart';
 import 'package:gitopen/application/launcher/repo_launcher.dart';
@@ -153,6 +152,52 @@ void main() {
           SystemRepoLauncher(runner: fake, platformOverride: 'linux');
       await launcher.openInTerminal(_repo('/repo'));
       expect(fake.calls.single.$1, 'gnome-terminal');
+    });
+  });
+
+  group('SystemRepoLauncher.detectAvailableEditors', () {
+    test('returns VS Code when `code` probe succeeds', () async {
+      final fake = FakeProcessRunner(probes: {
+        'code': const ProcessProbeResult(
+            true, r'C:\Program Files\Microsoft VS Code\bin\code.cmd'),
+      });
+      final launcher =
+          SystemRepoLauncher(runner: fake, platformOverride: 'windows');
+      final editors = await launcher.detectAvailableEditors();
+      expect(editors, hasLength(1));
+      expect(editors.single.id, 'vscode');
+      expect(editors.single.executable, contains('code'));
+    });
+
+    test('returns multiple editors when several probes succeed', () async {
+      final fake = FakeProcessRunner(probes: {
+        'code': const ProcessProbeResult(true, 'code'),
+        'cursor': const ProcessProbeResult(true, 'cursor'),
+        'rider64': const ProcessProbeResult(true, 'rider64'),
+      });
+      final launcher =
+          SystemRepoLauncher(runner: fake, platformOverride: 'windows');
+      final editors = await launcher.detectAvailableEditors();
+      final ids = editors.map((e) => e.id).toSet();
+      expect(ids, containsAll(['vscode', 'cursor', 'rider']));
+    });
+
+    test('returns empty list when no editor detected', () async {
+      final fake = FakeProcessRunner();
+      final launcher =
+          SystemRepoLauncher(runner: fake, platformOverride: 'linux');
+      expect(await launcher.detectAvailableEditors(), isEmpty);
+    });
+
+    test('result is cached across calls', () async {
+      final counting = CountingRunner();
+      final launcher =
+          SystemRepoLauncher(runner: counting, platformOverride: 'linux');
+      await launcher.detectAvailableEditors();
+      final firstCount = counting.probeCount;
+      await launcher.detectAvailableEditors();
+      expect(counting.probeCount, firstCount,
+          reason: 'second call must not re-probe');
     });
   });
 }

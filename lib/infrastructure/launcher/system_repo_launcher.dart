@@ -73,8 +73,39 @@ class SystemRepoLauncher implements RepoLauncher {
     throw UnimplementedError();
   }
 
+  List<EditorTarget>? _editorCache;
+
+  static const List<
+          ({String id, String displayName, List<String> commands})>
+      _editorProbeTable = [
+    (id: 'vscode', displayName: 'VS Code', commands: ['code', 'code.cmd']),
+    (id: 'cursor', displayName: 'Cursor', commands: ['cursor', 'cursor.cmd']),
+    (id: 'idea', displayName: 'IntelliJ IDEA', commands: ['idea64', 'idea']),
+    (id: 'webstorm', displayName: 'WebStorm', commands: ['webstorm64', 'webstorm']),
+    (id: 'rider', displayName: 'Rider', commands: ['rider64', 'rider']),
+    (id: 'sublime', displayName: 'Sublime Text', commands: ['subl']),
+    (id: 'studio', displayName: 'Android Studio', commands: ['studio64', 'studio']),
+    (id: 'fleet', displayName: 'Fleet', commands: ['fleet']),
+  ];
+
   @override
   Future<List<EditorTarget>> detectAvailableEditors() async {
-    throw UnimplementedError();
+    if (_editorCache != null) return _editorCache!;
+    final found = <EditorTarget>[];
+    for (final entry in _editorProbeTable) {
+      for (final cmd in entry.commands) {
+        final result = await _runner.probe(cmd);
+        if (result.found) {
+          found.add(EditorTarget(
+            id: entry.id,
+            displayName: entry.displayName,
+            executable: result.resolvedPath ?? cmd,
+          ));
+          break;
+        }
+      }
+    }
+    _editorCache = List.unmodifiable(found);
+    return _editorCache!;
   }
 }
