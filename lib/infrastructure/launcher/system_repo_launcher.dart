@@ -70,7 +70,10 @@ class SystemRepoLauncher implements RepoLauncher {
 
   @override
   Future<void> openInEditor(RepoLocation repo, EditorTarget editor) async {
-    throw UnimplementedError();
+    final ok = await _runner.startDetached(editor.executable, [repo.path]);
+    if (!ok) {
+      throw LauncherException('Could not open ${editor.displayName}.');
+    }
   }
 
   List<EditorTarget>? _editorCache;

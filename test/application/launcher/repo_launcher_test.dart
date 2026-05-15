@@ -200,4 +200,30 @@ void main() {
           reason: 'second call must not re-probe');
     });
   });
+
+  group('SystemRepoLauncher.openInEditor', () {
+    test('starts editor executable with repo path', () async {
+      final fake = FakeProcessRunner();
+      final launcher =
+          SystemRepoLauncher(runner: fake, platformOverride: 'windows');
+      const editor = EditorTarget(
+          id: 'vscode', displayName: 'VS Code', executable: 'code');
+      await launcher.openInEditor(_repo(r'C:\repo'), editor);
+      expect(fake.calls.single.$1, 'code');
+      expect(fake.calls.single.$2, [r'C:\repo']);
+    });
+
+    test('throws LauncherException when spawn fails', () async {
+      final fake = FakeProcessRunner(failingExecutables: {'code'});
+      final launcher =
+          SystemRepoLauncher(runner: fake, platformOverride: 'macos');
+      const editor = EditorTarget(
+          id: 'vscode', displayName: 'VS Code', executable: 'code');
+      expect(
+        () => launcher.openInEditor(_repo('/repo'), editor),
+        throwsA(isA<LauncherException>()
+            .having((e) => e.message, 'message', contains('VS Code'))),
+      );
+    });
+  });
 }
