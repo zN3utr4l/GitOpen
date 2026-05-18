@@ -1,21 +1,42 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../application/auth/auth_profile.dart';
 import '../../application/git/auth_spec.dart';
 import '../../application/providers.dart';
 import '../../infrastructure/auth/github_device_flow.dart';
 import '../theme/app_palette.dart';
 
+/// Dialog that lets the user sign in with one of three methods:
+///  - HTTPS personal-access-token (username + token)
+///  - SSH key (path to private key)
+///  - GitHub OAuth Device Flow (for `github.com`)
+///
+/// On success the credential is persisted as an [AuthProfile] in the
+/// [authProfileStoreProvider] and returned to the caller, so the caller
+/// can bind the current repository to that profile if desired.
 class AuthDialog extends ConsumerStatefulWidget {
   final String host;
-  const AuthDialog({super.key, required this.host});
 
-  static Future<AuthSpec?> show(BuildContext context, String host) {
-    return showDialog<AuthSpec>(
+  /// When non-null, the dialog edits the existing profile (same id, host)
+  /// instead of creating a new one.
+  final AuthProfile? editing;
+
+  const AuthDialog({super.key, required this.host, this.editing});
+
+  static Future<AuthProfile?> show(
+    BuildContext context,
+    String host, {
+    AuthProfile? editing,
+  }) {
+    return showDialog<AuthProfile>(
       context: context,
-      builder: (_) => AuthDialog(host: host),
+      builder: (_) => AuthDialog(host: host, editing: editing),
     );
   }
 
@@ -29,7 +50,9 @@ class _AuthDialogState extends ConsumerState<AuthDialog>
   final _userCtl = TextEditingController();
   final _tokenCtl = TextEditingController();
   final _sshPathCtl = TextEditingController();
-  bool _save = true;
+  final _sshLabelCtl = TextEditingController();
+  bool _busy = false;
+  String? _error;
 
   @override
   void initState() {
@@ -38,6 +61,11 @@ class _AuthDialogState extends ConsumerState<AuthDialog>
       length: widget.host == 'github.com' ? 3 : 2,
       vsync: this,
     );
+    final existing = widget.editing;
+    if (existing != null) {
+      _userCtl.text = existing.username;
+      _sshLabelCtl.text = existing.username;
+    }
   }
 
   @override
@@ -46,6 +74,7 @@ class _AuthDialogState extends ConsumerState<AuthDialog>
     _userCtl.dispose();
     _tokenCtl.dispose();
     _sshPathCtl.dispose();
+    _sshLabelCtl.dispose();
     super.dispose();
   }
 
@@ -63,7 +92,9 @@ class _AuthDialogState extends ConsumerState<AuthDialog>
             Padding(
               padding: const EdgeInsets.all(16),
               child: Text(
-                'Authentication required for ${widget.host}',
+                widget.editing != null
+                    ? 'Edit credential for ${widget.host}'
+                    : 'Add credential for ${widget.host}',
                 style: TextStyle(
                   color: palette.fg0,
                   fontSize: 14,
@@ -80,40 +111,51 @@ class _AuthDialogState extends ConsumerState<AuthDialog>
               ],
             ),
             SizedBox(
-              height: 240,
+              height: 260,
               child: TabBarView(
                 controller: _tabs,
                 children: [
                   _httpsTab(),
                   _sshTab(),
-                  if (isGitHub) _GitHubOAuthTab(
-                    clientId: ref.read(appSettingsProvider).githubClientId ?? '',
-                    onToken: _onGitHubToken,
-                  ),
+                  if (isGitHub)
+                    _GitHubOAuthTab(
+                      clientId:
+                          ref.read(appSettingsProvider).githubClientId ?? '',
+                      onToken: _onGitHubToken,
+                    ),
                 ],
               ),
             ),
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  _error!,
+                  style: TextStyle(color: palette.accentErr, fontSize: 11),
+                ),
+              ),
             Padding(
               padding: const EdgeInsets.all(12),
               child: Row(
                 children: [
-                  Checkbox(
-                    value: _save,
-                    onChanged: (v) => setState(() => _save = v ?? true),
-                  ),
-                  Text(
-                    'Save for this host',
-                    style: TextStyle(color: AppPalette.of(context).fg1),
-                  ),
+                  if (_busy) ...const [
+                    SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    SizedBox(width: 8),
+                  ],
                   const Spacer(),
                   TextButton(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed:
+                        _busy ? null : () => Navigator.pop(context),
                     child: const Text('Cancel'),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(
-                    onPressed: _onSubmit,
-                    child: const Text('Connect'),
+                    onPressed: _busy ? null : _onSubmit,
+                    child: const Text('Save'),
                   ),
                 ],
               ),
@@ -136,8 +178,9 @@ class _AuthDialogState extends ConsumerState<AuthDialog>
             TextField(
               controller: _tokenCtl,
               obscureText: true,
-              decoration:
-                  const InputDecoration(labelText: 'Personal Access Token'),
+              decoration: const InputDecoration(
+                labelText: 'Personal Access Token',
+              ),
             ),
           ],
         ),
@@ -145,47 +188,128 @@ class _AuthDialogState extends ConsumerState<AuthDialog>
 
   Widget _sshTab() => Padding(
         padding: const EdgeInsets.all(16),
-        child: TextField(
-          controller: _sshPathCtl,
-          decoration: const InputDecoration(
-            labelText: 'Path to private key (e.g. ~/.ssh/id_ed25519)',
-          ),
+        child: Column(
+          children: [
+            TextField(
+              controller: _sshLabelCtl,
+              decoration: const InputDecoration(
+                labelText: 'Account label (e.g. github username)',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _sshPathCtl,
+              decoration: const InputDecoration(
+                labelText: 'Path to private key (e.g. ~/.ssh/id_ed25519)',
+              ),
+            ),
+          ],
         ),
       );
 
-  /// Called by [_GitHubOAuthTab] when the Device Flow completes successfully.
   Future<void> _onGitHubToken(String token) async {
-    final spec = AuthGitHubOauth(token);
-    if (_save) {
-      await ref.read(credentialsStoreProvider).put(widget.host, spec);
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      // Resolve the actual GitHub username so the profile shows up labeled
+      // correctly in the account switcher.  Without this two GitHub
+      // accounts would both surface as the generic "(unknown)".
+      final username = await _fetchGitHubUsername(token);
+      final spec = AuthGitHubOauth(token);
+      final profile = await _saveProfile(username: username, spec: spec);
+      if (mounted) Navigator.pop(context, profile);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _error = 'Sign-in succeeded but could not save profile: $e';
+        });
+      }
     }
-    if (mounted) Navigator.pop(context, spec);
   }
 
   Future<void> _onSubmit() async {
-    // The GitHub tab handles its own submit path via [_onGitHubToken].
-    if (_tabs.index == 2) return;
-
-    AuthSpec? spec;
-    if (_tabs.index == 0) {
-      if (_userCtl.text.isEmpty || _tokenCtl.text.isEmpty) return;
-      spec = AuthHttpsPat(username: _userCtl.text, token: _tokenCtl.text);
-    } else {
-      if (_sshPathCtl.text.isEmpty) return;
-      spec = AuthSsh(privateKeyPath: _sshPathCtl.text);
+    if (_tabs.index == 2) return; // GitHub tab has its own submit path
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      AuthSpec spec;
+      String username;
+      if (_tabs.index == 0) {
+        if (_userCtl.text.trim().isEmpty || _tokenCtl.text.isEmpty) {
+          throw const FormatException(
+            'Username and token are required.',
+          );
+        }
+        username = _userCtl.text.trim();
+        spec = AuthHttpsPat(username: username, token: _tokenCtl.text);
+      } else {
+        if (_sshPathCtl.text.trim().isEmpty) {
+          throw const FormatException('Key path is required.');
+        }
+        username = _sshLabelCtl.text.trim().isEmpty
+            ? '(ssh)'
+            : _sshLabelCtl.text.trim();
+        spec = AuthSsh(privateKeyPath: _sshPathCtl.text.trim());
+      }
+      final profile = await _saveProfile(username: username, spec: spec);
+      if (mounted) Navigator.pop(context, profile);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _error = e is FormatException ? e.message : 'Save failed: $e';
+        });
+      }
     }
-    if (_save) await ref.read(credentialsStoreProvider).put(widget.host, spec);
-    if (mounted) Navigator.pop(context, spec);
+  }
+
+  Future<AuthProfile> _saveProfile({
+    required String username,
+    required AuthSpec spec,
+  }) {
+    final store = ref.read(authProfileStoreProvider);
+    return store.upsert(
+      id: widget.editing?.id,
+      host: widget.host,
+      username: username,
+      spec: spec,
+    );
+  }
+
+  /// Calls `GET https://api.github.com/user` with the OAuth token and
+  /// returns the authenticated user's `login`.  Falls back to a sentinel
+  /// label on failure rather than blocking the sign-in flow.
+  Future<String> _fetchGitHubUsername(String token) async {
+    try {
+      final r = await http.get(
+        Uri.parse('https://api.github.com/user'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/vnd.github+json',
+          'X-GitHub-Api-Version': '2022-11-28',
+        },
+      );
+      if (r.statusCode == 200) {
+        final m = jsonDecode(r.body) as Map<String, dynamic>;
+        final login = m['login'];
+        if (login is String && login.isNotEmpty) return login;
+      }
+    } catch (_) {
+      // fall through
+    }
+    return '(github user)';
   }
 }
 
-/// GitHub OAuth Device Flow tab.
-///
-/// Flow:
-///  1. User taps "Sign in with GitHub".
-///  2. We request a device code and display the [userCode].
-///  3. User opens the verification URL in the browser (or we open it for them).
-///  4. We poll in the background; on success we call [onToken].
+// ---------------------------------------------------------------------------
+// GitHub OAuth Device Flow tab
+// ---------------------------------------------------------------------------
+
 class _GitHubOAuthTab extends StatefulWidget {
   final String clientId;
   final Future<void> Function(String token) onToken;
@@ -251,9 +375,8 @@ class _GitHubOAuthTabState extends State<_GitHubOAuthTab> {
             IconButton(
               icon: Icon(Icons.copy, size: 16, color: palette.fg2),
               tooltip: 'Copy code',
-              onPressed: () => Clipboard.setData(
-                ClipboardData(text: _userCode ?? ''),
-              ),
+              onPressed: () =>
+                  Clipboard.setData(ClipboardData(text: _userCode ?? '')),
             ),
           ],
         ),
@@ -329,9 +452,7 @@ class _GitHubOAuthTabState extends State<_GitHubOAuthTab> {
         _verificationUri = resp.verificationUri;
         _state = _OAuthState.waiting;
       });
-      // Open the browser automatically.
       await _openBrowser();
-      // Poll in the background.
       final token = await flow.pollForToken(resp);
       await widget.onToken(token);
     } catch (e) {

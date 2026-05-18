@@ -1,10 +1,11 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:collection/collection.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:logger/logger.dart';
 
 import 'application/active_workspace_provider.dart';
 import 'application/git/repo_state_provider.dart';
@@ -14,6 +15,7 @@ import 'application/providers.dart';
 import 'application/settings/app_settings.dart';
 import 'application/settings/settings_open_provider.dart';
 import 'application/workspaces/workspace.dart';
+import 'infrastructure/logging/app_logger.dart';
 import 'ui/theme/app_palette.dart';
 import 'ui/bottom_panel/bottom_panel.dart';
 import 'ui/commit_graph/commit_graph_panel.dart';
@@ -28,10 +30,28 @@ import 'ui/toolbar/git_toolbar.dart';
 import 'ui/welcome/welcome_screen.dart';
 import 'ui/working_copy/working_copy_panel.dart';
 
-final _log = Logger();
+final _log = appLog;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Block until the file sink is open, otherwise the very first lines we
+  // log (about repo rehydration) would race the file init.
+  await appLogFileOutput.init();
+  _log.i('GitOpen starting — log file at '
+      '${await appLogFileOutput.resolvePath()}');
+
+  // Global error capture — without this, a thrown exception during repo
+  // load can take the app down with no visible stack trace.
+  FlutterError.onError = (details) {
+    _log.e('FlutterError',
+        error: details.exception, stackTrace: details.stack);
+    FlutterError.presentError(details);
+  };
+  PlatformDispatcher.instance.onError = (error, stack) {
+    _log.e('PlatformDispatcher error', error: error, stackTrace: stack);
+    return true;
+  };
 
   final container = ProviderContainer();
   await _rehydrate(container);
@@ -164,11 +184,11 @@ class _ShellState extends ConsumerState<Shell> {
     final repo = active.location;
     final ops = ref.read(operationsProvider.notifier);
     final id = ops.start(OpKind.fetch, 'Fetching origin', repo: repo);
-    final auth = await ref.read(authResolverProvider).resolveForRepo(repo);
+    final profile = await ref.read(authResolverProvider).resolveForRepo(repo);
     try {
       await for (final ev in ref
           .read(gitWriteOperationsProvider)
-          .fetch(repo, auth: auth)) {
+          .fetch(repo, auth: profile?.spec)) {
         ops.updateProgress(
           id,
           (ev as dynamic).fraction as double?,

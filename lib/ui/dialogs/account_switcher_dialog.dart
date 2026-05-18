@@ -1,0 +1,195 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../application/auth/auth_profile.dart';
+import '../../application/providers.dart';
+import '../theme/app_palette.dart';
+import 'auth_dialog.dart';
+
+/// Shown when a git op fails because the currently-used credential does
+/// not have access to the repository (e.g. "repository not found" — typical
+/// GitHub response when two accounts share the same host).
+///
+/// Lists every saved [AuthProfile] for the host, lets the user pick one
+/// (binding it to the current repo), or sign in with a fresh account that
+/// gets added on the spot.
+class AccountSwitcherDialog extends ConsumerStatefulWidget {
+  final String host;
+  final String? currentProfileId;
+  final String contextMessage;
+
+  const AccountSwitcherDialog({
+    super.key,
+    required this.host,
+    required this.contextMessage,
+    this.currentProfileId,
+  });
+
+  /// Returns the chosen [AuthProfile] (already persisted), or `null` if
+  /// the user dismissed without choosing.  Caller is responsible for
+  /// binding the repo to the returned profile.
+  static Future<AuthProfile?> show(
+    BuildContext context, {
+    required String host,
+    required String contextMessage,
+    String? currentProfileId,
+  }) {
+    return showDialog<AuthProfile>(
+      context: context,
+      builder: (_) => AccountSwitcherDialog(
+        host: host,
+        currentProfileId: currentProfileId,
+        contextMessage: contextMessage,
+      ),
+    );
+  }
+
+  @override
+  ConsumerState<AccountSwitcherDialog> createState() =>
+      _AccountSwitcherDialogState();
+}
+
+class _AccountSwitcherDialogState
+    extends ConsumerState<AccountSwitcherDialog> {
+  late Future<List<AuthProfile>> _profiles;
+
+  @override
+  void initState() {
+    super.initState();
+    _profiles = ref.read(authProfileStoreProvider).forHost(widget.host);
+  }
+
+  Future<void> _refresh() async {
+    setState(() {
+      _profiles = ref.read(authProfileStoreProvider).forHost(widget.host);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return Dialog(
+      backgroundColor: p.bg1,
+      child: SizedBox(
+        width: 460,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Choose account for ${widget.host}',
+                    style: TextStyle(
+                      color: p.fg0,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    widget.contextMessage,
+                    style: TextStyle(color: p.fg2, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            FutureBuilder<List<AuthProfile>>(
+              future: _profiles,
+              builder: (_, snap) {
+                if (!snap.hasData) {
+                  return const Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+                final profiles = snap.data!;
+                if (profiles.isEmpty) {
+                  return Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      'No saved accounts for this host yet.',
+                      style: TextStyle(color: p.fg2, fontSize: 12),
+                    ),
+                  );
+                }
+                return ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 280),
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: profiles.length,
+                    itemBuilder: (_, i) {
+                      final profile = profiles[i];
+                      final current = profile.id == widget.currentProfileId;
+                      return ListTile(
+                        dense: true,
+                        leading: Icon(
+                          current
+                              ? Icons.radio_button_checked
+                              : Icons.account_circle_outlined,
+                          size: 18,
+                          color: current ? p.accentCurrent : p.fg2,
+                        ),
+                        title: Text(
+                          profile.username,
+                          style: TextStyle(color: p.fg0, fontSize: 13),
+                        ),
+                        subtitle: Text(
+                          _kindLabel(profile),
+                          style: TextStyle(color: p.fg2, fontSize: 11),
+                        ),
+                        onTap: () => Navigator.pop(context, profile),
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  TextButton.icon(
+                    icon: const Icon(Icons.person_add_alt_1, size: 14),
+                    label: const Text('Sign in with another account'),
+                    onPressed: _addAccount,
+                  ),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancel'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _addAccount() async {
+    final added = await AuthDialog.show(context, widget.host);
+    if (added == null) {
+      await _refresh();
+      return;
+    }
+    if (mounted) Navigator.pop(context, added);
+  }
+
+  String _kindLabel(AuthProfile p) {
+    return switch (p.spec.runtimeType.toString()) {
+      'AuthHttpsPat' => 'HTTPS PAT',
+      'AuthHttpsBasic' => 'HTTPS Basic',
+      'AuthSsh' => 'SSH Key',
+      'AuthGitHubOauth' => 'GitHub OAuth',
+      'AuthSystemDefault' => 'System default',
+      _ => 'Credential',
+    };
+  }
+}

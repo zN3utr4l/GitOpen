@@ -2,13 +2,25 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import '../logging/app_logger.dart';
+
 final class GitProcessException implements Exception {
   final List<String> args;
   final int exitCode;
   final String stderr;
   GitProcessException(this.args, this.exitCode, this.stderr);
+
+  /// Args with any `http.extraheader=Authorization: Basic …` value redacted,
+  /// so the exception message (and any logs derived from it) never leaks the
+  /// in-app credential.
+  List<String> get _safeArgs => args
+      .map((a) => a.startsWith('http.extraheader=Authorization:')
+          ? 'http.extraheader=Authorization: <redacted>'
+          : a)
+      .toList(growable: false);
+
   @override
-  String toString() => 'git ${args.join(' ')} failed ($exitCode): $stderr';
+  String toString() => 'git ${_safeArgs.join(' ')} failed ($exitCode): $stderr';
 }
 
 class GitProcessRunner {
@@ -16,6 +28,9 @@ class GitProcessRunner {
   GitProcessRunner({this.executable = 'git'});
 
   Future<String> run(String workingDir, List<String> args) async {
+    final tag = args.take(3).join(' ');
+    final sw = Stopwatch()..start();
+    appLog.d('git[$tag] start');
     final result = await Process.run(
       executable,
       args,
@@ -23,6 +38,8 @@ class GitProcessRunner {
       stdoutEncoding: utf8,
       stderrEncoding: utf8,
     );
+    appLog.d('git[$tag] done in ${sw.elapsedMilliseconds}ms '
+        '(exit=${result.exitCode}, stdout=${(result.stdout as String).length}B)');
     if (result.exitCode != 0) {
       throw GitProcessException(
           args, result.exitCode, result.stderr.toString());

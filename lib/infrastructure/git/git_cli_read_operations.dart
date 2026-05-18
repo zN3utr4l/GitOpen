@@ -1,4 +1,10 @@
+import 'dart:async';
+import 'dart:collection';
+import 'dart:convert';
+import 'dart:io';
+
 import '../../application/git/git_read_operations.dart';
+import '../logging/app_logger.dart';
 import '../../domain/commits/commit_info.dart';
 import '../../domain/commits/commit_sha.dart';
 import '../../domain/commits/commit_signature.dart';
@@ -31,6 +37,8 @@ final class GitCliReadOperations implements GitReadOperations {
     String? branch;
     CommitSha? headSha;
     bool detached = false;
+    int ahead = 0;
+    int behind = 0;
     final entries = <WorkingFileEntry>[];
 
     // With -z, records are NUL-terminated. Split on NUL to get tokens.
@@ -56,6 +64,17 @@ final class GitCliReadOperations implements GitReadOperations {
           detached = true;
         } else {
           branch = value;
+        }
+        i++;
+        continue;
+      }
+      if (tok.startsWith('# branch.ab ')) {
+        // Format: "# branch.ab +<ahead> -<behind>"
+        final value = tok.substring('# branch.ab '.length);
+        final m = RegExp(r'\+(\d+)\s+-(\d+)').firstMatch(value);
+        if (m != null) {
+          ahead = int.tryParse(m.group(1)!) ?? 0;
+          behind = int.tryParse(m.group(2)!) ?? 0;
         }
         i++;
         continue;
@@ -135,6 +154,8 @@ final class GitCliReadOperations implements GitReadOperations {
       isDetached: detached,
       isBare: false,
       entries: entries,
+      ahead: ahead,
+      behind: behind,
     );
   }
 
@@ -180,10 +201,16 @@ final class GitCliReadOperations implements GitReadOperations {
 
   @override
   Stream<CommitInfo> getCommits(RepoLocation repo, CommitQuery query) async* {
+    // NOTE: format intentionally omits the commit body (%b).  For very large
+    // repos the body dominates `git log` output (multi-paragraph merges,
+    // generated changelogs, etc.) and was causing the graph load to blow up
+    // memory.  The graph only ever displays the subject line; full message
+    // is fetched on demand via [getCommitFullMessage] when a commit row is
+    // selected.  Each commit produces exactly 9 NUL-separated fields.
     final args = <String>[
       'log', '-z',
       '--topo-order', '--date-order',
-      '--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%cn%x00%ce%x00%cI%x00%s%x00%b',
+      '--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%cn%x00%ce%x00%cI%x00%s',
     ];
     if (query.skip != null) args.add('--skip=${query.skip}');
     if (query.take != null) args.add('--max-count=${query.take}');
@@ -198,114 +225,275 @@ final class GitCliReadOperations implements GitReadOperations {
       args.add('--all');
     }
 
-    String stdout;
-    try {
-      stdout = await _runner.run(repo.path, args);
-    } on GitProcessException catch (e) {
-      // Empty repo: 'fatal: your current branch ... does not have any commits yet'
-      // or 'unknown revision'. Treat both as empty.
-      if (e.stderr.contains('does not have any commits yet') ||
-          e.stderr.contains('bad default revision') ||
-          e.stderr.contains('unknown revision')) {
-        return;
-      }
-      rethrow;
-    }
+    // Stream the output instead of buffering the whole stdout via
+    // [Process.run].  On big repos this avoids holding the full log
+    // payload in memory, and — more importantly for debugging — emits
+    // periodic progress log lines so a hang shows up at a specific
+    // commit count instead of as silent dead air.  If the caller cancels
+    // or throws while iterating, the [try/finally] makes sure the spawned
+    // git process is killed so we don't leak a wedged subprocess.
+    const tag = 'log -z --topo-order';
+    final sw = Stopwatch()..start();
+    appLog.d('git[$tag] start (streaming)');
 
-    // Each commit produces exactly 10 NUL-separated fields. The -z flag adds
-    // one extra NUL terminator after each commit record, which in practice
-    // means a single trailing empty string after the last commit's body.
-    // Strip only that single trailing empty to avoid eating an empty body field.
-    final fields = stdout.split('\x00');
-    if (fields.isNotEmpty && fields.last.isEmpty) {
-      fields.removeLast();
+    final proc = await Process.start(
+      _runner.executable,
+      args,
+      workingDirectory: repo.path,
+    );
+    final stderrBuf = StringBuffer();
+    unawaited(proc.stderr.transform(utf8.decoder).forEach(stderrBuf.write));
+
+    final pending = Queue<String>();
+    var remainder = '';
+    var emitted = 0;
+    var completedNormally = false;
+
+    try {
+      await for (final chunk in proc.stdout.transform(utf8.decoder)) {
+        final combined = remainder + chunk;
+        final parts = combined.split('\x00');
+        // Last part is the unterminated tail (or empty if the chunk ended
+        // exactly on a NUL).  Everything before it is a complete field.
+        remainder = parts.removeLast();
+        pending.addAll(parts);
+
+        while (pending.length >= 9) {
+          final f = List<String>.generate(9, (_) => pending.removeFirst());
+          yield _parseCommitFields(f);
+          emitted++;
+          if (emitted % 500 == 0) {
+            appLog.d('git[$tag] streamed $emitted commits '
+                '(${sw.elapsedMilliseconds}ms)');
+          }
+        }
+      }
+
+      // Flush the trailing partial field (only non-empty if git didn't
+      // terminate its last record with a NUL — defensive, shouldn't happen
+      // with -z) and emit any final complete record.
+      if (remainder.isNotEmpty) pending.add(remainder);
+      while (pending.length >= 9) {
+        final f = List<String>.generate(9, (_) => pending.removeFirst());
+        yield _parseCommitFields(f);
+        emitted++;
+      }
+
+      final exit = await proc.exitCode;
+      appLog.d('git[$tag] done in ${sw.elapsedMilliseconds}ms '
+          '(exit=$exit, commits=$emitted)');
+      completedNormally = true;
+
+      if (exit != 0) {
+        final err = stderrBuf.toString();
+        // Empty repo: 'fatal: your current branch ... does not have any
+        // commits yet' or 'unknown revision'. Treat both as empty.
+        if (err.contains('does not have any commits yet') ||
+            err.contains('bad default revision') ||
+            err.contains('unknown revision')) {
+          return;
+        }
+        throw GitProcessException(args, exit, err);
+      }
+    } finally {
+      if (!completedNormally) {
+        // Caller bailed out (timeout, cancel, error) — terminate the
+        // subprocess so we don't leak a wedged git.exe.
+        proc.kill();
+      }
     }
-    for (var i = 0; i + 9 < fields.length; i += 10) {
-      yield CommitInfo(
-        sha: CommitSha(fields[i]),
-        parentShas: fields[i + 1].isEmpty
-            ? const []
-            : fields[i + 1].split(' ').map(CommitSha.new).toList(),
-        author: CommitSignature(
-          fields[i + 2],
-          fields[i + 3],
-          DateTime.parse(fields[i + 4]),
-        ),
-        committer: CommitSignature(
-          fields[i + 5],
-          fields[i + 6],
-          DateTime.parse(fields[i + 7]),
-        ),
-        summary: fields[i + 8],
-        message: fields[i + 9].isEmpty
-            ? fields[i + 8]
-            : '${fields[i + 8]}\n\n${fields[i + 9]}',
+  }
+
+  CommitInfo _parseCommitFields(List<String> f) {
+    final summary = f[8];
+    return CommitInfo(
+      sha: CommitSha(f[0]),
+      parentShas: f[1].isEmpty
+          ? const []
+          : f[1].split(' ').map(CommitSha.new).toList(),
+      author: CommitSignature(f[2], f[3], DateTime.parse(f[4])),
+      committer: CommitSignature(f[5], f[6], DateTime.parse(f[7])),
+      summary: summary,
+      message: summary, // body fetched on demand via getCommitFullMessage
+    );
+  }
+
+  @override
+  Future<String?> getCommitFullMessage(
+    RepoLocation repo,
+    CommitSha sha,
+  ) async {
+    try {
+      final out = await _runner.run(
+        repo.path,
+        ['log', '-1', '--format=%B', sha.value],
       );
+      return out.trimRight();
+    } on GitProcessException {
+      return null;
     }
   }
 
   @override
+  Future<List<Branch>> getLocalBranches(RepoLocation repo) {
+    return _forEachRef(repo, scope: 'refs/heads');
+  }
+
+  @override
+  Future<List<Branch>> getRemoteBranches(RepoLocation repo) {
+    // Remote refs can take a very long time on corporate monorepos that
+    // never prune merged PR refs (tens of thousands of loose ref files
+    // under .git/refs/remotes/ that Windows + AV scan slowly).  Cap with
+    // a hard deadline so the UI never blocks waiting for this.
+    return _forEachRef(
+      repo,
+      scope: 'refs/remotes',
+      timeout: const Duration(seconds: 3),
+    );
+  }
+
+  @override
   Future<List<Branch>> getBranches(RepoLocation repo) async {
-    final args = [
-      'for-each-ref',
-      '--format=%(refname)%00%(objectname)%00%(HEAD)%00%(upstream)%00%(upstream:track)',
-      'refs/heads',
-      'refs/remotes',
+    return [
+      ...await getLocalBranches(repo),
+      ...await getRemoteBranches(repo),
     ];
-    final stdout = await _runner.run(repo.path, args);
-    if (stdout.trim().isEmpty) return [];
+  }
 
-    final lines = stdout.split('\n');
+  /// Streamed `for-each-ref` for one scope.
+  ///
+  /// Note: `upstream:track` is intentionally NOT included.  On repos with
+  /// many local branches whose upstreams have a large divergence, that
+  /// atom forces git to walk every commit between branch and upstream
+  /// per-branch — `for-each-ref refs/heads` then turns from "fast" into
+  /// "minutes".  Ahead/behind for the current branch is fetched cheaply
+  /// from `git status --porcelain=v2 --branch` via [RepoStatus].
+  ///
+  /// When [timeout] is set, the underlying git process is killed if it
+  /// hasn't completed by then.  Whatever rows we managed to parse so far
+  /// are returned — partial data is better than no data, and not blocking
+  /// the UI is the highest priority.
+  Future<List<Branch>> _forEachRef(
+    RepoLocation repo, {
+    required String scope,
+    Duration? timeout,
+  }) async {
+    const format =
+        '%(refname)%00%(objectname)%00%(HEAD)%00%(upstream)%00';
+    final args = ['for-each-ref', '--format=$format', scope];
+    final sw = Stopwatch()..start();
+    appLog.d('git[for-each-ref $scope] start (streaming)');
+
+    final proc = await Process.start(
+      _runner.executable,
+      args,
+      workingDirectory: repo.path,
+    );
+
     final branches = <Branch>[];
-    final aheadBehindRe =
-        RegExp(r'(?:ahead (\d+))?(?:.*?behind (\d+))?');
+    final stderrBuf = StringBuffer();
+    unawaited(proc.stderr.transform(utf8.decoder).forEach(stderrBuf.write));
 
-    for (final line in lines) {
-      if (line.isEmpty) continue;
-      final fields = line.split('\x00');
-      if (fields.length < 5) continue;
+    // Race the stdout consumer against the timeout.  If git is wedged in
+    // a kernel I/O wait (AV scanning a huge refs/ directory, slow network
+    // FS, etc.), `proc.kill()` alone may not unblock the consumer — the
+    // OS holds the handle until the syscall returns.  So instead of
+    // relying on kill+exitCode, we fire-and-forget the kill and return
+    // the partial list immediately when the deadline passes.
+    final stdoutCompleter = Completer<void>();
+    var timedOut = false;
+    final sub = proc.stdout
+        .transform(utf8.decoder)
+        .transform(const LineSplitter())
+        .listen(
+      (line) => _parseRefLine(line, branches, sw, scope),
+      onDone: () {
+        if (!stdoutCompleter.isCompleted) stdoutCompleter.complete();
+      },
+      onError: (Object e) {
+        if (!stdoutCompleter.isCompleted) stdoutCompleter.complete();
+      },
+      cancelOnError: true,
+    );
 
-      final refname = fields[0];
-      final sha = fields[1];
-      final headMarker = fields[2];
-      final upstream = fields[3];
-      final track = fields[4];
-
-      String name;
-      bool isRemote;
-      if (refname.startsWith('refs/heads/')) {
-        name = refname.substring('refs/heads/'.length);
-        isRemote = false;
-      } else if (refname.startsWith('refs/remotes/')) {
-        name = refname.substring('refs/remotes/'.length);
-        isRemote = true;
-      } else {
-        continue;
-      }
-
-      int ahead = 0;
-      int behind = 0;
-      if (track.isNotEmpty) {
-        final m = aheadBehindRe.firstMatch(track);
-        if (m != null) {
-          ahead = int.tryParse(m.group(1) ?? '') ?? 0;
-          behind = int.tryParse(m.group(2) ?? '') ?? 0;
-        }
-      }
-
-      branches.add(Branch(
-        name: name,
-        fullName: refname,
-        isRemote: isRemote,
-        isCurrent: headMarker == '*',
-        tipSha: sha.isNotEmpty ? CommitSha(sha) : null,
-        upstreamFullName: upstream.isNotEmpty ? upstream : null,
-        ahead: ahead,
-        behind: behind,
-      ));
+    Timer? timeoutTimer;
+    if (timeout != null) {
+      timeoutTimer = Timer(timeout, () {
+        if (stdoutCompleter.isCompleted) return;
+        timedOut = true;
+        appLog.w('git[for-each-ref $scope] timeout after '
+            '${timeout.inMilliseconds}ms — killing process; '
+            'returning ${branches.length} partial result(s)');
+        proc.kill(); // best-effort; may not unblock if stuck in kernel I/O
+        unawaited(sub.cancel());
+        stdoutCompleter.complete();
+      });
     }
 
+    await stdoutCompleter.future;
+    timeoutTimer?.cancel();
+
+    if (timedOut) {
+      // Don't wait for exitCode — process may still be wedged.  The
+      // partial branches list is what we have.
+      appLog.d('git[for-each-ref $scope] returning ${branches.length} '
+          'partial branches after timeout (${sw.elapsedMilliseconds}ms)');
+      return branches;
+    }
+
+    final exit = await proc.exitCode;
+    appLog.d('git[for-each-ref $scope] done in ${sw.elapsedMilliseconds}ms '
+        '(exit=$exit, count=${branches.length})');
+    if (exit != 0) {
+      throw GitProcessException(args, exit, stderrBuf.toString());
+    }
     return branches;
+  }
+
+  void _parseRefLine(
+    String line,
+    List<Branch> branches,
+    Stopwatch sw,
+    String scope,
+  ) {
+    if (line.isEmpty) return;
+    final fields = line.split('\x00');
+    if (fields.length < 4) return;
+
+    final refname = fields[0];
+    final sha = fields[1];
+    final headMarker = fields[2];
+    final upstream = fields[3];
+
+    final String name;
+    final bool isRemote;
+    if (refname.startsWith('refs/heads/')) {
+      name = refname.substring('refs/heads/'.length);
+      isRemote = false;
+    } else if (refname.startsWith('refs/remotes/')) {
+      name = refname.substring('refs/remotes/'.length);
+      isRemote = true;
+    } else {
+      return;
+    }
+
+    branches.add(Branch(
+      name: name,
+      fullName: refname,
+      isRemote: isRemote,
+      isCurrent: headMarker == '*',
+      tipSha: sha.isNotEmpty ? CommitSha(sha) : null,
+      upstreamFullName: upstream.isNotEmpty ? upstream : null,
+      ahead: 0,
+      behind: 0,
+    ));
+
+    // Periodic progress for very large ref sets so the log shows the
+    // stream is alive rather than stuck.
+    if (branches.length % 5000 == 0) {
+      appLog.d('git[for-each-ref $scope] parsed ${branches.length} so far '
+          '(${sw.elapsedMilliseconds}ms)');
+    }
   }
 
   @override

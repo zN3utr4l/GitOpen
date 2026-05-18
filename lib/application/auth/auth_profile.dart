@@ -1,0 +1,41 @@
+import 'package:equatable/equatable.dart';
+
+import '../git/auth_spec.dart';
+
+/// A saved credential entry: which host it authenticates against, which
+/// identity (username) it represents, and the actual auth material.
+///
+/// Multiple profiles may exist per host (e.g. two GitHub accounts on the
+/// same machine).  Each profile carries a stable [id] that workspaces can
+/// reference to bind a repository to a specific identity.
+final class AuthProfile extends Equatable {
+  final String id;
+  final String host;
+  final String username;
+  final AuthSpec spec;
+
+  const AuthProfile({
+    required this.id,
+    required this.host,
+    required this.username,
+    required this.spec,
+  });
+
+  /// Short human label e.g. `github.com / s-porta`.
+  String get label => '$host / $username';
+
+  AuthProfile copyWith({
+    String? username,
+    AuthSpec? spec,
+  }) {
+    return AuthProfile(
+      id: id,
+      host: host,
+      username: username ?? this.username,
+      spec: spec ?? this.spec,
+    );
+  }
+
+  @override
+  List<Object?> get props => [id, host, username, spec];
+}

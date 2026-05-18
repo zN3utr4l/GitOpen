@@ -1,8 +1,13 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../infrastructure/logging/app_logger.dart';
 import '../../application/active_workspace_provider.dart';
 import '../../application/branch_visibility_provider.dart';
+import '../../application/commit_graph/commit_graph_layout.dart';
 import '../../application/commit_graph/commit_node.dart';
 import '../../application/git/git_read_operations.dart';
 import '../../application/git/git_result.dart';
@@ -10,6 +15,7 @@ import '../../application/git/git_write_operations.dart';
 import '../../application/git/repo_state_provider.dart';
 import '../../application/providers.dart';
 import '../../application/scroll_request_provider.dart';
+import '../../domain/commits/commit_info.dart';
 import '../../domain/commits/commit_sha.dart';
 import '../../domain/repositories/repo_location.dart';
 import '../checkout/safe_checkout.dart';
@@ -19,6 +25,20 @@ import '../theme/app_palette.dart';
 import 'commit_row.dart';
 import 'local_changes_row.dart';
 import 'ref_decoration.dart';
+
+/// Top-level wrapper required by [compute] to run the layout in a
+/// background isolate.  The layout pass is O(N×L) on the commit count and
+/// the active-lane count; for big repos it can pin the UI thread for
+/// hundreds of milliseconds, which is enough to look frozen during scroll.
+List<CommitNode> _layoutInIsolate(List<CommitInfo> commits) {
+  return const DefaultCommitGraphLayout().compute(commits);
+}
+
+/// Hard ceiling so the graph never appears to hang indefinitely on a slow
+/// or corrupted repo.  60s is generous — most large monorepos return
+/// 2000 commits in <5s.  When exceeded we surface a clear error to the
+/// UI rather than spinning forever.
+const _gitLogTimeout = Duration(seconds: 60);
 
 class _GraphData {
   final List<CommitNode> nodes;
@@ -30,13 +50,15 @@ class _GraphData {
 final commitGraphDataProvider =
     FutureProvider.family<_GraphData, RepoLocation>((ref, repo) async {
   final git = ref.watch(gitReadOperationsProvider);
-  final layout = ref.watch(commitGraphLayoutProvider);
 
   // Watch hidden refs so the provider re-runs when visibility changes.
   final hidden = ref.watch(hiddenRefsProvider);
 
-  // Fetch branches once — used both for the git log refs and for decorations.
-  final branches = await git.getBranches(repo);
+  appLog.i('graph: start load for ${repo.displayName}');
+  // Share the branch fetch with the sidebar — same repo, same data, no
+  // need to spawn a second `git for-each-ref`.
+  final branches = await ref.watch(branchesProvider(repo).future);
+  appLog.i('graph: branches=${branches.length}');
 
   // Compute the set of visible branch fullNames to pass to git log.
   final visibleBranches =
@@ -45,15 +67,36 @@ final commitGraphDataProvider =
 
   // Fall back to HEAD (via --all) when every branch is hidden so the panel
   // does not go completely empty.
+  // Take is capped at 2000: enough to fill several screen-heights of graph
+  // even on the densest history, while keeping memory predictable on very
+  // large monorepos.  Body is loaded on demand in the details panel, not
+  // here, so each commit row costs ~150 bytes.
+  const takeCommits = 2000;
   final query = refsForLog.isEmpty
-      ? const CommitQuery(take: 5000)
-      : CommitQuery(take: 5000, refs: refsForLog);
+      ? const CommitQuery(take: takeCommits)
+      : CommitQuery(take: takeCommits, refs: refsForLog);
 
-  final commits = <dynamic>[];
-  await for (final c in git.getCommits(repo, query)) {
-    commits.add(c);
+  appLog.i('graph: running git log (max=$takeCommits, refs=${refsForLog.length})');
+  final List<CommitInfo> commits;
+  try {
+    commits = await git.getCommits(repo, query).toList().timeout(
+          _gitLogTimeout,
+          onTimeout: () => throw TimeoutException(
+              'git log did not return within ${_gitLogTimeout.inSeconds}s '
+              'on ${repo.displayName}.  Repo is likely very large; try '
+              'hiding some branches or check that .git is on local disk.',
+              _gitLogTimeout),
+        );
+  } on TimeoutException catch (e) {
+    appLog.w('graph: git log timeout — ${e.message}');
+    rethrow;
   }
-  final nodes = layout.compute(commits.cast());
+  appLog.i('graph: commits=${commits.length} — computing layout (isolate)');
+  // Run the layout in a background isolate so a big graph cannot pin the
+  // UI thread.  The overhead of [compute] (~tens of ms to spawn) is
+  // dwarfed by the layout cost on any non-trivial history.
+  final nodes = await compute(_layoutInIsolate, commits);
+  appLog.i('graph: layout done (${nodes.length} nodes)');
 
   // Bucket all branches by tip sha, splitting locals from remotes.
   final localsBySha = <String, List<dynamic>>{};

@@ -7,6 +7,7 @@ import '../../domain/commits/commit_sha.dart';
 import '../../domain/repositories/repo_location.dart';
 import '../theme/app_palette.dart';
 
+/// Headline metadata for the details panel — author/committer/parents.
 final _commitInfoProvider = FutureProvider.family
     .autoDispose<CommitInfo?, ({RepoLocation repo, CommitSha sha})>((ref, key) async {
   final git = ref.watch(gitReadOperationsProvider);
@@ -14,6 +15,16 @@ final _commitInfoProvider = FutureProvider.family
       .getCommits(key.repo, CommitQuery(refSpec: key.sha.value, take: 1))
       .toList();
   return commits.isEmpty ? null : commits.first;
+});
+
+/// Full commit body, fetched separately so the bulk graph load doesn't pay
+/// for it.  Cached per (repo, sha) and disposed when the details view
+/// stops watching this commit.
+final _commitFullMessageProvider = FutureProvider.family
+    .autoDispose<String?, ({RepoLocation repo, CommitSha sha})>((ref, key) {
+  return ref
+      .watch(gitReadOperationsProvider)
+      .getCommitFullMessage(key.repo, key.sha);
 });
 
 class CommitDetailsView extends ConsumerWidget {
@@ -24,7 +35,9 @@ class CommitDetailsView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = AppPalette.of(context);
-    final async = ref.watch(_commitInfoProvider((repo: repo, sha: sha)));
+    final key = (repo: repo, sha: sha);
+    final async = ref.watch(_commitInfoProvider(key));
+    final messageAsync = ref.watch(_commitFullMessageProvider(key));
     return async.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Error: $e',
@@ -50,7 +63,7 @@ class CommitDetailsView extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(5),
                     ),
                     child: SelectableText(
-                      c.message,
+                      messageAsync.valueOrNull ?? c.summary,
                       style: TextStyle(
                         color: palette.fg0,
                         fontFamily: 'monospace',

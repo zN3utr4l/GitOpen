@@ -17,6 +17,12 @@ final class AppSettingsState extends Equatable {
   final Map<String, LogicalKeySet> keybindings;
   final List<GitIdentity> gitIdentities;
 
+  /// Per-repository binding from `RepoLocation.id` → `AuthProfile.id`.
+  /// Used so that a workspace with two GitHub accounts on the same host
+  /// always uses the right one — overrides the implicit "single profile
+  /// per host" fallback in [AuthResolver].
+  final Map<String, String> authRepoBindings;
+
   const AppSettingsState({
     this.theme = AppTheme.dark,
     this.externalEditorPath,
@@ -28,6 +34,7 @@ final class AppSettingsState extends Equatable {
     this.autoUpdateCheck = true,
     this.keybindings = const {},
     this.gitIdentities = const [],
+    this.authRepoBindings = const {},
   });
 
   AppSettingsState copyWith({
@@ -41,6 +48,7 @@ final class AppSettingsState extends Equatable {
     bool? autoUpdateCheck,
     Map<String, LogicalKeySet>? keybindings,
     List<GitIdentity>? gitIdentities,
+    Map<String, String>? authRepoBindings,
   }) {
     return AppSettingsState(
       theme: theme ?? this.theme,
@@ -53,6 +61,7 @@ final class AppSettingsState extends Equatable {
       autoUpdateCheck: autoUpdateCheck ?? this.autoUpdateCheck,
       keybindings: keybindings ?? this.keybindings,
       gitIdentities: gitIdentities ?? this.gitIdentities,
+      authRepoBindings: authRepoBindings ?? this.authRepoBindings,
     );
   }
 
@@ -60,6 +69,6 @@ final class AppSettingsState extends Equatable {
   List<Object?> get props => [
     theme, externalEditorPath, defaultPullStrategy, commitSignoffDefault,
     fontSize, fontFamily, githubClientId, autoUpdateCheck, keybindings,
-    gitIdentities,
+    gitIdentities, authRepoBindings,
   ];
 }

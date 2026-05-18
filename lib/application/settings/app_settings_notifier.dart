@@ -41,7 +41,28 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
       autoUpdateCheck: (all['auto_update_check'] as bool?) ?? true,
       keybindings: _decodeBindings(all['keybindings']) ?? state.keybindings,
       gitIdentities: _decodeIdentities(all['git_identities']),
+      authRepoBindings: _decodeStringMap(all['auth_repo_bindings']),
     );
+  }
+
+  Future<void> setAuthBinding(String repoId, String? profileId) async {
+    final next = Map<String, String>.from(state.authRepoBindings);
+    if (profileId == null) {
+      next.remove(repoId);
+    } else {
+      next[repoId] = profileId;
+    }
+    state = state.copyWith(authRepoBindings: next);
+    await _repo.put('auth_repo_bindings', next);
+  }
+
+  Map<String, String> _decodeStringMap(dynamic v) {
+    if (v is! Map) return const {};
+    final result = <String, String>{};
+    v.forEach((k, val) {
+      if (k is String && val is String) result[k] = val;
+    });
+    return result;
   }
 
   Future<void> setTheme(AppTheme v) async {

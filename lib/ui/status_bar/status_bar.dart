@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../application/active_workspace_provider.dart';
+import '../../application/auth/auth_profile.dart';
 import '../../application/git/repo_state_provider.dart';
 import '../../application/operations/running_operation.dart';
 import '../../application/providers.dart';
-import '../../domain/refs/branch.dart';
 import '../../domain/repositories/repo_location.dart';
+import '../dialogs/account_switcher_dialog.dart';
 import '../theme/app_palette.dart';
 import '../operations/activity_panel.dart';
 
@@ -25,7 +26,8 @@ class StatusBar extends ConsumerWidget {
       return Container(height: 22, color: p.bg3);
     }
     final repo = active.location as RepoLocation;
-    final branchesAsync = ref.watch(_branchesProvider(repo));
+    final branchesAsync = ref.watch(branchesProvider(repo));
+    final statusAsync = ref.watch(repoStatusProvider(repo));
     final inProgressAsync = ref.watch(repoStateProvider(repo));
     final ops = ref.watch(operationsProvider);
     final running = ops.where((o) => o.status == OperationStatus.running).length;
@@ -49,10 +51,16 @@ class StatusBar extends ConsumerWidget {
               Icon(Icons.fork_right, size: 11, color: p.accentCurrent),
               const SizedBox(width: 4),
               Text(cur.name, style: TextStyle(color: p.fg0, fontSize: 11)),
-              if (cur.ahead > 0)
-                Text(' ↑${cur.ahead}', style: TextStyle(color: p.accentCurrent, fontSize: 11)),
-              if (cur.behind > 0)
-                Text(' ↓${cur.behind}', style: TextStyle(color: p.accentTag, fontSize: 11)),
+              // ahead/behind for the current branch comes from RepoStatus
+              // (cheap, single `git status` call), NOT from for-each-ref's
+              // `upstream:track` atom which becomes O(N×commits) on repos
+              // with many local branches that diverge a lot from upstream.
+              if ((statusAsync.valueOrNull?.ahead ?? 0) > 0)
+                Text(' ↑${statusAsync.valueOrNull!.ahead}',
+                    style: TextStyle(color: p.accentCurrent, fontSize: 11)),
+              if ((statusAsync.valueOrNull?.behind ?? 0) > 0)
+                Text(' ↓${statusAsync.valueOrNull!.behind}',
+                    style: TextStyle(color: p.accentTag, fontSize: 11)),
             ]);
           },
         ),
@@ -77,6 +85,8 @@ class StatusBar extends ConsumerWidget {
           ),
           const SizedBox(width: 12),
         ],
+        _ActiveAccountChip(repo: repo),
+        const SizedBox(width: 12),
         InkWell(
           onTap: () => showDialog(
             context: context,
@@ -96,7 +106,55 @@ class StatusBar extends ConsumerWidget {
   }
 }
 
-final _branchesProvider =
-    FutureProvider.family.autoDispose<List<Branch>, RepoLocation>((ref, repo) async {
-  return ref.watch(gitReadOperationsProvider).getBranches(repo);
-});
+/// Small status-bar chip showing which auth profile is in effect for the
+/// active repo.  Clicking it opens the [AccountSwitcherDialog] so the user
+/// can rebind the repo without waiting for a push to fail.
+///
+/// Reads the resolved profile via [repoActiveProfileProvider] (cached) — do
+/// NOT call `AuthResolver.resolveForRepo` inline in `build`; doing so
+/// recreates the future on each rebuild, and FutureBuilder's completion
+/// triggers another rebuild → another future, ad infinitum.
+class _ActiveAccountChip extends ConsumerWidget {
+  final RepoLocation repo;
+  const _ActiveAccountChip({required this.repo});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final p = AppPalette.of(context);
+    final async = ref.watch(repoActiveProfileProvider(repo));
+    final current = async.valueOrNull;
+    final label = current?.username ?? 'no account';
+    final color = current == null ? p.fg2 : p.fg1;
+    return InkWell(
+      onTap: () => _switch(context, ref, current: current),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(Icons.account_circle_outlined, size: 11, color: color),
+        const SizedBox(width: 4),
+        Text(label, style: TextStyle(color: color, fontSize: 11)),
+      ]),
+    );
+  }
+
+  Future<void> _switch(
+    BuildContext context,
+    WidgetRef ref, {
+    required AuthProfile? current,
+  }) async {
+    final host = await ref
+            .read(authResolverProvider)
+            .hostFromRepo(repo, 'origin') ??
+        'github.com';
+    if (!context.mounted) return;
+    final chosen = await AccountSwitcherDialog.show(
+      context,
+      host: host,
+      contextMessage: 'Pick which saved account this repo should use.',
+      currentProfileId: current?.id,
+    );
+    if (chosen == null) return;
+    await ref
+        .read(appSettingsProvider.notifier)
+        .setAuthBinding(repo.id.value, chosen.id);
+  }
+}
+

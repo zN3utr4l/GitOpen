@@ -21,6 +21,22 @@ class CommitQuery {
 abstract interface class GitReadOperations {
   Future<RepoStatus> getStatus(RepoLocation repo);
   Stream<CommitInfo> getCommits(RepoLocation repo, CommitQuery query);
+
+  /// Returns the full commit message (subject + body) for a single sha.
+  /// Bulk [getCommits] intentionally omits the body to keep the graph load
+  /// linear in commit count; details views call this on demand.
+  Future<String?> getCommitFullMessage(RepoLocation repo, CommitSha sha);
+
+  /// Local branches only (`refs/heads`) — always fast.
+  Future<List<Branch>> getLocalBranches(RepoLocation repo);
+
+  /// Remote tracking branches (`refs/remotes`).  May time out on repos
+  /// with very large unpruned remote ref sets — implementations are
+  /// expected to return whatever partial list they got rather than hang.
+  Future<List<Branch>> getRemoteBranches(RepoLocation repo);
+
+  /// Convenience: locals + remotes concatenated.  Kept for callers that
+  /// want the full list and are happy waiting for both.
   Future<List<Branch>> getBranches(RepoLocation repo);
   Future<List<Tag>> getTags(RepoLocation repo);
   Future<List<Remote>> getRemotes(RepoLocation repo);
