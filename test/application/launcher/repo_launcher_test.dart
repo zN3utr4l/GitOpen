@@ -8,6 +8,10 @@ import 'package:gitopen/infrastructure/launcher/system_repo_launcher.dart';
 class FakeProcessRunner implements ProcessRunner {
   final Map<String, ProcessProbeResult> probes;
   final List<(String exe, List<String> args)> calls = [];
+  /// Spawn fails when the executable matches OR when any token in [executable]
+  /// + [args] matches. The arg-level check lets tests express "the Windows
+  /// terminal chain wraps wt.exe in `cmd /c start ... wt.exe ...`, so fail
+  /// the launch when wt.exe appears in args."
   final Set<String> failingExecutables;
   FakeProcessRunner({
     this.probes = const {},
@@ -21,7 +25,11 @@ class FakeProcessRunner implements ProcessRunner {
   @override
   Future<bool> startDetached(String executable, List<String> args) async {
     calls.add((executable, args));
-    return !failingExecutables.contains(executable);
+    if (failingExecutables.contains(executable)) return false;
+    for (final a in args) {
+      if (failingExecutables.contains(a)) return false;
+    }
+    return true;
   }
 }
 
@@ -98,36 +106,67 @@ void main() {
   });
 
   group('SystemRepoLauncher.openInTerminal', () {
+    // The Windows launcher wraps every candidate in `cmd /c start "" /D <path>
+    // <exe> <args>` so console apps get a real console window. Tests check
+    // both that the probe gate is honoured and that the wrapped command
+    // carries the right inner executable.
     test('windows prefers wt.exe', () async {
-      final fake = FakeProcessRunner();
+      final fake = FakeProcessRunner(probes: {
+        'wt.exe': const ProcessProbeResult(true, null),
+      });
       final launcher =
           SystemRepoLauncher(runner: fake, platformOverride: 'windows');
       await launcher.openInTerminal(_repo(r'C:\repo'));
-      expect(fake.calls.single.$1, 'wt.exe');
-      expect(fake.calls.single.$2, ['-d', r'C:\repo']);
+      expect(fake.calls.single.$1, 'cmd.exe');
+      expect(fake.calls.single.$2,
+          ['/c', 'start', '', '/D', r'C:\repo', 'wt.exe', '-d', r'C:\repo']);
     });
 
     test('windows falls back to powershell when wt.exe fails', () async {
-      final fake = FakeProcessRunner(failingExecutables: {'wt.exe'});
+      final fake = FakeProcessRunner(
+        probes: {
+          'wt.exe': const ProcessProbeResult(true, null),
+          'powershell.exe': const ProcessProbeResult(true, null),
+        },
+        failingExecutables: {'wt.exe'},
+      );
       final launcher =
           SystemRepoLauncher(runner: fake, platformOverride: 'windows');
       await launcher.openInTerminal(_repo(r'C:\repo'));
-      expect(
-          fake.calls.map((c) => c.$1).toList(), ['wt.exe', 'powershell']);
+      expect(fake.calls.length, 2);
+      expect(fake.calls.last.$2, contains('powershell.exe'));
     });
 
     test('windows falls back to cmd when wt and powershell fail', () async {
       final fake = FakeProcessRunner(
-          failingExecutables: {'wt.exe', 'powershell'});
+        probes: {
+          'wt.exe': const ProcessProbeResult(true, null),
+          'powershell.exe': const ProcessProbeResult(true, null),
+          'cmd.exe': const ProcessProbeResult(true, null),
+        },
+        failingExecutables: {'wt.exe', 'powershell.exe'},
+      );
       final launcher =
           SystemRepoLauncher(runner: fake, platformOverride: 'windows');
       await launcher.openInTerminal(_repo(r'C:\repo'));
-      expect(fake.calls.last.$1, 'cmd');
+      // The final, successful attempt wraps cmd.exe via the cmd shim too.
+      expect(fake.calls.last.$2, contains('cmd.exe'));
     });
 
     test('throws when all fallbacks fail', () async {
       final fake = FakeProcessRunner(
-        failingExecutables: {'wt.exe', 'powershell', 'cmd'},
+        probes: {
+          'wt.exe': const ProcessProbeResult(true, null),
+          'pwsh.exe': const ProcessProbeResult(true, null),
+          'powershell.exe': const ProcessProbeResult(true, null),
+          'cmd.exe': const ProcessProbeResult(true, null),
+        },
+        failingExecutables: {
+          'wt.exe',
+          'pwsh.exe',
+          'powershell.exe',
+          'cmd.exe',
+        },
       );
       final launcher =
           SystemRepoLauncher(runner: fake, platformOverride: 'windows');

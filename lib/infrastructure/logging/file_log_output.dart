@@ -22,18 +22,28 @@ class FileLogOutput extends LogOutput {
   String? _path;
 
   /// Where the log file lives.  Resolved lazily on first use.
-  Future<String> resolvePath() async {
+  ///
+  /// Returns `null` when the platform channel is unavailable — most
+  /// commonly in unit tests, where the Flutter binding isn't initialized
+  /// so `getApplicationSupportDirectory` throws. In that case the file
+  /// sink stays disabled and only the console output remains active.
+  Future<String?> resolvePath() async {
     if (_path != null) return _path!;
-    final dir = await getApplicationSupportDirectory();
-    final path = p.join(dir.path, 'gitopen.log');
-    final f = File(path);
-    if (!f.existsSync()) f.createSync(recursive: true);
-    return _path = path;
+    try {
+      final dir = await getApplicationSupportDirectory();
+      final path = p.join(dir.path, 'gitopen.log');
+      final f = File(path);
+      if (!f.existsSync()) f.createSync(recursive: true);
+      return _path = path;
+    } catch (_) {
+      return null;
+    }
   }
 
   @override
   Future<void> init() async {
     final path = await resolvePath();
+    if (path == null) return;
     File(path).writeAsStringSync(
       '--- session start ${DateTime.now().toIso8601String()} ---\n',
       mode: FileMode.append,
