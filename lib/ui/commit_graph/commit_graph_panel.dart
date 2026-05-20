@@ -12,6 +12,7 @@ import '../../application/commit_graph/commit_node.dart';
 import '../../application/git/git_read_operations.dart';
 import '../../application/git/git_result.dart';
 import '../../application/git/git_write_operations.dart';
+import '../../application/git/merge_outcome.dart';
 import '../../application/git/repo_state_provider.dart';
 import '../../application/providers.dart';
 import '../../application/scroll_request_provider.dart';
@@ -341,6 +342,9 @@ class _CommitGraphPanelState extends ConsumerState<CommitGraphPanel> {
       context,
       globalPosition: globalPos,
       entries: const [
+        AppMenuItem(value: 'merge', label: 'Merge into current', icon: Icons.call_merge),
+        AppMenuItem(value: 'rebase', label: 'Rebase current onto this', icon: Icons.compare_arrows),
+        AppMenuDivider(),
         AppMenuItem(value: 'cherry_pick', label: 'Cherry-pick into current', icon: Icons.add_card_outlined),
         AppMenuItem(value: 'revert', label: 'Revert this commit', icon: Icons.undo),
         AppMenuDivider(),
@@ -360,7 +364,53 @@ class _CommitGraphPanelState extends ConsumerState<CommitGraphPanel> {
 
     final write = ref.read(gitWriteOperationsProvider);
     final repo = widget.repo;
+    final palette = AppPalette.of(context);
     switch (selected) {
+      case 'merge':
+        final result = await write.merge(repo, sha.value);
+        ref.invalidate(gitReadOperationsProvider);
+        ref.invalidate(repoStateProvider(repo));
+        if (!context.mounted) return;
+        if (result case GitSuccess(value: final MergeConflict outcome)) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(
+                'Merge conflict in ${outcome.conflictedPaths.length} file(s). Resolve in the conflicts panel below.'),
+            backgroundColor: palette.accentErr,
+          ));
+        } else if (result case GitFailure(:final message)) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Merge failed: $message'),
+            backgroundColor: palette.accentErr,
+          ));
+        }
+
+      case 'rebase':
+        if (!context.mounted) return;
+        final confirmed = await ConfirmDialog.show(
+          context,
+          title: 'Rebase current branch',
+          body: 'Rebase the current branch onto ${sha.short()}? '
+              'This rewrites commits on the current branch.',
+          confirmLabel: 'Rebase',
+        );
+        if (!confirmed) return;
+        final result = await write.rebase(repo, sha.value);
+        ref.invalidate(gitReadOperationsProvider);
+        ref.invalidate(repoStateProvider(repo));
+        if (!context.mounted) return;
+        if (result case GitSuccess(value: final RebaseConflict outcome)) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(
+                'Rebase conflict in ${outcome.conflictedPaths.length} file(s). Resolve in the conflicts panel below.'),
+            backgroundColor: palette.accentErr,
+          ));
+        } else if (result case GitFailure(:final message)) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Rebase failed: $message'),
+            backgroundColor: palette.accentErr,
+          ));
+        }
+
       case 'cherry_pick':
         await write.cherryPick(repo, sha);
         ref.invalidate(gitReadOperationsProvider);

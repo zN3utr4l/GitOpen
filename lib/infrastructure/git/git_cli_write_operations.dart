@@ -431,6 +431,62 @@ final class GitCliWriteOperations implements GitWriteOperations {
     } on GitProcessException catch (e) { return GitFailure(_classify(e), e.stderr, e.stderr); }
   }
   @override
+  Future<GitResult<RebaseOutcome>> rebase(RepoLocation r, String upstream) async {
+    final args = ['rebase', upstream];
+    final result = await Process.run(
+      _runner.executable, args,
+      workingDirectory: r.path,
+      stdoutEncoding: utf8,
+      stderrEncoding: utf8,
+    );
+    final out = result.stdout.toString();
+    final err = result.stderr.toString();
+    if (result.exitCode == 0) {
+      if (out.contains('is up to date') || out.contains('up to date')) {
+        return const GitSuccess(RebaseUpToDate());
+      }
+      final head = (await _runner.run(r.path, ['rev-parse', 'HEAD'])).trim();
+      return GitSuccess(RebaseApplied(CommitSha(head)));
+    }
+    final combined = out + err;
+    if (combined.contains('CONFLICT') ||
+        combined.contains('could not apply') ||
+        combined.contains('Resolve all conflicts')) {
+      final raw = await _runner.run(r.path, ['ls-files', '--unmerged']);
+      final conflicted = raw
+          .split('\n')
+          .where((l) => l.isNotEmpty)
+          .map((l) => l.split('\t').last)
+          .toSet()
+          .toList();
+      return GitSuccess(RebaseConflict(conflicted));
+    }
+    final exc = GitProcessException(args, result.exitCode, err);
+    return GitFailure(_classify(exc), err, err);
+  }
+
+  @override
+  Future<GitResult<void>> rebaseAbort(RepoLocation r) async {
+    try { await _runner.run(r.path, ['rebase', '--abort']); return const GitSuccess(null); }
+    on GitProcessException catch (e) { return GitFailure(_classify(e), e.stderr, e.stderr); }
+  }
+
+  @override
+  Future<GitResult<CommitSha>> rebaseContinue(RepoLocation r) async {
+    try {
+      await _runner.run(r.path, ['-c', 'core.editor=true', 'rebase', '--continue']);
+      final head = (await _runner.run(r.path, ['rev-parse', 'HEAD'])).trim();
+      return GitSuccess(CommitSha(head));
+    } on GitProcessException catch (e) { return GitFailure(_classify(e), e.stderr, e.stderr); }
+  }
+
+  @override
+  Future<GitResult<void>> rebaseSkip(RepoLocation r) async {
+    try { await _runner.run(r.path, ['rebase', '--skip']); return const GitSuccess(null); }
+    on GitProcessException catch (e) { return GitFailure(_classify(e), e.stderr, e.stderr); }
+  }
+
+  @override
   Future<GitResult<CherryPickOutcome>> cherryPick(RepoLocation r, CommitSha sha) async {
     // Use Process.run directly to capture stdout for conflict detection (git may write CONFLICT to stdout)
     final result = await Process.run(

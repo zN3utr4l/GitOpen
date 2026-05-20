@@ -8,11 +8,17 @@ enum InProgressOp { none, merge, cherryPick, rebase, revert }
 final repoStateProvider =
     FutureProvider.family.autoDispose<InProgressOp, RepoLocation>(
         (ref, repo) async {
-  Future<bool> exists(String name) =>
+  Future<bool> fileExists(String name) =>
       File(p.join(repo.path, '.git', name)).exists();
-  if (await exists('MERGE_HEAD')) return InProgressOp.merge;
-  if (await exists('CHERRY_PICK_HEAD')) return InProgressOp.cherryPick;
-  if (await exists('REBASE_HEAD')) return InProgressOp.rebase;
-  if (await exists('REVERT_HEAD')) return InProgressOp.revert;
+  Future<bool> dirExists(String name) =>
+      Directory(p.join(repo.path, '.git', name)).exists();
+  if (await fileExists('MERGE_HEAD')) return InProgressOp.merge;
+  if (await fileExists('CHERRY_PICK_HEAD')) return InProgressOp.cherryPick;
+  // `git rebase` creates one of these dirs while paused on a conflict;
+  // REBASE_HEAD alone is unreliable (set by interactive rebase only).
+  if (await dirExists('rebase-merge') || await dirExists('rebase-apply')) {
+    return InProgressOp.rebase;
+  }
+  if (await fileExists('REVERT_HEAD')) return InProgressOp.revert;
   return InProgressOp.none;
 });

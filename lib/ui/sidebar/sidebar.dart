@@ -656,23 +656,36 @@ class _BranchTreeViewState extends ConsumerState<BranchTreeView> {
     final branch = n.branch;
     if (branch == null) return;
     final branchName = branch.name;
+    // Merge/rebase only make sense when the right-clicked branch isn't the
+    // one already checked out. Local renaming applies to local branches only.
+    final isCurrent = branch.isCurrent;
+    final isLocal = !branch.isRemote;
+
+    final entries = <AppContextMenuEntry<String>>[
+      if (!isCurrent)
+        const AppMenuItem(value: 'checkout', label: 'Checkout', icon: Icons.swap_horiz),
+      if (!isCurrent) ...const [
+        AppMenuItem(value: 'merge', label: 'Merge into current', icon: Icons.call_merge),
+        AppMenuItem(value: 'rebase', label: 'Rebase current onto this', icon: Icons.compare_arrows),
+        AppMenuDivider(),
+      ],
+      if (isLocal) ...const [
+        AppMenuItem(value: 'rename', label: 'Rename…', icon: Icons.drive_file_rename_outline),
+        AppMenuItem(value: 'upstream', label: 'Set upstream…', icon: Icons.link),
+        AppMenuDivider(),
+      ],
+      const AppMenuItem(value: 'delete', label: 'Delete', icon: Icons.delete_outline, danger: true),
+    ];
 
     final selected = await AppContextMenu.show<String>(
       context,
       globalPosition: globalPos,
-      entries: const [
-        AppMenuItem(value: 'checkout', label: 'Checkout', icon: Icons.swap_horiz),
-        AppMenuItem(value: 'merge', label: 'Merge into current', icon: Icons.call_merge),
-        AppMenuDivider(),
-        AppMenuItem(value: 'rename', label: 'Rename…', icon: Icons.drive_file_rename_outline),
-        AppMenuItem(value: 'upstream', label: 'Set upstream…', icon: Icons.link),
-        AppMenuDivider(),
-        AppMenuItem(value: 'delete', label: 'Delete', icon: Icons.delete_outline, danger: true),
-      ],
+      entries: entries,
     );
 
     if (selected == null || !context.mounted) return;
     final write = ref.read(gitWriteOperationsProvider);
+    final palette = AppPalette.of(context);
 
     switch (selected) {
       case 'checkout':
@@ -687,8 +700,38 @@ class _BranchTreeViewState extends ConsumerState<BranchTreeView> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                  'Merge conflict in ${outcome.conflictedPaths.length} file(s). Full conflict UI coming in 2D.'),
-              backgroundColor: AppPalette.of(context).accentErr,
+                  'Merge conflict in ${outcome.conflictedPaths.length} file(s). Resolve in the conflicts panel below.'),
+              backgroundColor: palette.accentErr,
+            ),
+          );
+        }
+
+      case 'rebase':
+        if (!context.mounted) return;
+        final confirmed = await ConfirmDialog.show(
+          context,
+          title: 'Rebase current branch',
+          body: 'Rebase the current branch onto "$branchName"? '
+              'This rewrites commits on the current branch.',
+          confirmLabel: 'Rebase',
+        );
+        if (!confirmed) return;
+        final result = await write.rebase(widget.repo, branchName);
+        _refresh();
+        if (!context.mounted) return;
+        if (result case GitSuccess(value: final RebaseConflict outcome)) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  'Rebase conflict in ${outcome.conflictedPaths.length} file(s). Resolve in the conflicts panel below.'),
+              backgroundColor: palette.accentErr,
+            ),
+          );
+        } else if (result case GitFailure(:final message)) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Rebase failed: $message'),
+              backgroundColor: palette.accentErr,
             ),
           );
         }

@@ -45,6 +45,7 @@ class ConflictResolutionPanel extends ConsumerWidget {
               InProgressOp.merge => 'Merge',
               InProgressOp.cherryPick => 'Cherry-pick',
               InProgressOp.revert => 'Revert',
+              InProgressOp.rebase => 'Rebase',
               _ => op.name,
             };
             return Column(
@@ -135,6 +136,7 @@ class ConflictResolutionPanel extends ConsumerWidget {
     if (op == InProgressOp.merge) await write.mergeAbort(repo);
     if (op == InProgressOp.cherryPick) await write.cherryPickAbort(repo);
     if (op == InProgressOp.revert) await write.revertAbort(repo);
+    if (op == InProgressOp.rebase) await write.rebaseAbort(repo);
     ref.invalidate(repoStateProvider(repo));
   }
 
@@ -143,6 +145,7 @@ class ConflictResolutionPanel extends ConsumerWidget {
     if (op == InProgressOp.merge) await write.mergeContinue(repo);
     if (op == InProgressOp.cherryPick) await write.cherryPickContinue(repo);
     if (op == InProgressOp.revert) await write.revertContinue(repo);
+    if (op == InProgressOp.rebase) await write.rebaseContinue(repo);
     ref.invalidate(repoStateProvider(repo));
   }
 }

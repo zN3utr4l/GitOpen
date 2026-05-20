@@ -60,5 +60,10 @@ abstract interface class GitWriteOperations {
 
   Future<GitResult<void>> reset(RepoLocation r, CommitSha to, ResetMode mode);
 
+  Future<GitResult<RebaseOutcome>> rebase(RepoLocation r, String upstream);
+  Future<GitResult<void>> rebaseAbort(RepoLocation r);
+  Future<GitResult<CommitSha>> rebaseContinue(RepoLocation r);
+  Future<GitResult<void>> rebaseSkip(RepoLocation r);
+
   Stream<GitProgress> clone(String url, String destination, {AuthSpec? auth});
 }

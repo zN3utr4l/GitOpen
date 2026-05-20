@@ -46,3 +46,21 @@ final class RevertConflict extends RevertOutcome {
   final List<String> conflictedPaths;
   const RevertConflict(this.conflictedPaths);
 }
+
+sealed class RebaseOutcome {
+  const RebaseOutcome();
+}
+
+final class RebaseApplied extends RebaseOutcome {
+  final CommitSha newHead;
+  const RebaseApplied(this.newHead);
+}
+
+final class RebaseUpToDate extends RebaseOutcome {
+  const RebaseUpToDate();
+}
+
+final class RebaseConflict extends RebaseOutcome {
+  final List<String> conflictedPaths;
+  const RebaseConflict(this.conflictedPaths);
+}
