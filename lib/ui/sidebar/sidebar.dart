@@ -149,70 +149,185 @@ class _SidebarState extends ConsumerState<Sidebar> {
   }
 }
 
-class _SidebarContent extends ConsumerWidget {
+class _SidebarContent extends ConsumerStatefulWidget {
   final _SidebarData data;
   final RepoLocation repo;
   const _SidebarContent({required this.data, required this.repo});
 
-  void _refreshSidebar(WidgetRef ref) {
-    refreshRepo(ref, repo);
-  }
+  @override
+  ConsumerState<_SidebarContent> createState() => _SidebarContentState();
+}
+
+class _SidebarContentState extends ConsumerState<_SidebarContent> {
+  final _filterCtl = TextEditingController();
+  String _query = '';
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final localBranches = data.branches.where((b) => !b.isRemote).toList();
-    final localTree = BranchTree.build(localBranches);
-    return ListView(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+  void dispose() {
+    _filterCtl.dispose();
+    super.dispose();
+  }
+
+  void _refreshSidebar() => refreshRepo(ref, widget.repo);
+
+  bool _matches(String name) =>
+      _query.isEmpty || name.toLowerCase().contains(_query);
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final repo = widget.repo;
+    final data = widget.data;
+    final filtering = _query.isNotEmpty;
+
+    final allLocals = data.branches.where((b) => !b.isRemote).toList();
+    final locals = allLocals.where((b) => _matches(b.name)).toList();
+    final localTree = BranchTree.build(locals);
+
+    final tags = data.tags.where((t) => _matches(t.name)).toList();
+    // Remotes whose name OR any branch matches the query.
+    final remotes = data.remotes.where((r) {
+      if (!filtering) return true;
+      return _matches(r.name) || r.branches.any((b) => _matches(b.name));
+    }).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _Section(
-          title: 'LOCAL BRANCHES',
-          child: BranchTreeView(nodes: localTree, repo: repo),
+        _FilterField(
+          controller: _filterCtl,
+          onChanged: (v) => setState(() => _query = v.trim().toLowerCase()),
         ),
-        _Section(
-          title: 'REMOTES',
-          trailing: _AddRemoteIconButton(
-              repo: repo, onChanged: () => _refreshSidebar(ref)),
-          child: data.remotes.isEmpty
-              ? _AddRemoteEmptyState(
-                  repo: repo, onChanged: () => _refreshSidebar(ref))
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    for (final r in data.remotes)
-                      _RemoteGroup(
-                        remote: r,
+        Divider(height: 1, color: palette.border),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            children: [
+              _Section(
+                title: 'LOCAL BRANCHES',
+                count: allLocals.length,
+                child: localTree.isEmpty
+                    ? _EmptyHint(filtering ? 'No matches' : 'No local branches')
+                    : BranchTreeView(
+                        nodes: localTree,
                         repo: repo,
-                        onChanged: () => _refreshSidebar(ref),
+                        forceExpanded: filtering,
                       ),
-                  ],
-                ),
-        ),
-        _Section(
-          title: 'TAGS',
-          child: data.tags.isEmpty
-              ? const _EmptyHint('No tags')
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    for (final t in data.tags)
-                      _TagRow(tag: t, repo: repo, onRefresh: () => _refreshSidebar(ref)),
-                  ],
-                ),
-        ),
-        _Section(
-          title: 'STASHES',
-          child: data.stashes.isEmpty
-              ? const _EmptyHint('No stashes')
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    for (final s in data.stashes)
-                      _StashRow(stash: s, repo: repo, onRefresh: () => _refreshSidebar(ref)),
-                  ],
-                ),
+              ),
+              _Section(
+                title: 'REMOTES',
+                count: data.remotes.length,
+                trailing: _AddRemoteIconButton(
+                    repo: repo, onChanged: _refreshSidebar),
+                child: data.remotes.isEmpty
+                    ? _AddRemoteEmptyState(
+                        repo: repo, onChanged: _refreshSidebar)
+                    : remotes.isEmpty
+                        ? const _EmptyHint('No matches')
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              for (final r in remotes)
+                                _RemoteGroup(
+                                  remote: r,
+                                  repo: repo,
+                                  query: _query,
+                                  onChanged: _refreshSidebar,
+                                ),
+                            ],
+                          ),
+              ),
+              _Section(
+                title: 'TAGS',
+                count: data.tags.length,
+                child: tags.isEmpty
+                    ? _EmptyHint(filtering ? 'No matches' : 'No tags')
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          for (final t in tags)
+                            _TagRow(
+                                tag: t,
+                                repo: repo,
+                                onRefresh: _refreshSidebar),
+                        ],
+                      ),
+              ),
+              _Section(
+                title: 'STASHES',
+                count: data.stashes.length,
+                child: data.stashes.isEmpty
+                    ? const _EmptyHint('No stashes')
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          for (final s in data.stashes)
+                            _StashRow(
+                                stash: s,
+                                repo: repo,
+                                onRefresh: _refreshSidebar),
+                        ],
+                      ),
+              ),
+            ],
+          ),
         ),
       ],
+    );
+  }
+}
+
+/// Compact branch/ref filter box pinned at the top of the sidebar.
+class _FilterField extends StatelessWidget {
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+  const _FilterField({required this.controller, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 6),
+      child: SizedBox(
+        height: 30,
+        child: TextField(
+          controller: controller,
+          onChanged: onChanged,
+          style: TextStyle(color: palette.fg0, fontSize: 12.5),
+          decoration: InputDecoration(
+            isDense: true,
+            filled: true,
+            fillColor: palette.bg1,
+            hintText: 'Filter branches, tags…',
+            hintStyle: TextStyle(color: palette.fg3, fontSize: 12.5),
+            prefixIcon: Icon(Icons.search, size: 15, color: palette.fg3),
+            prefixIconConstraints:
+                const BoxConstraints(minWidth: 30, minHeight: 30),
+            suffixIcon: controller.text.isEmpty
+                ? null
+                : GestureDetector(
+                    onTap: () {
+                      controller.clear();
+                      onChanged('');
+                    },
+                    child: Icon(Icons.close, size: 14, color: palette.fg3),
+                  ),
+            contentPadding: const EdgeInsets.symmetric(vertical: 6),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(5),
+              borderSide: BorderSide(color: palette.border),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(5),
+              borderSide: BorderSide(color: palette.border),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(5),
+              borderSide: BorderSide(color: palette.accentCurrent),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -385,7 +500,9 @@ class _Section extends StatefulWidget {
   final String title;
   final Widget child;
   final Widget? trailing;
-  const _Section({required this.title, required this.child, this.trailing});
+  final int? count;
+  const _Section(
+      {required this.title, required this.child, this.trailing, this.count});
 
   @override
   State<_Section> createState() => _SectionState();
@@ -400,7 +517,10 @@ class _SectionState extends State<_Section> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        InkWell(
+        Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+          hoverColor: palette.bg3,
           onTap: () => setState(() => _open = !_open),
           child: Padding(
             padding:
@@ -412,18 +532,28 @@ class _SectionState extends State<_Section> {
                 color: palette.fg3,
               ),
               const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  widget.title,
-                  style: TextStyle(
-                    color: palette.fg2,
-                    fontSize: 10.5,
-                    letterSpacing: 0.5,
-                  ),
+              Text(
+                widget.title,
+                style: TextStyle(
+                  color: palette.fg2,
+                  fontSize: 10.5,
+                  letterSpacing: 0.5,
                 ),
               ),
+              if (widget.count != null && widget.count! > 0) ...[
+                const SizedBox(width: 6),
+                Text(
+                  '${widget.count}',
+                  style: TextStyle(
+                    color: palette.fg3,
+                    fontSize: 10.5,
+                  ),
+                ),
+              ],
+              const Spacer(),
               if (widget.trailing != null) widget.trailing!,
             ]),
+          ),
           ),
         ),
         if (_open)
@@ -503,10 +633,12 @@ class _RemoteGroup extends ConsumerStatefulWidget {
   final Remote remote;
   final RepoLocation repo;
   final VoidCallback onChanged;
+  final String query;
   const _RemoteGroup({
     required this.remote,
     required this.repo,
     required this.onChanged,
+    this.query = '',
   });
 
   @override
@@ -520,7 +652,18 @@ class _RemoteGroupState extends ConsumerState<_RemoteGroup> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final filtering = widget.query.isNotEmpty;
+    // When the remote name itself matches, show all its branches; otherwise
+    // show only the branches that match the query.
+    final nameMatches =
+        filtering && widget.remote.name.toLowerCase().contains(widget.query);
+    final branches = filtering && !nameMatches
+        ? widget.remote.branches
+            .where((b) => b.name.toLowerCase().contains(widget.query))
+            .toList()
+        : widget.remote.branches;
     final branchCount = widget.remote.branches.length;
+    final open = _open || filtering;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -541,7 +684,7 @@ class _RemoteGroupState extends ConsumerState<_RemoteGroup> {
                 child: Row(
                   children: [
                     Icon(
-                      _open ? Icons.expand_more : Icons.chevron_right,
+                      open ? Icons.expand_more : Icons.chevron_right,
                       size: 14,
                       color: palette.fg3,
                     ),
@@ -573,11 +716,12 @@ class _RemoteGroupState extends ConsumerState<_RemoteGroup> {
             ),
           ),
         ),
-        if (_open)
+        if (open)
           BranchTreeView(
-            nodes: BranchTree.build(widget.remote.branches),
+            nodes: BranchTree.build(branches),
             depth: 1,
             repo: widget.repo,
+            forceExpanded: filtering,
           ),
       ],
     );
@@ -676,8 +820,18 @@ class BranchTreeView extends ConsumerStatefulWidget {
   final List<BranchTreeNode> nodes;
   final int depth;
   final RepoLocation repo;
+
+  /// When true, folders ignore their collapsed state and render expanded —
+  /// used while a filter is active so matches are never hidden inside a
+  /// collapsed folder.
+  final bool forceExpanded;
+
   const BranchTreeView(
-      {super.key, required this.nodes, this.depth = 0, required this.repo});
+      {super.key,
+      required this.nodes,
+      this.depth = 0,
+      required this.repo,
+      this.forceExpanded = false});
 
   @override
   ConsumerState<BranchTreeView> createState() => _BranchTreeViewState();
@@ -880,7 +1034,7 @@ class _BranchTreeViewState extends ConsumerState<BranchTreeView> {
         onRefresh: _refresh,
       );
     }
-    final open = !_collapsed.contains(n.fullPath);
+    final open = widget.forceExpanded || !_collapsed.contains(n.fullPath);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -918,7 +1072,12 @@ class _BranchTreeViewState extends ConsumerState<BranchTreeView> {
           ),
           ),
         ),
-        if (open) BranchTreeView(nodes: n.children, depth: depth + 1, repo: widget.repo),
+        if (open)
+          BranchTreeView(
+              nodes: n.children,
+              depth: depth + 1,
+              repo: widget.repo,
+              forceExpanded: widget.forceExpanded),
       ],
     );
   }
@@ -961,6 +1120,13 @@ class _BranchLeafRowState extends ConsumerState<_BranchLeafRow> {
         fullName != null && ref.watch(hiddenRefsProvider).contains(fullName);
     final isSelected =
         fullName != null && ref.watch(selectedSidebarRefProvider) == fullName;
+
+    // Ahead/behind is only cheaply available for the current branch (from
+    // `git status`), so only the current row shows the divergence badge.
+    final status =
+        current ? ref.watch(repoStatusProvider(widget.repo)).valueOrNull : null;
+    final ahead = status?.ahead ?? 0;
+    final behind = status?.behind ?? 0;
 
     final fg = current
         ? palette.accentCurrent
@@ -1023,6 +1189,19 @@ class _BranchLeafRowState extends ConsumerState<_BranchLeafRow> {
                       ),
                     ),
                   ),
+                  // Ahead/behind divergence badge for the current branch.
+                  if (current && (ahead > 0 || behind > 0)) ...[
+                    if (ahead > 0)
+                      _AheadBehindBadge(
+                          icon: Icons.arrow_upward,
+                          count: ahead,
+                          color: palette.accentCurrent),
+                    if (behind > 0)
+                      _AheadBehindBadge(
+                          icon: Icons.arrow_downward,
+                          count: behind,
+                          color: palette.accentRemote),
+                  ],
                   // On hover: a "⋯" button that opens the same actions menu,
                   // so users don't have to discover right-click.
                   if (_hover && branch != null)
@@ -1082,6 +1261,33 @@ class _RowIconButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 2),
           child: Icon(icon, size: 15, color: color),
         ),
+      ),
+    );
+  }
+}
+
+/// Tiny "↑3" / "↓2" divergence badge for the current branch.
+class _AheadBehindBadge extends StatelessWidget {
+  final IconData icon;
+  final int count;
+  final Color color;
+  const _AheadBehindBadge(
+      {required this.icon, required this.count, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 3),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: color),
+          Text('$count',
+              style: TextStyle(
+                  color: color,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600)),
+        ],
       ),
     );
   }
