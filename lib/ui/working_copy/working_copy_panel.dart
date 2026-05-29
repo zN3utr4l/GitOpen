@@ -180,49 +180,66 @@ class _FileList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return ListView(children: [
-      _Header(
-        title: 'Unstaged (${unstaged.length})',
-        actions: [
-          _HeaderAction(
-            'Discard all',
-            unstaged.isEmpty
-                ? null
-                : () => _confirmAndDiscardAll(context, ref, repo, unstaged),
-            danger: true,
-          ),
-          _HeaderAction(
-            'Stage all',
-            unstaged.isEmpty
-                ? null
-                : () async {
-                    await ref
-                        .read(gitWriteOperationsProvider)
-                        .stageFiles(repo, unstaged.map((e) => e.path).toList());
-                    ref.invalidate(_workingCopyStatusProvider(repo));
-                  },
-          ),
-        ],
-      ),
-      for (final e in unstaged) _FileRow(repo: repo, entry: e, isStaged: false),
-      _Header(
-        title: 'Staged (${staged.length})',
-        actions: [
-          _HeaderAction(
-            'Unstage all',
-            staged.isEmpty
-                ? null
-                : () async {
-                    await ref
-                        .read(gitWriteOperationsProvider)
-                        .unstageFiles(repo, staged.map((e) => e.path).toList());
-                    ref.invalidate(_workingCopyStatusProvider(repo));
-                  },
-          ),
-        ],
-      ),
-      for (final e in staged) _FileRow(repo: repo, entry: e, isStaged: true),
-    ]);
+    final unstagedHeader = _Header(
+      title: 'Unstaged (${unstaged.length})',
+      actions: [
+        _HeaderAction(
+          'Discard all',
+          unstaged.isEmpty
+              ? null
+              : () => _confirmAndDiscardAll(context, ref, repo, unstaged),
+          danger: true,
+        ),
+        _HeaderAction(
+          'Stage all',
+          unstaged.isEmpty
+              ? null
+              : () async {
+                  await ref
+                      .read(gitWriteOperationsProvider)
+                      .stageFiles(repo, unstaged.map((e) => e.path).toList());
+                  refreshRepo(ref, repo);
+                },
+        ),
+      ],
+    );
+    final stagedHeader = _Header(
+      title: 'Staged (${staged.length})',
+      actions: [
+        _HeaderAction(
+          'Unstage all',
+          staged.isEmpty
+              ? null
+              : () async {
+                  await ref
+                      .read(gitWriteOperationsProvider)
+                      .unstageFiles(repo, staged.map((e) => e.path).toList());
+                  refreshRepo(ref, repo);
+                },
+        ),
+      ],
+    );
+
+    // Virtualised: only on-screen rows are built, so a changeset with
+    // thousands of files (e.g. a generated-code commit) stays responsive.
+    // Layout: [unstaged header][unstaged rows…][staged header][staged rows…]
+    final stagedHeaderIndex = 1 + unstaged.length;
+    final itemCount = 2 + unstaged.length + staged.length;
+    return ListView.builder(
+      itemCount: itemCount,
+      itemBuilder: (context, i) {
+        if (i == 0) return unstagedHeader;
+        if (i < stagedHeaderIndex) {
+          return _FileRow(
+              repo: repo, entry: unstaged[i - 1], isStaged: false);
+        }
+        if (i == stagedHeaderIndex) return stagedHeader;
+        return _FileRow(
+            repo: repo,
+            entry: staged[i - stagedHeaderIndex - 1],
+            isStaged: true);
+      },
+    );
   }
 }
 

@@ -20,8 +20,8 @@ void main() {
     });
 
     // Prime both and keep them alive so invalidation re-runs them.
-    container.listen(read(repoA), (_, __) {});
-    container.listen(read(repoB), (_, __) {});
+    container.listen(read(repoA), (_, _) {});
+    container.listen(read(repoB), (_, _) {});
     await container.read(read(repoA).future);
     await container.read(read(repoB).future);
     expect(runsA, 1);
