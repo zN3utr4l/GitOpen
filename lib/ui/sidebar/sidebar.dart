@@ -233,23 +233,28 @@ class _TagRow extends ConsumerWidget {
     return GestureDetector(
       onSecondaryTapDown: (details) =>
           _showContextMenu(context, ref, details.globalPosition),
-      child: InkWell(
-        onTap: () => _revealCommit(ref, tag.targetSha),
-        onDoubleTap: () async {
-          final ok = await safeCheckout(
-            context: context,
-            ref: ref,
-            repo: repo,
-            targetRef: tag.name,
-          );
-          if (ok) onRefresh();
-        },
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 3),
-          child: Text(
-            tag.name,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: AppPalette.of(context).fg1, fontSize: 12.5),
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          hoverColor: AppPalette.of(context).bg3,
+          onTap: () => _revealCommit(ref, tag.targetSha),
+          onDoubleTap: () async {
+            final ok = await safeCheckout(
+              context: context,
+              ref: ref,
+              repo: repo,
+              targetRef: tag.name,
+            );
+            if (ok) onRefresh();
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 3),
+            child: Text(
+              tag.name,
+              overflow: TextOverflow.ellipsis,
+              style:
+                  TextStyle(color: AppPalette.of(context).fg1, fontSize: 12.5),
+            ),
           ),
         ),
       ),
@@ -316,14 +321,19 @@ class _StashRow extends ConsumerWidget {
     return GestureDetector(
       onSecondaryTapDown: (details) =>
           _showContextMenu(context, ref, details.globalPosition),
-      child: InkWell(
-        onTap: () => _revealCommit(ref, stash.sha),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 3),
-          child: Text(
-            'stash@{${stash.index}} — ${stash.message}',
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: AppPalette.of(context).fg1, fontSize: 12.5),
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          hoverColor: AppPalette.of(context).bg3,
+          onTap: () => _revealCommit(ref, stash.sha),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 3),
+            child: Text(
+              'stash@{${stash.index}} — ${stash.message}',
+              overflow: TextOverflow.ellipsis,
+              style:
+                  TextStyle(color: AppPalette.of(context).fg1, fontSize: 12.5),
+            ),
           ),
         ),
       ),
@@ -688,9 +698,11 @@ class _BranchTreeViewState extends ConsumerState<BranchTreeView> {
     );
   }
 
-  /// Invalidates sidebar data so the tree refreshes after a write op.
+  /// Refreshes the whole repo view after a write op so the graph, status and
+  /// sidebar all reflect the change (e.g. a checkout switches the current
+  /// branch everywhere, not just in this tree).
   void _refresh() {
-    ref.invalidate(_sidebarDataProvider(widget.repo));
+    refreshRepo(ref, widget.repo);
   }
 
   Future<void> _handleContextMenu(
@@ -860,91 +872,22 @@ class _BranchTreeViewState extends ConsumerState<BranchTreeView> {
   Widget _renderNode(BranchTreeNode n, int depth) {
     final indent = 6.0 + depth * 14.0;
     if (n.children.isEmpty) {
-      final branch = n.branch;
-      final current = branch?.isCurrent ?? false;
-      final fullName = branch?.fullName;
-      final isHidden = fullName != null &&
-          ref.read(hiddenRefsProvider).contains(fullName);
-      return Opacity(
-        opacity: isHidden ? 0.5 : 1.0,
-        child: GestureDetector(
-          onSecondaryTapDown: (details) =>
-              _handleContextMenu(context, n, details.globalPosition),
-          child: InkWell(
-            onTap: branch?.tipSha == null
-                ? null
-                : () => _revealCommit(ref, branch!.tipSha!),
-            onDoubleTap: branch == null || current
-                ? null
-                : () async {
-                    final ok = await safeCheckout(
-                      context: context,
-                      ref: ref,
-                      repo: widget.repo,
-                      targetRef: branch.name,
-                    );
-                    if (ok) _refresh();
-                  },
-            child: Padding(
-              padding: EdgeInsets.only(
-                  left: indent + 18, right: 6, top: 3, bottom: 3),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 12,
-                    child: current
-                        ? Text('✓',
-                            style: TextStyle(
-                                color: AppPalette.of(context).accentCurrent, fontSize: 11))
-                        : null,
-                  ),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      n.name,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: current
-                            ? AppPalette.of(context).accentCurrent
-                            : AppPalette.of(context).fg1,
-                        fontSize: 12.5,
-                        fontWeight: current
-                            ? FontWeight.w600
-                            : FontWeight.normal,
-                      ),
-                    ),
-                  ),
-                  // Visibility eye icon — always visible, click toggles.
-                  if (fullName != null)
-                    GestureDetector(
-                      onTap: () => ref
-                          .read(hiddenRefsProvider.notifier)
-                          .toggle(fullName),
-                      child: Padding(
-                        padding: const EdgeInsets.only(left: 4),
-                        child: Icon(
-                          isHidden
-                              ? Icons.visibility_off
-                              : Icons.visibility,
-                          size: 13,
-                          color: isHidden
-                              ? AppPalette.of(context).fg3
-                              : AppPalette.of(context).fg2,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ),
+      return _BranchLeafRow(
+        node: n,
+        indent: indent,
+        repo: widget.repo,
+        onContextMenu: (pos) => _handleContextMenu(context, n, pos),
+        onRefresh: _refresh,
       );
     }
     final open = !_collapsed.contains(n.fullPath);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        InkWell(
+        Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+          hoverColor: AppPalette.of(context).bg3,
           onTap: () {
             setState(() {
               if (!_collapsed.add(n.fullPath)) {
@@ -973,9 +916,173 @@ class _BranchTreeViewState extends ConsumerState<BranchTreeView> {
               ),
             ]),
           ),
+          ),
         ),
         if (open) BranchTreeView(nodes: n.children, depth: depth + 1, repo: widget.repo),
       ],
+    );
+  }
+}
+
+/// A single leaf branch row: selectable, with visible hover/selection feedback
+/// (a real Material ancestor so InkWell ink shows over the sidebar's own
+/// background) and an on-hover "⋯" actions button so the context menu is
+/// discoverable without right-clicking.
+class _BranchLeafRow extends ConsumerStatefulWidget {
+  final BranchTreeNode node;
+  final double indent;
+  final RepoLocation repo;
+  final void Function(Offset globalPosition) onContextMenu;
+  final VoidCallback onRefresh;
+
+  const _BranchLeafRow({
+    required this.node,
+    required this.indent,
+    required this.repo,
+    required this.onContextMenu,
+    required this.onRefresh,
+  });
+
+  @override
+  ConsumerState<_BranchLeafRow> createState() => _BranchLeafRowState();
+}
+
+class _BranchLeafRowState extends ConsumerState<_BranchLeafRow> {
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final n = widget.node;
+    final branch = n.branch;
+    final current = branch?.isCurrent ?? false;
+    final fullName = branch?.fullName;
+    final isHidden =
+        fullName != null && ref.watch(hiddenRefsProvider).contains(fullName);
+    final isSelected =
+        fullName != null && ref.watch(selectedSidebarRefProvider) == fullName;
+
+    final fg = current
+        ? palette.accentCurrent
+        : (isSelected ? Colors.white : palette.fg1);
+
+    return Opacity(
+      opacity: isHidden ? 0.5 : 1.0,
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _hover = true),
+        onExit: (_) => setState(() => _hover = false),
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            hoverColor: palette.bg3,
+            onTap: () {
+              if (fullName != null) {
+                ref.read(selectedSidebarRefProvider.notifier).state = fullName;
+              }
+              if (branch?.tipSha != null) _revealCommit(ref, branch!.tipSha!);
+            },
+            onDoubleTap: branch == null || current
+                ? null
+                : () async {
+                    final ok = await safeCheckout(
+                      context: context,
+                      ref: ref,
+                      repo: widget.repo,
+                      targetRef: branch.name,
+                    );
+                    if (ok) widget.onRefresh();
+                  },
+            onSecondaryTapDown: (d) => widget.onContextMenu(d.globalPosition),
+            child: Container(
+              color: isSelected ? palette.bgAccent : Colors.transparent,
+              padding: EdgeInsets.only(
+                  left: widget.indent + 18, right: 4, top: 3, bottom: 3),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 12,
+                    child: current
+                        ? Text('✓',
+                            style: TextStyle(
+                                color: isSelected
+                                    ? Colors.white
+                                    : palette.accentCurrent,
+                                fontSize: 11))
+                        : null,
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      n.name,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: fg,
+                        fontSize: 12.5,
+                        fontWeight:
+                            current ? FontWeight.w600 : FontWeight.normal,
+                      ),
+                    ),
+                  ),
+                  // On hover: a "⋯" button that opens the same actions menu,
+                  // so users don't have to discover right-click.
+                  if (_hover && branch != null)
+                    _RowIconButton(
+                      icon: Icons.more_horiz,
+                      tooltip: 'Actions',
+                      color: isSelected ? Colors.white70 : palette.fg2,
+                      onTapAt: widget.onContextMenu,
+                    ),
+                  // Visibility eye — shown on hover, or always when hidden so
+                  // the hidden state stays discoverable.
+                  if (fullName != null && (_hover || isHidden))
+                    GestureDetector(
+                      onTap: () =>
+                          ref.read(hiddenRefsProvider.notifier).toggle(fullName),
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 2),
+                        child: Icon(
+                          isHidden ? Icons.visibility_off : Icons.visibility,
+                          size: 13,
+                          color: isHidden ? palette.fg3 : palette.fg2,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Small icon button that reports the global tap position, used to anchor a
+/// context menu where the button is.
+class _RowIconButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final Color color;
+  final void Function(Offset globalPosition) onTapAt;
+  const _RowIconButton({
+    required this.icon,
+    required this.tooltip,
+    required this.color,
+    required this.onTapAt,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapDown: (d) => onTapAt(d.globalPosition),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          child: Icon(icon, size: 15, color: color),
+        ),
+      ),
     );
   }
 }

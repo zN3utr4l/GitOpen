@@ -23,3 +23,7 @@ final hiddenRefsProvider =
     StateNotifierProvider<HiddenRefsNotifier, Set<String>>((ref) {
   return HiddenRefsNotifier();
 });
+
+/// `Branch.fullName` of the ref currently selected in the sidebar, so the row
+/// can render a selection highlight. Null when nothing is selected.
+final selectedSidebarRefProvider = StateProvider<String?>((_) => null);
