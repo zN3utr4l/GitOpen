@@ -31,6 +31,7 @@ class ActivityPanel extends ConsumerWidget {
                   ),
                   IconButton(
                     icon: Icon(Icons.close, size: 16, color: palette.fg1),
+                    tooltip: 'Close',
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
@@ -38,10 +39,24 @@ class ActivityPanel extends ConsumerWidget {
             ),
             Divider(height: 1, color: palette.border),
             Expanded(
-              child: ListView.builder(
-                itemCount: ops.length,
-                itemBuilder: (_, i) => _Row(op: ops[i]),
-              ),
+              child: ops.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.history,
+                              size: 32, color: palette.fg3),
+                          const SizedBox(height: 8),
+                          Text('No recent activity',
+                              style: TextStyle(
+                                  color: palette.fg2, fontSize: 13)),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
+                      itemCount: ops.length,
+                      itemBuilder: (_, i) => _Row(op: ops[i]),
+                    ),
             ),
           ],
         ),

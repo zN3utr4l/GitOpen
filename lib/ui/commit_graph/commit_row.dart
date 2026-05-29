@@ -53,20 +53,27 @@ class CommitRow extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           hoverColor: palette.bg4,
-          child: SizedBox(
+          child: Semantics(
+            button: true,
+            selected: isSelected,
+            label: 'Commit ${node.commit.sha.short()}: '
+                '${node.commit.summary}, by ${node.commit.author.name}',
+            child: SizedBox(
             height: kRowHeight,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Row(
                 children: [
-                  SizedBox(
-                    width: svgWidth(maxLane),
-                    height: kRowHeight,
-                    child: CustomPaint(
-                      painter: LanePainter(
-                        node: node,
-                        maxLane: maxLane,
-                        lanePalette: palette.lanePalette,
+                  ExcludeSemantics(
+                    child: SizedBox(
+                      width: svgWidth(maxLane),
+                      height: kRowHeight,
+                      child: CustomPaint(
+                        painter: LanePainter(
+                          node: node,
+                          maxLane: maxLane,
+                          lanePalette: palette.lanePalette,
+                        ),
                       ),
                     ),
                   ),
@@ -151,6 +158,7 @@ class CommitRow extends StatelessWidget {
                 ],
               ),
             ),
+          ),
           ),
         ),
       ),

@@ -28,6 +28,7 @@ import '../dialogs/confirm_dialog.dart';
 import '../dialogs/merge_dialog.dart';
 import '../theme/app_palette.dart';
 import 'commit_row.dart';
+import 'lane_painter.dart';
 import 'local_changes_row.dart';
 import 'ref_decoration.dart';
 
@@ -222,27 +223,71 @@ class CommitGraphPanel extends ConsumerStatefulWidget {
 
 class _CommitGraphPanelState extends ConsumerState<CommitGraphPanel> {
   final ScrollController _controller = ScrollController();
+  final FocusNode _focusNode = FocusNode(debugLabel: 'commitGraph');
 
   @override
   void dispose() {
     _controller.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
   void _scrollToSha(CommitSha sha, List<dynamic> nodes) {
     final index = nodes.indexWhere((n) => n.commit.sha == sha);
     if (index < 0 || !_controller.hasClients) return;
-    final target = index * 26.0;
+    final target = index * kRowHeight;
     final position = _controller.position;
     final viewport = position.viewportDimension;
     final maxScroll = position.maxScrollExtent;
     // Center the row in the viewport if possible.
-    final centered = (target - viewport / 2 + 13).clamp(0.0, maxScroll);
+    final centered = (target - viewport / 2 + kHalfHeight).clamp(0.0, maxScroll);
     _controller.animateTo(
       centered,
       duration: const Duration(milliseconds: 220),
       curve: Curves.easeOutCubic,
     );
+  }
+
+  /// Scrolls just enough to bring [index]'s row fully into view (no centering),
+  /// so arrow-key navigation tracks the selection without jumping around.
+  void _ensureVisible(int index) {
+    if (!_controller.hasClients) return;
+    final position = _controller.position;
+    final rowTop = index * kRowHeight;
+    final rowBottom = rowTop + kRowHeight;
+    final viewTop = position.pixels;
+    final viewBottom = viewTop + position.viewportDimension;
+    double? target;
+    if (rowTop < viewTop) {
+      target = rowTop;
+    } else if (rowBottom > viewBottom) {
+      target = rowBottom - position.viewportDimension;
+    }
+    if (target == null) return;
+    _controller.animateTo(
+      target.clamp(0.0, position.maxScrollExtent),
+      duration: const Duration(milliseconds: 120),
+      curve: Curves.easeOut,
+    );
+  }
+
+  /// Moves the commit selection by [delta] rows (e.g. +1 for ArrowDown).
+  /// With nothing selected, ArrowDown selects the first row and ArrowUp the
+  /// last.  Keeps the new selection scrolled into view.
+  void _moveSelection(int delta, List<CommitNode> nodes) {
+    if (nodes.isEmpty) return;
+    final current = ref.read(selectedCommitShaProvider);
+    final currentIndex =
+        nodes.indexWhere((n) => n.commit.sha == current);
+    final int next;
+    if (currentIndex < 0) {
+      next = delta > 0 ? 0 : nodes.length - 1;
+    } else {
+      next = (currentIndex + delta).clamp(0, nodes.length - 1);
+    }
+    ref.read(selectedCommitShaProvider.notifier).state =
+        nodes[next].commit.sha;
+    _ensureVisible(next);
   }
 
   @override
@@ -274,14 +319,36 @@ class _CommitGraphPanelState extends ConsumerState<CommitGraphPanel> {
             );
           }
           final selected = ref.watch(selectedCommitShaProvider);
-          return Column(
+          return Focus(
+            focusNode: _focusNode,
+            onKeyEvent: (node, event) {
+              if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+                return KeyEventResult.ignored;
+              }
+              switch (event.logicalKey) {
+                case LogicalKeyboardKey.arrowDown:
+                  _moveSelection(1, data.nodes);
+                  return KeyEventResult.handled;
+                case LogicalKeyboardKey.arrowUp:
+                  _moveSelection(-1, data.nodes);
+                  return KeyEventResult.handled;
+                case LogicalKeyboardKey.home:
+                  _moveSelection(-data.nodes.length, data.nodes);
+                  return KeyEventResult.handled;
+                case LogicalKeyboardKey.end:
+                  _moveSelection(data.nodes.length, data.nodes);
+                  return KeyEventResult.handled;
+              }
+              return KeyEventResult.ignored;
+            },
+            child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               LocalChangesRow(repo: repo),
               Expanded(
                 child: ListView.builder(
                   controller: _controller,
-                  itemExtent: 26,
+                  itemExtent: kRowHeight,
                   itemCount: data.nodes.length,
                   itemBuilder: (context, i) {
                     final node = data.nodes[i];
@@ -292,6 +359,7 @@ class _CommitGraphPanelState extends ConsumerState<CommitGraphPanel> {
                       refs: refs,
                       isSelected: selected == node.commit.sha,
                       onTap: () {
+                        _focusNode.requestFocus();
                         ref.read(selectedCommitShaProvider.notifier).state =
                             node.commit.sha;
                       },
@@ -321,6 +389,7 @@ class _CommitGraphPanelState extends ConsumerState<CommitGraphPanel> {
                 ),
               ),
             ],
+          ),
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),

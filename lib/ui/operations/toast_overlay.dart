@@ -21,23 +21,33 @@ class _ToastOverlayState extends ConsumerState<ToastOverlay> {
   // Operation ids the user explicitly dismissed via the X button.
   final Set<String> _dismissed = {};
 
-  // Drives a periodic rebuild so finished toasts disappear when their
-  // 10-second window elapses (operationsProvider only fires on state changes,
-  // not on time passing).
+  // A one-shot timer that fires exactly when the next finished toast is due
+  // to auto-dismiss.  operationsProvider only fires on state changes (not on
+  // time passing), so we need a wake-up — but only while a finished toast is
+  // actually on screen, instead of an always-on 1 Hz rebuild.
   Timer? _ticker;
-
-  @override
-  void initState() {
-    super.initState();
-    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {});
-    });
-  }
 
   @override
   void dispose() {
     _ticker?.cancel();
     super.dispose();
+  }
+
+  /// (Re)schedules a single rebuild at the earliest pending auto-dismiss.
+  void _scheduleDismissTick(Iterable<DateTime> finishedAts, DateTime now) {
+    _ticker?.cancel();
+    Duration? soonest;
+    for (final at in finishedAts) {
+      final remaining = _autoDismiss - now.difference(at);
+      if (soonest == null || remaining < soonest) soonest = remaining;
+    }
+    if (soonest == null) return;
+    final delay = soonest.isNegative
+        ? Duration.zero
+        : soonest + const Duration(milliseconds: 50);
+    _ticker = Timer(delay, () {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -53,6 +63,14 @@ class _ToastOverlayState extends ConsumerState<ToastOverlay> {
       if (o.finishedAt == null) return false;
       return now.difference(o.finishedAt!) < _autoDismiss;
     }).take(3).toList();
+
+    // Wake up only for finished toasts that still need to time out.
+    _scheduleDismissTick(
+      visible
+          .where((o) => o.finishedAt != null)
+          .map((o) => o.finishedAt!),
+      now,
+    );
 
     if (visible.isEmpty) return const SizedBox.shrink();
 

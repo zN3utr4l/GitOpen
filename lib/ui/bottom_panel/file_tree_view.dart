@@ -12,6 +12,19 @@ final _fileTreeProvider = FutureProvider.family
   return git.getFileTree(key.repo, key.sha, '');
 });
 
+/// Formats a byte count as a compact human-readable size (e.g. `1.4 MB`).
+String _humanSize(int bytes) {
+  if (bytes < 1024) return '$bytes B';
+  const units = ['KB', 'MB', 'GB', 'TB'];
+  var size = bytes / 1024;
+  var unit = 0;
+  while (size >= 1024 && unit < units.length - 1) {
+    size /= 1024;
+    unit++;
+  }
+  return '${size.toStringAsFixed(size >= 10 ? 0 : 1)} ${units[unit]}';
+}
+
 class FileTreeViewWidget extends ConsumerWidget {
   final RepoLocation repo;
   final CommitSha sha;
@@ -65,7 +78,7 @@ class FileTreeViewWidget extends ConsumerWidget {
                     ),
                   ),
                   if (e.sizeBytes != null)
-                    Text('${e.sizeBytes}',
+                    Text(_humanSize(e.sizeBytes!),
                         style: TextStyle(
                           color: palette.fg3,
                           fontSize: 11,

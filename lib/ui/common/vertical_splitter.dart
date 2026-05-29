@@ -39,9 +39,13 @@ class _VerticalSplitterState extends State<VerticalSplitter> {
     final palette = AppPalette.of(context);
     return LayoutBuilder(
       builder: (context, constraints) {
-        final maxBottom = constraints.maxHeight - widget.minTop;
-        final clamped =
-            _bottom.clamp(widget.minBottom, maxBottom < widget.minBottom ? widget.minBottom : maxBottom);
+        // Guard against windows shorter than minTop+minBottom: a naive
+        // `clamp(minBottom, maxHeight - minTop)` would produce an inverted
+        // range (lower > upper) and assert.  Floor the upper bound at
+        // minBottom so the range is always valid.
+        final maxBottom =
+            (constraints.maxHeight - widget.minTop).clamp(widget.minBottom, double.infinity);
+        final clamped = _bottom.clamp(widget.minBottom, maxBottom);
         return Column(
           children: [
             Expanded(child: widget.top),
@@ -55,10 +59,8 @@ class _VerticalSplitterState extends State<VerticalSplitter> {
                     setState(() => _dragging = true),
                 onVerticalDragUpdate: (d) {
                   setState(() {
-                    _bottom = (_bottom - d.delta.dy).clamp(
-                      widget.minBottom,
-                      constraints.maxHeight - widget.minTop,
-                    );
+                    _bottom = (_bottom - d.delta.dy)
+                        .clamp(widget.minBottom, maxBottom);
                   });
                 },
                 onVerticalDragEnd: (_) =>
