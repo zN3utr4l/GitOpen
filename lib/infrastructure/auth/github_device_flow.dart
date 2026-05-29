@@ -39,20 +39,40 @@ class GitHubDeviceFlow {
       body: {'client_id': clientId, 'scope': scope},
     );
     if (r.statusCode != 200) {
+      // Deliberately do NOT echo the response body — keep secrets and noise
+      // out of any logs that capture this message.
       throw HttpException(
-        'device/code returned ${r.statusCode}: ${r.body}',
+        'device/code request failed (HTTP ${r.statusCode})',
         uri: Uri.parse('https://github.com/login/device/code'),
       );
     }
-    final m = jsonDecode(r.body) as Map<String, dynamic>;
+    final Map<String, dynamic> m;
+    try {
+      m = jsonDecode(r.body) as Map<String, dynamic>;
+    } on FormatException {
+      throw const HttpException(
+          'device/code returned a non-JSON response');
+    }
+    final deviceCode = m['device_code'];
+    final userCode = m['user_code'];
+    final verificationUri = m['verification_uri'];
+    if (deviceCode is! String ||
+        userCode is! String ||
+        verificationUri is! String) {
+      throw const HttpException('device/code response missing fields');
+    }
     return DeviceCodeResponse(
-      deviceCode: m['device_code'] as String,
-      userCode: m['user_code'] as String,
-      verificationUri: m['verification_uri'] as String,
-      expiresIn: Duration(seconds: m['expires_in'] as int),
-      interval: Duration(seconds: m['interval'] as int),
+      deviceCode: deviceCode,
+      userCode: userCode,
+      verificationUri: verificationUri,
+      // Defaults match GitHub's documented values; tolerate missing/odd types.
+      expiresIn: Duration(seconds: _asInt(m['expires_in'], 900)),
+      interval: Duration(seconds: _asInt(m['interval'], 5)),
     );
   }
+
+  static int _asInt(Object? v, int fallback) =>
+      v is int ? v : (v is num ? v.toInt() : fallback);
 
   /// Polls GitHub until the user completes authorisation or the code expires.
   ///
@@ -74,7 +94,15 @@ class GitHubDeviceFlow {
           'grant_type': 'urn:ietf:params:oauth:grant-type:device_code',
         },
       );
-      final m = jsonDecode(response.body) as Map<String, dynamic>;
+      // A 5xx, rate-limit, or proxy error page is not JSON — treat it as a
+      // transient hiccup and keep polling rather than crashing the flow.
+      if (response.statusCode >= 500) continue;
+      final Map<String, dynamic> m;
+      try {
+        m = jsonDecode(response.body) as Map<String, dynamic>;
+      } on FormatException {
+        continue;
+      }
       final error = m['error'] as String?;
       if (error == 'authorization_pending') continue;
       if (error == 'slow_down') {

@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import '../../application/operations/running_operation.dart';
+import '../logging/secret_redactor.dart';
 import '../persistence/database.dart';
 
 class ActivityLogRepository {
@@ -16,8 +17,12 @@ class ActivityLogRepository {
       status: Value(op.status.name),
       startedAt: Value(op.startedAt),
       finishedAt: Value(op.finishedAt),
-      stderr: Value(op.stderrTail.isEmpty ? null : op.stderrTail.join('\n')),
-      errorMessage: Value(op.errorMessage),
+      stderr: Value(op.stderrTail.isEmpty
+          ? null
+          : redactSecrets(op.stderrTail.join('\n'))),
+      errorMessage: Value(op.errorMessage == null
+          ? null
+          : redactSecrets(op.errorMessage!)),
     );
     if (existing == null) {
       await _db.into(_db.activityLog).insert(companion);

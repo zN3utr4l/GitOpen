@@ -4,6 +4,8 @@ import 'package:logger/logger.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'secret_redactor.dart';
+
 /// Append-only file logger.
 ///
 /// Uses synchronous append-mode writes (`writeAsStringSync` with
@@ -59,7 +61,7 @@ class FileLogOutput extends LogOutput {
       // Build one buffer per event so the underlying syscall happens once.
       final buf = StringBuffer();
       for (final line in event.lines) {
-        buf.writeln(line);
+        buf.writeln(redactSecrets(line));
       }
       File(path).writeAsStringSync(
         buf.toString(),
