@@ -1,12 +1,120 @@
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gitopen/application/git_identity/git_identity.dart';
 import 'package:gitopen/application/settings/app_settings.dart';
 import 'package:gitopen/application/settings/app_settings_notifier.dart';
 import 'package:gitopen/infrastructure/persistence/settings_repository.dart';
 import '../../_helpers/in_memory_db.dart';
 
 void main() {
+  group('AppTheme / DefaultPullStrategy enums', () {
+    test('AppTheme has dark and light variants', () {
+      expect(AppTheme.values, [AppTheme.dark, AppTheme.light]);
+    });
+
+    test('DefaultPullStrategy covers ffOnly, merge, rebase', () {
+      expect(DefaultPullStrategy.values, [
+        DefaultPullStrategy.ffOnly,
+        DefaultPullStrategy.merge,
+        DefaultPullStrategy.rebase,
+      ]);
+    });
+  });
+
+  group('AppSettingsState value object', () {
+    test('applies all documented defaults', () {
+      const state = AppSettingsState();
+      expect(state.theme, AppTheme.dark);
+      expect(state.externalEditorPath, isNull);
+      expect(state.defaultPullStrategy, DefaultPullStrategy.merge);
+      expect(state.commitSignoffDefault, isFalse);
+      expect(state.fontSize, 12);
+      expect(state.fontFamily, isNull);
+      expect(state.githubClientId, isNull);
+      expect(state.autoUpdateCheck, isTrue);
+      expect(state.keybindings, isEmpty);
+      expect(state.gitIdentities, isEmpty);
+      expect(state.authRepoBindings, isEmpty);
+    });
+
+    test('copyWith overrides only provided fields', () {
+      const state = AppSettingsState();
+      final updated = state.copyWith(
+        theme: AppTheme.light,
+        defaultPullStrategy: DefaultPullStrategy.rebase,
+        commitSignoffDefault: true,
+        fontSize: 16,
+        autoUpdateCheck: false,
+      );
+      expect(updated.theme, AppTheme.light);
+      expect(updated.defaultPullStrategy, DefaultPullStrategy.rebase);
+      expect(updated.commitSignoffDefault, isTrue);
+      expect(updated.fontSize, 16);
+      expect(updated.autoUpdateCheck, isFalse);
+      // Untouched fields retain their prior values.
+      expect(updated.externalEditorPath, isNull);
+      expect(updated.fontFamily, isNull);
+      expect(updated.keybindings, isEmpty);
+    });
+
+    test('copyWith with no arguments is equal by value', () {
+      const state = AppSettingsState(fontSize: 14, fontFamily: 'JetBrains');
+      expect(state.copyWith(), equals(state));
+    });
+
+    test('copyWith null arguments keep existing values (?? semantics)', () {
+      const state = AppSettingsState(
+        externalEditorPath: '/usr/bin/code',
+        githubClientId: 'client-123',
+      );
+      final copy = state.copyWith();
+      expect(copy.externalEditorPath, '/usr/bin/code');
+      expect(copy.githubClientId, 'client-123');
+    });
+
+    test('copyWith updates collection-valued fields', () {
+      const state = AppSettingsState();
+      const identity = GitIdentity(
+        label: 'Work',
+        name: 'Ada',
+        email: 'ada@work.dev',
+      );
+      final updated = state.copyWith(
+        gitIdentities: const [identity],
+        authRepoBindings: const {'repo-1': 'profile-1'},
+        keybindings: {
+          'commit': LogicalKeySet(LogicalKeyboardKey.controlLeft),
+        },
+      );
+      expect(updated.gitIdentities, const [identity]);
+      expect(updated.authRepoBindings, {'repo-1': 'profile-1'});
+      expect(updated.keybindings.containsKey('commit'), isTrue);
+    });
+
+    test('value equality holds for identical states', () {
+      const a = AppSettingsState(theme: AppTheme.light, fontSize: 13);
+      const b = AppSettingsState(theme: AppTheme.light, fontSize: 13);
+      expect(a, equals(b));
+      expect(a.hashCode, b.hashCode);
+    });
+
+    test('differs when any tracked field differs', () {
+      const base = AppSettingsState();
+      expect(base, isNot(const AppSettingsState(theme: AppTheme.light)));
+      expect(base, isNot(const AppSettingsState(fontSize: 99)));
+      expect(
+        base,
+        isNot(const AppSettingsState(commitSignoffDefault: true)),
+      );
+    });
+
+    test('props enumerates all eleven fields', () {
+      const state = AppSettingsState();
+      expect(state.props, hasLength(11));
+    });
+  });
+
   test('default state is dark theme + merge strategy', () async {
     final db = newInMemoryDb();
     final notifier = AppSettingsNotifier(SettingsRepository(db));

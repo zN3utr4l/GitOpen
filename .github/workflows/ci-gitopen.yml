@@ -23,22 +23,12 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      # First-party (`actions/*`) actions stay on a major-version tag — GitHub
-      # owns them, so the supply-chain risk is the same as trusting GitHub.
+      # First-party (`actions/*`) actions stay on a major-version tag.
       - name: Checkout
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
           fetch-tags: true
-
-      # Third-party actions are SHA-pinned (supply-chain best practice). Bump the
-      # SHA together with the version comment when the action releases.
-      - name: Setup Flutter
-        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
-        with:
-          channel: stable
-          flutter-version: 3.44.x
-          cache: true
 
       - name: Linux desktop deps
         if: matrix.os == 'ubuntu-latest'
@@ -50,24 +40,22 @@ jobs:
             liblzma-dev \
             libstdc++-12-dev
 
-      - name: Pub get
-        run: flutter pub get
+      # Shared setup (Flutter + pub get + cached codegen) — see
+      # .github/actions/flutter-setup.
+      - name: Flutter setup
+        uses: ./.github/actions/flutter-setup
 
-      - name: Codegen
-        run: dart run build_runner build --delete-conflicting-outputs
-
+      # Static analysis is platform-independent — run once on Linux instead of
+      # on every matrix OS (trims the slower Windows job).
       - name: Analyze
+        if: matrix.os == 'ubuntu-latest'
         run: flutter analyze
 
-      # `--machine` emits a JSON event stream (consumed by the test reporter);
-      # `--coverage` writes coverage/lcov.info. Run under bash on every OS so the
-      # redirect produces UTF-8 (pwsh `>` would emit UTF-16 and break parsing).
       - name: Test
         shell: bash
         # `flutter test` prints a non-JSON "Resolving dependencies…" preamble to
-        # stdout that corrupts the --machine stream; keep only the JSON event
-        # lines (each starts with `{`) so the reporter can parse it. GitHub runs
-        # bash with `pipefail`, so a real test failure still fails the step.
+        # stdout; keep only JSON event lines so the reporter can parse it. GitHub
+        # runs bash with `pipefail`, so a real test failure still fails the step.
         run: flutter test --machine --coverage | grep '^{' > test-results.json
 
       - name: Publish test results
@@ -78,13 +66,14 @@ jobs:
           path: 'test-results.json'
           reporter: 'flutter-json'
 
-      # Coverage tooling below runs on Linux only: CodeCoverageSummary is a
-      # Docker action (Linux runners) and one coverage report per PR is enough.
+      # Coverage tooling runs on Linux only: CodeCoverageSummary is a Docker
+      # action and one report per PR is enough. Generated *.g.dart is excluded
+      # so the number reflects hand-written code.
       - name: Convert coverage to Cobertura
         if: matrix.os == 'ubuntu-latest'
         run: |
           pip install lcov_cobertura
-          lcov_cobertura coverage/lcov.info -o coverage/cobertura.xml
+          lcov_cobertura coverage/lcov.info --excludes '.*\.g\.dart' -o coverage/cobertura.xml
 
       - name: Code coverage summary
         if: matrix.os == 'ubuntu-latest'
@@ -98,9 +87,8 @@ jobs:
           hide_complexity: true
           indicators: true
           output: 'both'
-          # Thresholds: <good below>/<acceptable below>. Informational only for
-          # now — set fail_below_min=true + thresholds='70 85' once a baseline
-          # is established.
+          # Thresholds: <good below>/<acceptable below>. Informational only —
+          # set fail_below_min=true once a baseline is established.
           thresholds: '50 75'
 
       - name: Add coverage comment to PR
@@ -112,9 +100,6 @@ jobs:
 
       # Mirrors the NE.* "check vulnerable packages" step: scan pubspec.lock
       # against the OSV database. Informational (continue-on-error); Linux-only.
-      # osv-scanner-action's root action.yml has no `runs:` (it's a reusable
-      # workflow, and a reusable-workflow caller job can't be continue-on-error),
-      # so we run the version-pinned CLI directly to keep the check non-blocking.
       - name: Scan dependencies for vulnerabilities
         if: matrix.os == 'ubuntu-latest'
         continue-on-error: true
