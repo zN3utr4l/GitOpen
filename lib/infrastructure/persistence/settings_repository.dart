@@ -1,9 +1,9 @@
 import 'dart:convert';
-import 'database.dart';
+import 'package:gitopen/infrastructure/persistence/database.dart';
 
 class SettingsRepository {
-  final AppDatabase _db;
   SettingsRepository(this._db);
+  final AppDatabase _db;
 
   Future<Map<String, dynamic>> readAll() async {
     final rows = await _db.select(_db.settings).get();
@@ -11,7 +11,7 @@ class SettingsRepository {
     for (final row in rows) {
       try {
         result[row.key] = jsonDecode(row.valueJson);
-      } catch (_) {
+      } on Object catch (_) {
         // tolerate legacy raw strings
         result[row.key] = row.valueJson;
       }

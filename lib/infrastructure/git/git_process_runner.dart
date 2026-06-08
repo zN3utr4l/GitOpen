@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import '../logging/app_logger.dart';
+import 'package:gitopen/infrastructure/logging/app_logger.dart';
 
 /// Locale forced on every git subprocess so stdout/stderr messages are
 /// always parseable English, regardless of the host system locale. The
@@ -18,10 +18,10 @@ Map<String, String> buildGitEnvironment([
     {...extra, ...kGitLocaleEnv};
 
 final class GitProcessException implements Exception {
+  GitProcessException(this.args, this.exitCode, this.stderr);
   final List<String> args;
   final int exitCode;
   final String stderr;
-  GitProcessException(this.args, this.exitCode, this.stderr);
 
   /// Args with any `http.extraheader=Authorization: Basic …` value redacted,
   /// so the exception message (and any logs derived from it) never leaks the
@@ -37,8 +37,8 @@ final class GitProcessException implements Exception {
 }
 
 class GitProcessRunner {
-  final String executable;
   GitProcessRunner({this.executable = 'git'});
+  final String executable;
 
   Future<String> run(String workingDir, List<String> args) async {
     final tag = args.take(3).join(' ');
@@ -53,7 +53,8 @@ class GitProcessRunner {
       stderrEncoding: utf8,
     );
     appLog.d('git[$tag] done in ${sw.elapsedMilliseconds}ms '
-        '(exit=${result.exitCode}, stdout=${(result.stdout as String).length}B)');
+        '(exit=${result.exitCode}, '
+        'stdout=${(result.stdout as String).length}B)');
     if (result.exitCode != 0) {
       throw GitProcessException(
           args, result.exitCode, result.stderr.toString());

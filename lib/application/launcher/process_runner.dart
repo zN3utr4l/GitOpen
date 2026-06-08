@@ -1,7 +1,10 @@
 class ProcessProbeResult {
+  // Positional kept to preserve the existing call sites in
+  // SystemProcessRunner; this is a tiny internal result holder.
+  // ignore: avoid_positional_boolean_parameters
+  const ProcessProbeResult(this.found, this.resolvedPath);
   final bool found;
   final String? resolvedPath;
-  const ProcessProbeResult(this.found, this.resolvedPath);
 }
 
 abstract interface class ProcessRunner {

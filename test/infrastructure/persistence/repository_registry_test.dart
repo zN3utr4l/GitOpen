@@ -20,7 +20,7 @@ void main() {
       final first = await sut.add('/tmp/dup');
       final second = await sut.add('/tmp/dup');
       expect(second.id, first.id);
-      expect((await sut.list()), hasLength(1));
+      expect(await sut.list(), hasLength(1));
       await db.close();
     });
 
@@ -37,9 +37,11 @@ void main() {
       final db = newInMemoryDb();
       final sut = DriftRepositoryRegistry(db);
       final loc = await sut.add('/tmp/x');
-      await Future.delayed(const Duration(milliseconds: 100));
+      await Future<void>.delayed(const Duration(milliseconds: 100));
       await sut.touchLastOpened(loc.id);
-      final raw = await (db.select(db.repositories)..where((r) => r.id.equals(loc.id.value))).getSingle();
+      final raw = await (db.select(db.repositories)
+            ..where((r) => r.id.equals(loc.id.value)))
+          .getSingle();
       expect(raw.lastOpenedUtc.isAfter(raw.createdUtc), isTrue);
       await db.close();
     });

@@ -1,21 +1,21 @@
-import '../../domain/commits/commit_info.dart';
-import '../../domain/commits/commit_sha.dart';
-import '../../domain/diff/diff_result.dart';
-import '../../domain/diff/diff_spec.dart';
-import '../../domain/files/file_tree_entry.dart';
-import '../../domain/refs/branch.dart';
-import '../../domain/refs/remote.dart';
-import '../../domain/refs/stash.dart';
-import '../../domain/refs/tag.dart';
-import '../../domain/repositories/repo_location.dart';
-import '../../domain/status/repo_status.dart';
+import 'package:gitopen/domain/commits/commit_info.dart';
+import 'package:gitopen/domain/commits/commit_sha.dart';
+import 'package:gitopen/domain/diff/diff_result.dart';
+import 'package:gitopen/domain/diff/diff_spec.dart';
+import 'package:gitopen/domain/files/file_tree_entry.dart';
+import 'package:gitopen/domain/refs/branch.dart';
+import 'package:gitopen/domain/refs/remote.dart';
+import 'package:gitopen/domain/refs/stash.dart';
+import 'package:gitopen/domain/refs/tag.dart';
+import 'package:gitopen/domain/repositories/repo_location.dart';
+import 'package:gitopen/domain/status/repo_status.dart';
 
 class CommitQuery {
+  const CommitQuery({this.skip, this.take, this.refSpec, this.refs});
   final int? skip;
   final int? take;
   final String? refSpec;
   final List<String>? refs;
-  const CommitQuery({this.skip, this.take, this.refSpec, this.refs});
 }
 
 abstract interface class GitReadOperations {

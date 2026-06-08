@@ -1,20 +1,18 @@
 import 'package:flutter/material.dart';
-import '../theme/app_palette.dart';
-import 'app_dialog.dart';
+import 'package:gitopen/ui/dialogs/app_dialog.dart';
+import 'package:gitopen/ui/theme/app_palette.dart';
 
 class ConfirmDialog extends StatelessWidget {
+
+  const ConfirmDialog({
+    required this.title, required this.body, super.key,
+    this.confirmLabel,
+    this.dangerous = false,
+  });
   final String title;
   final String body;
   final String? confirmLabel;
   final bool dangerous;
-
-  const ConfirmDialog({
-    super.key,
-    required this.title,
-    required this.body,
-    this.confirmLabel,
-    this.dangerous = false,
-  });
 
   static Future<bool> show(
     BuildContext context, {
@@ -50,13 +48,11 @@ class ConfirmDialog extends StatelessWidget {
           label: 'Cancel',
           onPressed: () => Navigator.pop(context, false),
         ),
-        dangerous
-            ? AppButton.danger(
+        if (dangerous) AppButton.danger(
                 label: confirmLabel ?? 'OK',
                 onPressed: () => Navigator.pop(context, true),
                 autofocus: true,
-              )
-            : AppButton.primary(
+              ) else AppButton.primary(
                 label: confirmLabel ?? 'OK',
                 onPressed: () => Navigator.pop(context, true),
                 autofocus: true,

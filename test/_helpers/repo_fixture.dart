@@ -2,9 +2,9 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 class RepoFixture {
+  RepoFixture._(this.path, this.headSha);
   final String path;
   String headSha;
-  RepoFixture._(this.path, this.headSha);
 
   static Future<RepoFixture> empty() async {
     final dir = Directory.systemTemp.createTempSync('gitopen-test-');
@@ -66,7 +66,14 @@ class RepoFixture {
     await _git(f.path, ['add', 'master.txt']);
     await _git(f.path, ['commit', '-q', '-m', 'on master']);
 
-    await _git(f.path, ['merge', '-q', '--no-ff', '-m', 'merge feature', 'feature']);
+    await _git(f.path, [
+      'merge',
+      '-q',
+      '--no-ff',
+      '-m',
+      'merge feature',
+      'feature',
+    ]);
     f.headSha = (await _git(f.path, ['rev-parse', 'HEAD'])).trim();
     return f;
   }
@@ -74,7 +81,9 @@ class RepoFixture {
   Future<void> dispose() async {
     try {
       await Directory(path).delete(recursive: true);
-    } catch (_) {}
+    } on Object {
+      // Best-effort cleanup; ignore failures (e.g. locked files on Windows).
+    }
   }
 
   static Future<String> _git(String cwd, List<String> args) async {

@@ -7,14 +7,21 @@ import '../../_helpers/repo_fixture.dart';
 void main() {
   test('clone from local source repo', () async {
     final src = await RepoFixture.withLinearHistory(2);
-    final dest = p.join(Directory.systemTemp.path, 'gitopen-clonetest-${DateTime.now().millisecondsSinceEpoch}');
+    final dest = p.join(
+      Directory.systemTemp.path,
+      'gitopen-clonetest-${DateTime.now().millisecondsSinceEpoch}',
+    );
     try {
       final sut = GitCliWriteOperations();
       await sut.clone(src.path, dest).toList();
       expect(Directory(p.join(dest, '.git')).existsSync(), isTrue);
     } finally {
       await src.dispose();
-      try { Directory(dest).deleteSync(recursive: true); } catch (_) {}
+      try {
+        Directory(dest).deleteSync(recursive: true);
+      } on Object {
+        // Best-effort cleanup; ignore failures.
+      }
     }
   });
 }

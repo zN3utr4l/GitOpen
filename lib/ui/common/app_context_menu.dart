@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../theme/app_palette.dart';
+import 'package:gitopen/ui/shell/repo_selector.dart' show RepoSelector;
+import 'package:gitopen/ui/theme/app_palette.dart';
 
 /// Spec for a single entry in [AppContextMenu]. Either a normal item or a
 /// divider.
@@ -8,11 +9,6 @@ sealed class AppContextMenuEntry<T> {
 }
 
 class AppMenuItem<T> extends AppContextMenuEntry<T> {
-  final T value;
-  final String label;
-  final IconData? icon;
-  final bool danger;
-  final bool enabled;
   const AppMenuItem({
     required this.value,
     required this.label,
@@ -20,6 +16,11 @@ class AppMenuItem<T> extends AppContextMenuEntry<T> {
     this.danger = false,
     this.enabled = true,
   });
+  final T value;
+  final String label;
+  final IconData? icon;
+  final bool danger;
+  final bool enabled;
 }
 
 class AppMenuDivider<T> extends AppContextMenuEntry<T> {
@@ -36,7 +37,7 @@ class AppContextMenu {
   }) {
     final palette = AppPalette.of(context);
     final overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox;
+        Overlay.of(context).context.findRenderObject()! as RenderBox;
     final position = RelativeRect.fromRect(
       Rect.fromLTWH(globalPosition.dx, globalPosition.dy, 0, 0),
       Offset.zero & overlay.size,
@@ -93,18 +94,16 @@ MenuStyle appMenuStyle(BuildContext context) {
 /// Drop-in [MenuItemButton] with palette-aware row styling so menus opened
 /// from [MenuAnchor] look identical to entries in [AppContextMenu].
 class AppMenuButton extends StatelessWidget {
+
+  const AppMenuButton({
+    required this.label, required this.onPressed, super.key,
+    this.icon,
+    this.danger = false,
+  });
   final String label;
   final IconData? icon;
   final VoidCallback? onPressed;
   final bool danger;
-
-  const AppMenuButton({
-    super.key,
-    required this.label,
-    required this.onPressed,
-    this.icon,
-    this.danger = false,
-  });
 
   @override
   Widget build(BuildContext context) {
@@ -166,16 +165,16 @@ class AppMenuAnchorDivider extends StatelessWidget {
 }
 
 class _MenuRow extends StatelessWidget {
-  final String label;
-  final IconData? icon;
-  final bool danger;
-  final bool enabled;
   const _MenuRow({
     required this.label,
     required this.icon,
     required this.danger,
     required this.enabled,
   });
+  final String label;
+  final IconData? icon;
+  final bool danger;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -191,7 +190,11 @@ class _MenuRow extends StatelessWidget {
             width: 18,
             child: icon == null
                 ? null
-                : Icon(icon, size: 14, color: enabled ? palette.fg2 : palette.fg3),
+                : Icon(
+                    icon,
+                    size: 14,
+                    color: enabled ? palette.fg2 : palette.fg3,
+                  ),
           ),
           const SizedBox(width: 2),
           Text(

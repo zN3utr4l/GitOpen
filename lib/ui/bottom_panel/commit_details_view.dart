@@ -1,23 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gitopen/application/active_workspace_provider.dart';
+import 'package:gitopen/application/git/git_read_operations.dart';
+import 'package:gitopen/application/main_view_provider.dart';
+import 'package:gitopen/application/providers.dart';
+import 'package:gitopen/application/scroll_request_provider.dart';
+import 'package:gitopen/domain/commits/commit_info.dart';
+import 'package:gitopen/domain/commits/commit_sha.dart';
+import 'package:gitopen/domain/commits/commit_signature.dart';
+import 'package:gitopen/domain/repositories/repo_location.dart';
+import 'package:gitopen/ui/common/author_avatar.dart';
+import 'package:gitopen/ui/theme/app_palette.dart';
 import 'package:intl/intl.dart';
 
-import '../../application/active_workspace_provider.dart';
-import '../../application/git/git_read_operations.dart';
-import '../../application/main_view_provider.dart';
-import '../../application/providers.dart';
-import '../../application/scroll_request_provider.dart';
-import '../../domain/commits/commit_info.dart';
-import '../../domain/commits/commit_sha.dart';
-import '../../domain/commits/commit_signature.dart';
-import '../../domain/repositories/repo_location.dart';
-import '../common/author_avatar.dart';
-import '../theme/app_palette.dart';
-
 /// Headline metadata for the details panel — author/committer/parents.
-final _commitInfoProvider = FutureProvider.family.autoDispose<CommitInfo?,
-    ({RepoLocation repo, CommitSha sha})>((ref, key) async {
+final AutoDisposeFutureProviderFamily<CommitInfo?,
+        ({RepoLocation repo, CommitSha sha})> _commitInfoProvider =
+    FutureProvider.family.autoDispose<CommitInfo?,
+        ({RepoLocation repo, CommitSha sha})>((ref, key) async {
   final git = ref.watch(gitReadOperationsProvider);
   final commits = await git
       .getCommits(key.repo, CommitQuery(refSpec: key.sha.value, take: 1))
@@ -28,17 +29,19 @@ final _commitInfoProvider = FutureProvider.family.autoDispose<CommitInfo?,
 /// Full commit body, fetched separately so the bulk graph load doesn't pay
 /// for it.  Cached per (repo, sha) and disposed when the details view
 /// stops watching this commit.
-final _commitFullMessageProvider = FutureProvider.family.autoDispose<String?,
-    ({RepoLocation repo, CommitSha sha})>((ref, key) {
+final AutoDisposeFutureProviderFamily<String?,
+        ({RepoLocation repo, CommitSha sha})> _commitFullMessageProvider =
+    FutureProvider.family.autoDispose<String?,
+        ({RepoLocation repo, CommitSha sha})>((ref, key) {
   return ref
       .watch(gitReadOperationsProvider)
       .getCommitFullMessage(key.repo, key.sha);
 });
 
 class CommitDetailsView extends ConsumerWidget {
+  const CommitDetailsView({required this.repo, required this.sha, super.key});
   final RepoLocation repo;
   final CommitSha sha;
-  const CommitDetailsView({super.key, required this.repo, required this.sha});
 
   static final _dateFmt = DateFormat('yyyy-MM-dd HH:mm');
 
@@ -104,9 +107,9 @@ bool _sameSignature(CommitSignature a, CommitSignature b) =>
 }
 
 class _Hero extends StatelessWidget {
+  const _Hero({required this.summary, required this.sha});
   final String summary;
   final CommitSha sha;
-  const _Hero({required this.summary, required this.sha});
 
   @override
   Widget build(BuildContext context) {
@@ -133,8 +136,8 @@ class _Hero extends StatelessWidget {
 }
 
 class _ShaPill extends StatefulWidget {
-  final CommitSha sha;
   const _ShaPill({required this.sha});
+  final CommitSha sha;
 
   @override
   State<_ShaPill> createState() => _ShaPillState();
@@ -148,7 +151,7 @@ class _ShaPillState extends State<_ShaPill> {
     await Clipboard.setData(ClipboardData(text: widget.sha.value));
     if (!mounted) return;
     setState(() => _justCopied = true);
-    await Future.delayed(const Duration(milliseconds: 900));
+    await Future<void>.delayed(const Duration(milliseconds: 900));
     if (!mounted) return;
     setState(() => _justCopied = false);
   }
@@ -201,20 +204,19 @@ class _ShaPillState extends State<_ShaPill> {
 }
 
 class _PersonRow extends StatelessWidget {
-  final String role;
-  final CommitSignature signature;
-  final String date;
   const _PersonRow({
     required this.role,
     required this.signature,
     required this.date,
   });
+  final String role;
+  final CommitSignature signature;
+  final String date;
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         AuthorAvatar(
             name: signature.name, email: signature.email, size: 28),
@@ -270,9 +272,9 @@ class _PersonRow extends StatelessWidget {
 }
 
 class _ParentsRow extends ConsumerWidget {
+  const _ParentsRow({required this.parents, required this.repo});
   final List<CommitSha> parents;
   final RepoLocation repo;
-  const _ParentsRow({required this.parents, required this.repo});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -280,7 +282,7 @@ class _ParentsRow extends ConsumerWidget {
     if (parents.isEmpty) {
       return Row(
         children: [
-          _Label('Parents'),
+          const _Label('Parents'),
           Text('(root commit)',
               style: TextStyle(
                   color: palette.fg3,
@@ -290,7 +292,6 @@ class _ParentsRow extends ConsumerWidget {
       );
     }
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         _Label(parents.length == 1 ? 'Parent' : 'Parents'),
         Expanded(
@@ -308,9 +309,9 @@ class _ParentsRow extends ConsumerWidget {
 }
 
 class _ParentPill extends StatefulWidget {
+  const _ParentPill({required this.sha, required this.ref});
   final CommitSha sha;
   final WidgetRef ref;
-  const _ParentPill({required this.sha, required this.ref});
 
   @override
   State<_ParentPill> createState() => _ParentPillState();
@@ -358,8 +359,8 @@ class _ParentPillState extends State<_ParentPill> {
 }
 
 class _Label extends StatelessWidget {
-  final String text;
   const _Label(this.text);
+  final String text;
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
@@ -379,8 +380,8 @@ class _Label extends StatelessWidget {
 }
 
 class _MessageBlock extends StatelessWidget {
-  final String body;
   const _MessageBlock({required this.body});
+  final String body;
 
   @override
   Widget build(BuildContext context) {

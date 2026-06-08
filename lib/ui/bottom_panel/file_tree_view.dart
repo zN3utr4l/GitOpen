@@ -1,21 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../application/providers.dart';
-import '../../domain/commits/commit_sha.dart';
-import '../../domain/files/file_tree_entry.dart';
-import '../../domain/repositories/repo_location.dart';
-import '../theme/app_palette.dart';
+import 'package:gitopen/application/providers.dart';
+import 'package:gitopen/domain/commits/commit_sha.dart';
+import 'package:gitopen/domain/files/file_tree_entry.dart';
+import 'package:gitopen/domain/repositories/repo_location.dart';
+import 'package:gitopen/ui/theme/app_palette.dart';
 
-final _fileTreeProvider = FutureProvider.family
-    .autoDispose<List<FileTreeEntry>, ({RepoLocation repo, CommitSha sha})>((ref, key) async {
+final AutoDisposeFutureProviderFamily<List<FileTreeEntry>,
+        ({RepoLocation repo, CommitSha sha})> _fileTreeProvider =
+    FutureProvider.family.autoDispose<List<FileTreeEntry>,
+        ({RepoLocation repo, CommitSha sha})>((ref, key) async {
   final git = ref.watch(gitReadOperationsProvider);
   return git.getFileTree(key.repo, key.sha, '');
 });
 
 class FileTreeViewWidget extends ConsumerWidget {
+  const FileTreeViewWidget({required this.repo, required this.sha, super.key});
   final RepoLocation repo;
   final CommitSha sha;
-  const FileTreeViewWidget({super.key, required this.repo, required this.sha});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -60,7 +62,9 @@ class FileTreeViewWidget extends ConsumerWidget {
                       style: TextStyle(
                         color: palette.fg0,
                         fontSize: 12.5,
-                        fontWeight: e.kind == FileTreeKind.tree ? FontWeight.w500 : FontWeight.normal,
+                        fontWeight: e.kind == FileTreeKind.tree
+                            ? FontWeight.w500
+                            : FontWeight.normal,
                       ),
                     ),
                   ),

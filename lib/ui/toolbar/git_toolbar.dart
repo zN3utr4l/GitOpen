@@ -1,25 +1,29 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../application/active_workspace_provider.dart';
-import '../../application/auth/auth_profile.dart';
-import '../../application/git/auth_spec.dart';
-import '../../application/git/git_write_operations.dart';
-import '../../application/launcher/repo_launcher.dart';
-import '../../application/operations/running_operation.dart';
-import '../../application/providers.dart';
-import '../../application/settings/app_settings.dart';
-import '../../domain/repositories/repo_location.dart';
-import '../../infrastructure/git/git_process_runner.dart';
-import '../common/app_context_menu.dart';
-import '../dialogs/account_switcher_dialog.dart';
-import '../dialogs/app_dialog.dart';
-import '../dialogs/auth_dialog.dart';
-import '../dialogs/branch_create_dialog.dart';
-import '../dialogs/confirm_dialog.dart';
-import '../theme/app_palette.dart';
+import 'package:gitopen/application/active_workspace_provider.dart';
+import 'package:gitopen/application/auth/auth_profile.dart';
+import 'package:gitopen/application/git/auth_spec.dart';
+import 'package:gitopen/application/git/git_write_operations.dart';
+import 'package:gitopen/application/launcher/repo_launcher.dart';
+import 'package:gitopen/application/operations/running_operation.dart';
+import 'package:gitopen/application/providers.dart';
+import 'package:gitopen/application/settings/app_settings.dart';
+import 'package:gitopen/application/workspaces/workspace.dart';
+import 'package:gitopen/domain/repositories/repo_location.dart';
+import 'package:gitopen/infrastructure/git/git_process_runner.dart';
+import 'package:gitopen/ui/common/app_context_menu.dart';
+import 'package:gitopen/ui/dialogs/account_switcher_dialog.dart';
+import 'package:gitopen/ui/dialogs/app_dialog.dart';
+import 'package:gitopen/ui/dialogs/auth_dialog.dart';
+import 'package:gitopen/ui/dialogs/branch_create_dialog.dart';
+import 'package:gitopen/ui/dialogs/confirm_dialog.dart';
+import 'package:gitopen/ui/theme/app_palette.dart';
 
-/// Three-button toolbar for Fetch / Pull / Push, plus Branch and Stash dropdowns.
+/// Three-button toolbar for Fetch / Pull / Push, plus Branch and Stash
+/// dropdowns.
 ///
 /// Converted to [ConsumerStatefulWidget] so it has a [BuildContext] for
 /// showing [AuthDialog] when a sync operation fails with an auth error.
@@ -37,10 +41,12 @@ class _GitToolbarState extends ConsumerState<GitToolbar> {
   Widget build(BuildContext context) {
     final activeId = ref.watch(activeWorkspaceIdProvider);
     final workspaces = ref.watch(workspaceManagerProvider);
-    final active =
-        workspaces.where((w) => w.location.id == activeId).cast<dynamic>().firstOrNull;
+    final active = workspaces
+        .where((w) => w.location.id == activeId)
+        .cast<Workspace?>()
+        .firstOrNull;
     final enabled = active != null;
-    final repo = enabled ? active!.location as RepoLocation : null;
+    final repo = active?.location;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -81,7 +87,8 @@ class _GitToolbarState extends ConsumerState<GitToolbar> {
       );
 
   Future<void> _pull(RepoLocation repo) {
-    final strategy = switch (ref.read(appSettingsProvider).defaultPullStrategy) {
+    final strategy =
+        switch (ref.read(appSettingsProvider).defaultPullStrategy) {
       DefaultPullStrategy.ffOnly => PullStrategy.ffOnly,
       DefaultPullStrategy.merge => PullStrategy.merge,
       DefaultPullStrategy.rebase => PullStrategy.rebase,
@@ -90,7 +97,8 @@ class _GitToolbarState extends ConsumerState<GitToolbar> {
       OpKind.pull,
       'Pulling',
       repo,
-      (auth) => ref.read(gitWriteOperationsProvider).pull(repo, strategy, auth: auth),
+      (auth) =>
+          ref.read(gitWriteOperationsProvider).pull(repo, strategy, auth: auth),
     );
   }
 
@@ -129,7 +137,7 @@ class _GitToolbarState extends ConsumerState<GitToolbar> {
       }
       ops.finishSuccess(id);
       ref.invalidate(gitReadOperationsProvider);
-    } catch (e) {
+    } on Object catch (e) {
       // Inspect ONLY the git stderr — never `e.toString()`, which embeds the
       // git argv. With the credential helper active those args contain the
       // literal word `Authorization` (from `http.extraheader=Authorization:`),
@@ -199,8 +207,9 @@ class _GitToolbarState extends ConsumerState<GitToolbar> {
     required String contextMessage,
   }) async {
     if (!mounted) return;
-    final host = await ref.read(authResolverProvider).hostFromRepo(repo, 'origin')
-        ?? 'github.com';
+    final host =
+        await ref.read(authResolverProvider).hostFromRepo(repo, 'origin') ??
+            'github.com';
     if (!mounted) return;
     final chosen = await AccountSwitcherDialog.show(
       context,
@@ -221,10 +230,10 @@ class _GitToolbarState extends ConsumerState<GitToolbar> {
 // ---------------------------------------------------------------------------
 
 class _BranchDropdown extends ConsumerStatefulWidget {
-  final bool enabled;
-  final RepoLocation? repo;
 
   const _BranchDropdown({required this.enabled, required this.repo});
+  final bool enabled;
+  final RepoLocation? repo;
 
   @override
   ConsumerState<_BranchDropdown> createState() => _BranchDropdownState();
@@ -297,10 +306,10 @@ class _BranchDropdownState extends ConsumerState<_BranchDropdown> {
   }
 
   Future<void> _switchBranch(RepoLocation repo) async {
-    final branches = await ref.read(gitReadOperationsProvider).getBranches(repo);
+    final branches =
+        await ref.read(gitReadOperationsProvider).getBranches(repo);
     final locals = branches.where((b) => !b.isRemote).toList();
     if (!mounted) return;
-    // ignore: use_build_context_synchronously
     final selected = await _showBranchPickerDialog(
       context,
       title: 'Switch branch',
@@ -312,10 +321,10 @@ class _BranchDropdownState extends ConsumerState<_BranchDropdown> {
   }
 
   Future<void> _renameBranch(RepoLocation repo) async {
-    final branches = await ref.read(gitReadOperationsProvider).getBranches(repo);
+    final branches =
+        await ref.read(gitReadOperationsProvider).getBranches(repo);
     final current = branches.where((b) => b.isCurrent).firstOrNull;
     if (current == null || !mounted) return;
-    // ignore: use_build_context_synchronously
     final newName = await _promptText(context, 'Rename current branch',
         label: 'New name', initial: current.name);
     if (newName == null || newName.trim().isEmpty || !mounted) return;
@@ -326,17 +335,16 @@ class _BranchDropdownState extends ConsumerState<_BranchDropdown> {
   }
 
   Future<void> _deleteBranch(RepoLocation repo) async {
-    final branches = await ref.read(gitReadOperationsProvider).getBranches(repo);
+    final branches =
+        await ref.read(gitReadOperationsProvider).getBranches(repo);
     final locals = branches.where((b) => !b.isRemote).toList();
     if (!mounted) return;
-    // ignore: use_build_context_synchronously
     final selected = await _showBranchPickerDialog(
       context,
       title: 'Delete branch',
       branches: locals.map((b) => b.name).toList(),
     );
     if (selected == null || !mounted) return;
-    // ignore: use_build_context_synchronously
     final confirmed = await ConfirmDialog.show(
       context,
       title: 'Delete branch',
@@ -373,10 +381,10 @@ class _BranchDropdownState extends ConsumerState<_BranchDropdown> {
 // ---------------------------------------------------------------------------
 
 class _StashDropdown extends ConsumerStatefulWidget {
-  final bool enabled;
-  final RepoLocation? repo;
 
   const _StashDropdown({required this.enabled, required this.repo});
+  final bool enabled;
+  final RepoLocation? repo;
 
   @override
   ConsumerState<_StashDropdown> createState() => _StashDropdownState();
@@ -550,9 +558,9 @@ Future<String?> _appPromptText(BuildContext context, String title,
 // ---------------------------------------------------------------------------
 
 class _OpenDropdown extends ConsumerStatefulWidget {
+  const _OpenDropdown({required this.enabled, required this.repo});
   final bool enabled;
   final RepoLocation? repo;
-  const _OpenDropdown({required this.enabled, required this.repo});
 
   @override
   ConsumerState<_OpenDropdown> createState() => _OpenDropdownState();
@@ -588,7 +596,9 @@ class _OpenDropdownState extends ConsumerState<_OpenDropdown> {
         label: 'Show in file explorer',
         onPressed: () {
           _menuController.close();
-          _run(() => ref.read(repoLauncherProvider).revealInFiles(repo));
+          unawaited(
+            _run(() => ref.read(repoLauncherProvider).revealInFiles(repo)),
+          );
         },
       ),
       AppMenuButton(
@@ -596,7 +606,9 @@ class _OpenDropdownState extends ConsumerState<_OpenDropdown> {
         label: 'Open in terminal',
         onPressed: () {
           _menuController.close();
-          _run(() => ref.read(repoLauncherProvider).openInTerminal(repo));
+          unawaited(
+            _run(() => ref.read(repoLauncherProvider).openInTerminal(repo)),
+          );
         },
       ),
       const AppMenuAnchorDivider(),
@@ -608,13 +620,18 @@ class _OpenDropdownState extends ConsumerState<_OpenDropdown> {
         label: 'Open in VS Code',
         onPressed: () {
           _menuController.close();
-          _run(() => ref.read(repoLauncherProvider).openInEditor(
-                repo,
-                const EditorTarget(
-                    id: 'vscode',
-                    displayName: 'VS Code',
-                    executable: 'code'),
-              ));
+          unawaited(
+            _run(
+              () => ref.read(repoLauncherProvider).openInEditor(
+                    repo,
+                    const EditorTarget(
+                      id: 'vscode',
+                      displayName: 'VS Code',
+                      executable: 'code',
+                    ),
+                  ),
+            ),
+          );
         },
       ));
     } else {
@@ -624,8 +641,12 @@ class _OpenDropdownState extends ConsumerState<_OpenDropdown> {
           label: 'Open in ${editor.displayName}',
           onPressed: () {
             _menuController.close();
-            _run(() =>
-                ref.read(repoLauncherProvider).openInEditor(repo, editor));
+            unawaited(
+              _run(
+                () =>
+                    ref.read(repoLauncherProvider).openInEditor(repo, editor),
+              ),
+            );
           },
         ));
       }
@@ -650,9 +671,9 @@ class _OpenDropdownState extends ConsumerState<_OpenDropdown> {
 // ---------------------------------------------------------------------------
 
 class _BranchPickerDialog extends StatefulWidget {
+  const _BranchPickerDialog({required this.title, required this.branches});
   final String title;
   final List<String> branches;
-  const _BranchPickerDialog({required this.title, required this.branches});
 
   @override
   State<_BranchPickerDialog> createState() => _BranchPickerDialogState();
@@ -738,10 +759,6 @@ class _BranchPickerDialogState extends State<_BranchPickerDialog> {
 // ---------------------------------------------------------------------------
 
 class _ToolbarButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool enabled;
-  final VoidCallback onTap;
 
   const _ToolbarButton({
     required this.icon,
@@ -749,6 +766,10 @@ class _ToolbarButton extends StatelessWidget {
     required this.enabled,
     required this.onTap,
   });
+  final IconData icon;
+  final String label;
+  final bool enabled;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -783,10 +804,6 @@ class _ToolbarButton extends StatelessWidget {
 /// Dropdown trigger button — same visual style as [_ToolbarButton] but includes
 /// a small chevron to signal it opens a menu.
 class _ToolbarDropdownButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool enabled;
-  final VoidCallback onTap;
 
   const _ToolbarDropdownButton({
     required this.icon,
@@ -794,6 +811,10 @@ class _ToolbarDropdownButton extends StatelessWidget {
     required this.enabled,
     required this.onTap,
   });
+  final IconData icon;
+  final String label;
+  final bool enabled;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {

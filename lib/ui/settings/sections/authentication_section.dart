@@ -1,16 +1,17 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../application/auth/auth_profile.dart';
-import '../../../application/git/auth_spec.dart';
-import '../../../application/providers.dart';
-import '../../dialogs/app_dialog.dart';
-import '../../dialogs/auth_dialog.dart';
-import '../../dialogs/confirm_dialog.dart';
-import '../../theme/app_palette.dart';
-import '../settings_widgets.dart';
+import 'package:gitopen/application/auth/auth_profile.dart';
+import 'package:gitopen/application/git/auth_spec.dart';
+import 'package:gitopen/application/providers.dart';
+import 'package:gitopen/ui/dialogs/app_dialog.dart';
+import 'package:gitopen/ui/dialogs/auth_dialog.dart';
+import 'package:gitopen/ui/dialogs/confirm_dialog.dart';
+import 'package:gitopen/ui/settings/settings_widgets.dart';
+import 'package:gitopen/ui/theme/app_palette.dart';
 
-final _profilesProvider =
+final AutoDisposeFutureProvider<List<AuthProfile>> _profilesProvider =
     FutureProvider.autoDispose<List<AuthProfile>>((ref) async {
   // Watching the binding map ensures the list refreshes when a binding
   // change indirectly mutates settings; the store itself is the source
@@ -34,7 +35,8 @@ class AuthenticationSection extends ConsumerWidget {
           const SettingsPageHeader(
             title: 'Authentication',
             description:
-                'Saved credentials for git hosts. Used automatically when fetching or pushing.',
+                'Saved credentials for git hosts. Used automatically when '
+                'fetching or pushing.',
           ),
           Row(
             children: [
@@ -142,15 +144,15 @@ class _EmptyState extends StatelessWidget {
 }
 
 class _ProfileRow extends StatelessWidget {
-  final AuthProfile profile;
-  final bool isLast;
-  final WidgetRef refreshKey;
 
   const _ProfileRow({
     required this.profile,
     required this.isLast,
     required this.refreshKey,
   });
+  final AuthProfile profile;
+  final bool isLast;
+  final WidgetRef refreshKey;
 
   @override
   Widget build(BuildContext context) {

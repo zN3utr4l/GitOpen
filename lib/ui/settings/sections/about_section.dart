@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../theme/app_palette.dart';
-import '../settings_widgets.dart';
+import 'package:gitopen/ui/settings/settings_widgets.dart';
+import 'package:gitopen/ui/theme/app_palette.dart';
 
 class AboutSection extends StatelessWidget {
   const AboutSection({super.key});
@@ -55,11 +55,11 @@ class AboutSection extends StatelessWidget {
                             TextStyle(color: palette.fg2, fontSize: 12.5),
                       ),
                       const SizedBox(height: 14),
-                      _Meta(label: 'Version', value: '0.3.0-dev'),
+                      const _Meta(label: 'Version', value: '0.3.0-dev'),
                       const SizedBox(height: 4),
-                      _Meta(label: 'License', value: 'MIT'),
+                      const _Meta(label: 'License', value: 'MIT'),
                       const SizedBox(height: 4),
-                      _Meta(label: 'Fork', value: 'zN3utr4l'),
+                      const _Meta(label: 'Fork', value: 'zN3utr4l'),
                     ],
                   ),
                 ),
@@ -73,9 +73,9 @@ class AboutSection extends StatelessWidget {
 }
 
 class _Meta extends StatelessWidget {
+  const _Meta({required this.label, required this.value});
   final String label;
   final String value;
-  const _Meta({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {

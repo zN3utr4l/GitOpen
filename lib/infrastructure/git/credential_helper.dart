@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import '../../application/git/auth_spec.dart';
+import 'package:gitopen/application/git/auth_spec.dart';
 
 /// Produces the environment variables and extra `-c` arguments needed to make
 /// a git subprocess authenticate without an interactive prompt.

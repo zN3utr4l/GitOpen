@@ -7,51 +7,36 @@ environment:
   sdk: ^3.11.5
 
 dependencies:
+  # Git operations (read + write) go through the user's `git` CLI.
+  # libgit2dart was the original plan but is discontinued; the CLI is
+  # reliable and matches what GitHub Desktop / GitKraken do for write
+  # paths anyway. Process management uses dart:io directly.
+  bitsdojo_window: ^0.1.6 # chromeless window + native drag/resize
+  collection: ^1.19.0
+  crypto: ^3.0.6
+  drift: ^2.21.0 # persistence (SQLite)
+  equatable: ^2.0.7 # value equality
+  ffi: ^2.2.0
+  file_selector: ^1.1.0
   flutter:
     sdk: flutter
-
-  # State management
-  flutter_riverpod: ^2.6.1
-
-  # Window chrome (chromeless + native drag/resize)
-  bitsdojo_window: ^0.1.6
-
-  # Git operations: all read+write via the user's `git` CLI.
-  # libgit2dart was the original plan but is discontinued; using the
-  # CLI is reliable and matches what GitHub Desktop / GitKraken do
-  # for write paths anyway. Process management uses dart:io directly.
-
-  # Persistence
-  drift: ^2.21.0
-  sqlite3_flutter_libs: ^0.5.26
-  path_provider: ^2.1.5
-  path: ^1.9.1
-
-  # Logging
-  logger: ^2.5.0
-
-  # Value equality
-  equatable: ^2.0.7
-
-  # Utilities
-  collection: ^1.19.0
-  intl: ^0.20.0
-  file_selector: ^1.1.0
-  url_launcher: ^6.3.2
+  flutter_riverpod: ^2.6.1 # state management
   http: ^1.6.0
+  intl: ^0.20.0
+  logger: ^2.5.0
+  path: ^1.9.1
+  path_provider: ^2.1.5
+  sqlite3_flutter_libs: ^0.5.26
+  url_launcher: ^6.3.2
   win32: ^5.15.0
-  ffi: ^2.2.0
-  crypto: ^3.0.6
 
 dev_dependencies:
+  build_runner: ^2.4.13 # drift codegen
+  drift_dev: ^2.21.0
   flutter_test:
     sdk: flutter
-  flutter_lints: ^6.0.0
-
-  # Drift codegen
-  drift_dev: ^2.21.0
-  build_runner: ^2.4.13
   msix: ^3.16.13
+  very_good_analysis: ^10.2.0
 
 flutter:
   uses-material-design: true

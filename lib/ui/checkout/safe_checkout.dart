@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../application/git/git_result.dart';
-import '../../application/providers.dart';
-import '../../domain/repositories/repo_location.dart';
-import '../../domain/status/working_file_entry.dart';
-import '../dialogs/checkout_changes_dialog.dart';
-import '../theme/app_palette.dart';
+import 'package:gitopen/application/git/git_result.dart';
+import 'package:gitopen/application/providers.dart';
+import 'package:gitopen/domain/repositories/repo_location.dart';
+import 'package:gitopen/domain/status/working_file_entry.dart';
+import 'package:gitopen/ui/dialogs/checkout_changes_dialog.dart';
+import 'package:gitopen/ui/theme/app_palette.dart';
 
 /// Performs `git checkout <ref>` after handling any uncommitted local
 /// changes. If the working tree is clean, checks out immediately. If

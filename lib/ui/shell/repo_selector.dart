@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../application/active_workspace_provider.dart';
-import '../../application/providers.dart';
-import '../../application/workspaces/workspace.dart';
-import '../../domain/repositories/repo_id.dart';
-import '../dialogs/clone_dialog.dart';
-import '../theme/app_palette.dart';
+import 'package:gitopen/application/active_workspace_provider.dart';
+import 'package:gitopen/application/providers.dart';
+import 'package:gitopen/application/workspaces/workspace.dart';
+import 'package:gitopen/domain/repositories/repo_id.dart';
+import 'package:gitopen/ui/dialogs/clone_dialog.dart';
+import 'package:gitopen/ui/theme/app_palette.dart';
 
 /// Dropdown placed in the title bar that picks the active workspace.
 /// Replaces the tab strip — the title bar gains drag area on either side.
@@ -23,11 +23,13 @@ class _RepoSelectorState extends ConsumerState<RepoSelector> {
   Widget build(BuildContext context) {
     final workspaces = ref.watch(workspaceManagerProvider);
     final activeId = ref.watch(activeWorkspaceIdProvider);
-    final active =
-        workspaces.where((w) => w.location.id == activeId).cast<Workspace?>().firstWhere(
-              (_) => true,
-              orElse: () => null,
-            );
+    final active = workspaces
+        .where((w) => w.location.id == activeId)
+        .cast<Workspace?>()
+        .firstWhere(
+          (_) => true,
+          orElse: () => null,
+        );
 
     final palette = AppPalette.of(context);
     return MenuAnchor(
@@ -51,7 +53,11 @@ class _RepoSelectorState extends ConsumerState<RepoSelector> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Text(
               'No repositories open',
-              style: TextStyle(color: palette.fg2, fontSize: 12, fontStyle: FontStyle.italic),
+              style: TextStyle(
+                color: palette.fg2,
+                fontSize: 12,
+                fontStyle: FontStyle.italic,
+              ),
             ),
           )
         else
@@ -60,7 +66,8 @@ class _RepoSelectorState extends ConsumerState<RepoSelector> {
               workspace: w,
               isActive: w.location.id == activeId,
               onSelect: () {
-                ref.read(activeWorkspaceIdProvider.notifier).state = w.location.id;
+                ref.read(activeWorkspaceIdProvider.notifier).state =
+                    w.location.id;
                 _menu.close();
               },
               onClose: () => _close(w.location.id),
@@ -68,7 +75,9 @@ class _RepoSelectorState extends ConsumerState<RepoSelector> {
         Divider(height: 1, color: palette.border),
         MenuItemButton(
           style: ButtonStyle(
-            padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: 16, vertical: 10)),
+            padding: WidgetStateProperty.all(
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            ),
             backgroundColor: WidgetStateProperty.resolveWith((states) {
               if (states.contains(WidgetState.hovered)) return palette.bg4;
               return Colors.transparent;
@@ -83,7 +92,9 @@ class _RepoSelectorState extends ConsumerState<RepoSelector> {
         ),
         MenuItemButton(
           style: ButtonStyle(
-            padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: 16, vertical: 10)),
+            padding: WidgetStateProperty.all(
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            ),
             backgroundColor: WidgetStateProperty.resolveWith((states) {
               if (states.contains(WidgetState.hovered)) return palette.bg4;
               return Colors.transparent;
@@ -141,14 +152,14 @@ class _RepoSelectorState extends ConsumerState<RepoSelector> {
 }
 
 class _SelectorButton extends StatefulWidget {
-  final String label;
-  final bool isEmpty;
-  final VoidCallback onTap;
   const _SelectorButton({
     required this.label,
     required this.isEmpty,
     required this.onTap,
   });
+  final String label;
+  final bool isEmpty;
+  final VoidCallback onTap;
 
   @override
   State<_SelectorButton> createState() => _SelectorButtonState();
@@ -188,7 +199,9 @@ class _SelectorButtonState extends State<_SelectorButton> {
                     color: widget.isEmpty ? palette.fg2 : palette.fg0,
                     fontSize: 12.5,
                     fontWeight: FontWeight.w500,
-                    fontStyle: widget.isEmpty ? FontStyle.italic : FontStyle.normal,
+                    fontStyle: widget.isEmpty
+                        ? FontStyle.italic
+                        : FontStyle.normal,
                   ),
                 ),
               ),
@@ -203,16 +216,16 @@ class _SelectorButtonState extends State<_SelectorButton> {
 }
 
 class _RepoMenuItem extends StatefulWidget {
-  final Workspace workspace;
-  final bool isActive;
-  final VoidCallback onSelect;
-  final VoidCallback onClose;
   const _RepoMenuItem({
     required this.workspace,
     required this.isActive,
     required this.onSelect,
     required this.onClose,
   });
+  final Workspace workspace;
+  final bool isActive;
+  final VoidCallback onSelect;
+  final VoidCallback onClose;
 
   @override
   State<_RepoMenuItem> createState() => _RepoMenuItemState();
@@ -253,7 +266,9 @@ class _RepoMenuItemState extends State<_RepoMenuItem> {
                       style: TextStyle(
                         color: widget.isActive ? palette.fg0 : palette.fg1,
                         fontSize: 12.5,
-                        fontWeight: widget.isActive ? FontWeight.w600 : FontWeight.normal,
+                        fontWeight: widget.isActive
+                            ? FontWeight.w600
+                            : FontWeight.normal,
                       ),
                     ),
                     Text(

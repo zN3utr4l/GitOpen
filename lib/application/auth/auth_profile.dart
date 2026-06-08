@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 
-import '../git/auth_spec.dart';
+import 'package:gitopen/application/git/auth_spec.dart';
 
 /// A saved credential entry: which host it authenticates against, which
 /// identity (username) it represents, and the actual auth material.
@@ -9,10 +9,6 @@ import '../git/auth_spec.dart';
 /// same machine).  Each profile carries a stable [id] that workspaces can
 /// reference to bind a repository to a specific identity.
 final class AuthProfile extends Equatable {
-  final String id;
-  final String host;
-  final String username;
-  final AuthSpec spec;
 
   const AuthProfile({
     required this.id,
@@ -20,6 +16,10 @@ final class AuthProfile extends Equatable {
     required this.username,
     required this.spec,
   });
+  final String id;
+  final String host;
+  final String username;
+  final AuthSpec spec;
 
   /// Short human label e.g. `github.com / s-porta`.
   String get label => '$host / $username';

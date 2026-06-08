@@ -1,11 +1,11 @@
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../application/active_workspace_provider.dart';
-import '../../application/operations/running_operation.dart';
-import '../../application/providers.dart';
-import '../theme/app_palette.dart';
-import 'app_dialog.dart';
+import 'package:gitopen/application/active_workspace_provider.dart';
+import 'package:gitopen/application/operations/running_operation.dart';
+import 'package:gitopen/application/providers.dart';
+import 'package:gitopen/ui/dialogs/app_dialog.dart';
+import 'package:gitopen/ui/theme/app_palette.dart';
 
 class CloneDialog extends ConsumerStatefulWidget {
   const CloneDialog({super.key});
@@ -116,7 +116,7 @@ class _State extends ConsumerState<CloneDialog> {
         ref.read(activeWorkspaceIdProvider.notifier).state = ws.location.id;
       }
       if (mounted) Navigator.pop(context);
-    } catch (e) {
+    } on Object catch (e) {
       ops.finishFailure(id, e.toString());
       if (mounted) setState(() => _busy = false);
     }

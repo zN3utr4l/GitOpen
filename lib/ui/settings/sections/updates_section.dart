@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../application/providers.dart';
-import '../../dialogs/app_dialog.dart';
-import '../../theme/app_palette.dart';
-import '../settings_widgets.dart';
+import 'package:gitopen/application/providers.dart';
+import 'package:gitopen/ui/dialogs/app_dialog.dart';
+import 'package:gitopen/ui/settings/settings_widgets.dart';
+import 'package:gitopen/ui/theme/app_palette.dart';
 
 class UpdatesSection extends ConsumerStatefulWidget {
   const UpdatesSection({super.key});
@@ -53,7 +53,6 @@ class _UpdatesSectionState extends ConsumerState<UpdatesSection> {
           SettingsCard(
             padding: const EdgeInsets.all(16),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 AppButton.primary(
                   icon: Icons.refresh,
@@ -103,7 +102,7 @@ class _UpdatesSectionState extends ConsumerState<UpdatesSection> {
             ? 'Update available: v$version'
             : 'You are up to date.';
       });
-    } catch (e) {
+    } on Object catch (e) {
       setState(() => _status = 'Check failed: $e');
     } finally {
       setState(() => _checking = false);

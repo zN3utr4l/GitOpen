@@ -1,9 +1,4 @@
 final class CommitRequest {
-  final String message;
-  final bool amend;
-  final bool signOff;
-  final String? authorName;
-  final String? authorEmail;
 
   const CommitRequest({
     required this.message,
@@ -12,4 +7,9 @@ final class CommitRequest {
     this.authorName,
     this.authorEmail,
   });
+  final String message;
+  final bool amend;
+  final bool signOff;
+  final String? authorName;
+  final String? authorEmail;
 }

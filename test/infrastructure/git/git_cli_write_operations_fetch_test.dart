@@ -16,11 +16,9 @@ void main() {
       final sut = GitCliWriteOperations();
       final loc = RepoLocation(RepoId.newId(), local.path, 't');
       final events = <GitProgress>[];
-      await for (final e in sut.fetch(loc, remote: 'origin')) {
-        events.add(e);
-      }
-      // Even if no progress lines emit on local-fs remote, the stream must complete cleanly.
-      // Verify the fetch worked:
+      await sut.fetch(loc, remote: 'origin').forEach(events.add);
+      // Even if no progress lines emit on local-fs remote, the stream must
+      // complete cleanly. Verify the fetch worked:
       final refs = await Process.run('git', ['branch', '-r'],
           workingDirectory: local.path);
       expect(refs.stdout.toString(), contains('origin/'));

@@ -20,9 +20,9 @@ import 'package:http/http.dart' as http;
 /// `http://localhost` (unused for Device Flow).  Copy the generated
 /// `client_id` and pass it to the constructor.
 class GitHubDeviceFlow {
-  final String clientId;
 
   GitHubDeviceFlow({required this.clientId});
+  final String clientId;
 
   /// Requests a device + user code from GitHub.
   ///
@@ -96,11 +96,6 @@ class GitHubDeviceFlow {
 
 /// Response from the initial device-code request.
 class DeviceCodeResponse {
-  final String deviceCode;
-  final String userCode;
-  final String verificationUri;
-  final Duration expiresIn;
-  final Duration interval;
 
   const DeviceCodeResponse({
     required this.deviceCode,
@@ -109,4 +104,9 @@ class DeviceCodeResponse {
     required this.expiresIn,
     required this.interval,
   });
+  final String deviceCode;
+  final String userCode;
+  final String verificationUri;
+  final Duration expiresIn;
+  final Duration interval;
 }

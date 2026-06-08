@@ -2,10 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../application/operations/running_operation.dart';
-import '../../application/providers.dart';
-import '../theme/app_palette.dart';
-import 'activity_panel.dart';
+import 'package:gitopen/application/operations/running_operation.dart';
+import 'package:gitopen/application/providers.dart';
+import 'package:gitopen/ui/operations/activity_panel.dart';
+import 'package:gitopen/ui/theme/app_palette.dart';
 
 // Both success and failure toasts auto-fade after this window.
 const _autoDismiss = Duration(seconds: 10);
@@ -75,9 +75,9 @@ class _ToastOverlayState extends ConsumerState<ToastOverlay> {
 }
 
 class _ToastItem extends ConsumerWidget {
+  const _ToastItem({required this.op, required this.onDismiss});
   final RunningOperation op;
   final VoidCallback onDismiss;
-  const _ToastItem({required this.op, required this.onDismiss});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -172,21 +172,26 @@ class _ToastItem extends ConsumerWidget {
   }
 
   void _openActivityPanel(BuildContext context) {
-    showDialog(context: context, builder: (_) => const ActivityPanel());
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (_) => const ActivityPanel(),
+      ),
+    );
   }
 }
 
 class _TinyIconButton extends StatefulWidget {
-  final IconData icon;
-  final String tooltip;
-  final Color color;
-  final VoidCallback onTap;
   const _TinyIconButton({
     required this.icon,
     required this.tooltip,
     required this.color,
     required this.onTap,
   });
+  final IconData icon;
+  final String tooltip;
+  final Color color;
+  final VoidCallback onTap;
 
   @override
   State<_TinyIconButton> createState() => _TinyIconButtonState();

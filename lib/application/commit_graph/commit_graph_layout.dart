@@ -1,8 +1,12 @@
-import '../../domain/commits/commit_info.dart';
-import '../../domain/commits/commit_sha.dart';
-import 'commit_node.dart';
-import 'lane_segment.dart';
+import 'package:gitopen/application/commit_graph/commit_node.dart';
+import 'package:gitopen/application/commit_graph/lane_segment.dart';
+import 'package:gitopen/domain/commits/commit_info.dart';
+import 'package:gitopen/domain/commits/commit_sha.dart';
 
+// Intentional DI seam: implemented by DefaultCommitGraphLayout and exposed as
+// a Riverpod provider type, so it must stay an interface rather than collapse
+// into a top-level function.
+// ignore: one_member_abstracts
 abstract interface class CommitGraphLayout {
   List<CommitNode> compute(List<CommitInfo> commitsNewestFirst);
 }

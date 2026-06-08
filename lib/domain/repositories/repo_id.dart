@@ -3,7 +3,6 @@ import 'dart:math' as math;
 import 'package:equatable/equatable.dart';
 
 final class RepoId extends Equatable {
-  final String value;
 
   const RepoId(this.value);
 
@@ -12,6 +11,7 @@ final class RepoId extends Equatable {
     final bytes = List<int>.generate(16, (_) => r.nextInt(256));
     return RepoId(bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join());
   }
+  final String value;
 
   @override
   List<Object?> get props => [value];

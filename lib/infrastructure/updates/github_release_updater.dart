@@ -9,15 +9,15 @@ import 'package:url_launcher/url_launcher.dart';
 /// auto-install — on "update available" the caller should offer
 /// [openReleasesPage] so the user can download and install manually.
 class GitHubReleaseUpdater {
-  final String owner;
-  final String repo;
-  final http.Client _client;
 
   GitHubReleaseUpdater({
     this.owner = 'zN3utr4l',
     this.repo = 'GitOpen',
     http.Client? client,
   }) : _client = client ?? http.Client();
+  final String owner;
+  final String repo;
+  final http.Client _client;
 
   /// Returns the latest release version string (e.g. `"1.2.0"`) when it is
   /// newer than [currentVersion], or `null` when the app is up-to-date.
@@ -61,6 +61,9 @@ class GitHubReleaseUpdater {
 
   List<int> _parse(String version) {
     final parts = version.split('.');
-    return List.generate(3, (i) => i < parts.length ? (int.tryParse(parts[i]) ?? 0) : 0);
+    return List.generate(
+      3,
+      (i) => i < parts.length ? (int.tryParse(parts[i]) ?? 0) : 0,
+    );
   }
 }

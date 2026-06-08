@@ -1,13 +1,12 @@
 import 'package:collection/collection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../domain/repositories/repo_id.dart';
-import 'repository_registry.dart';
-import 'workspace.dart';
+import 'package:gitopen/application/workspaces/repository_registry.dart';
+import 'package:gitopen/application/workspaces/workspace.dart';
+import 'package:gitopen/domain/repositories/repo_id.dart';
 
 final class WorkspaceManager extends StateNotifier<List<Workspace>> {
-  final RepositoryRegistry _registry;
   WorkspaceManager(this._registry) : super(const []);
+  final RepositoryRegistry _registry;
 
   Future<Workspace> open(String path) async {
     final loc = await _registry.add(path);

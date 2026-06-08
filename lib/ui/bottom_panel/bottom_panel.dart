@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../application/active_workspace_provider.dart';
-import '../../domain/commits/commit_sha.dart';
-import '../../domain/repositories/repo_location.dart';
-import '../theme/app_palette.dart';
-import 'commit_details_view.dart';
-import 'diff_view.dart';
-import 'file_tree_view.dart';
+import 'package:gitopen/application/active_workspace_provider.dart';
+import 'package:gitopen/domain/commits/commit_sha.dart';
+import 'package:gitopen/domain/repositories/repo_location.dart';
+import 'package:gitopen/ui/bottom_panel/commit_details_view.dart';
+import 'package:gitopen/ui/bottom_panel/diff_view.dart';
+import 'package:gitopen/ui/bottom_panel/file_tree_view.dart';
+import 'package:gitopen/ui/theme/app_palette.dart';
 
 class BottomPanel extends ConsumerStatefulWidget {
+  const BottomPanel({required this.repo, super.key});
   final RepoLocation repo;
-  const BottomPanel({super.key, required this.repo});
 
   @override
   ConsumerState<BottomPanel> createState() => _BottomPanelState();
@@ -58,9 +58,9 @@ class _BottomPanelState extends ConsumerState<BottomPanel> {
 }
 
 class _TabsBar extends StatelessWidget {
+  const _TabsBar({required this.active, required this.onSelect});
   final String active;
   final ValueChanged<String> onSelect;
-  const _TabsBar({required this.active, required this.onSelect});
 
   @override
   Widget build(BuildContext context) {
@@ -70,9 +70,24 @@ class _TabsBar extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Row(
         children: [
-          _Tab(label: 'Commit',    value: 'commit',  active: active, onSelect: onSelect),
-          _Tab(label: 'Changes',   value: 'changes', active: active, onSelect: onSelect),
-          _Tab(label: 'File Tree', value: 'files',   active: active, onSelect: onSelect),
+          _Tab(
+            label: 'Commit',
+            value: 'commit',
+            active: active,
+            onSelect: onSelect,
+          ),
+          _Tab(
+            label: 'Changes',
+            value: 'changes',
+            active: active,
+            onSelect: onSelect,
+          ),
+          _Tab(
+            label: 'File Tree',
+            value: 'files',
+            active: active,
+            onSelect: onSelect,
+          ),
         ],
       ),
     );
@@ -80,16 +95,16 @@ class _TabsBar extends StatelessWidget {
 }
 
 class _Tab extends StatelessWidget {
-  final String label;
-  final String value;
-  final String active;
-  final ValueChanged<String> onSelect;
   const _Tab({
     required this.label,
     required this.value,
     required this.active,
     required this.onSelect,
   });
+  final String label;
+  final String value;
+  final String active;
+  final ValueChanged<String> onSelect;
 
   @override
   Widget build(BuildContext context) {

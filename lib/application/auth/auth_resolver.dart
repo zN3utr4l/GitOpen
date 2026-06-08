@@ -1,10 +1,10 @@
 import 'dart:io';
 
-import '../../domain/repositories/repo_location.dart';
-import '../../infrastructure/logging/app_logger.dart';
-import '../git/auth_spec.dart';
-import 'auth_profile.dart';
-import 'auth_profile_store.dart';
+import 'package:gitopen/application/auth/auth_profile.dart';
+import 'package:gitopen/application/auth/auth_profile_store.dart';
+import 'package:gitopen/application/git/auth_spec.dart';
+import 'package:gitopen/domain/repositories/repo_location.dart';
+import 'package:gitopen/infrastructure/logging/app_logger.dart';
 
 /// Resolves which credential a git operation should use for a given repo.
 ///
@@ -14,13 +14,13 @@ import 'auth_profile_store.dart';
 ///   2. Single saved profile for the remote host — implicit default.
 ///   3. None (caller falls back to system credential helper or prompts).
 class AuthResolver {
-  final AuthProfileStore _store;
-  final String? Function(String repoId) _bindingLookup;
 
   AuthResolver(
     this._store, {
     String? Function(String repoId)? bindingLookup,
   }) : _bindingLookup = bindingLookup ?? ((_) => null);
+  final AuthProfileStore _store;
+  final String? Function(String repoId) _bindingLookup;
 
   /// Returns the resolved profile (with its [AuthSpec]) for a repo, or null
   /// if no candidate can be picked unambiguously.
@@ -69,11 +69,11 @@ class AuthResolver {
           '(exit=${result.exitCode})');
       if (result.exitCode != 0) return null;
       final url = (result.stdout as String).trim();
-      final https = RegExp(r'^https?://([^/]+)').firstMatch(url);
+      final https = RegExp('^https?://([^/]+)').firstMatch(url);
       if (https != null) return https.group(1);
-      final ssh = RegExp(r'^git@([^:]+):').firstMatch(url);
+      final ssh = RegExp('^git@([^:]+):').firstMatch(url);
       if (ssh != null) return ssh.group(1);
-    } catch (e) {
+    } on Object catch (e) {
       appLog.w('hostFromRepo failed: $e');
     }
     return null;

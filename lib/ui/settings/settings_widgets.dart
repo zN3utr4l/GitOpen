@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import '../theme/app_palette.dart';
+import 'package:gitopen/ui/theme/app_palette.dart';
 
 /// Title strip at the top of every settings section: bold page name plus an
 /// optional short description.
 class SettingsPageHeader extends StatelessWidget {
+  const SettingsPageHeader({required this.title, super.key, this.description});
   final String title;
   final String? description;
-  const SettingsPageHeader({super.key, required this.title, this.description});
 
   @override
   Widget build(BuildContext context) {
@@ -41,8 +41,8 @@ class SettingsPageHeader extends StatelessWidget {
 /// Subsection title — small uppercase label with a hairline underline
 /// for the card that follows it.
 class SettingsSectionTitle extends StatelessWidget {
-  final String text;
   const SettingsSectionTitle(this.text, {super.key});
+  final String text;
 
   @override
   Widget build(BuildContext context) {
@@ -65,13 +65,12 @@ class SettingsSectionTitle extends StatelessWidget {
 /// Rounded panel used for groups of settings rows. Matches the dialog frame
 /// look — bg2 with a 1px border and 8px radius.
 class SettingsCard extends StatelessWidget {
-  final Widget child;
-  final EdgeInsetsGeometry padding;
   const SettingsCard({
-    super.key,
-    required this.child,
+    required this.child, super.key,
     this.padding = const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
   });
+  final Widget child;
+  final EdgeInsetsGeometry padding;
 
   @override
   Widget build(BuildContext context) {
@@ -91,19 +90,17 @@ class SettingsCard extends StatelessWidget {
 /// Label/control row inside a [SettingsCard]. Optionally adds a hairline
 /// divider below.
 class SettingsRow extends StatelessWidget {
+  const SettingsRow({
+    required this.label, required this.child, super.key,
+    this.description,
+    this.divider = true,
+    this.labelWidth = 180,
+  });
   final String label;
   final String? description;
   final Widget child;
   final bool divider;
   final double labelWidth;
-  const SettingsRow({
-    super.key,
-    required this.label,
-    required this.child,
-    this.description,
-    this.divider = true,
-    this.labelWidth = 180,
-  });
 
   @override
   Widget build(BuildContext context) {
@@ -115,7 +112,6 @@ class SettingsRow extends StatelessWidget {
               border: Border(bottom: BorderSide(color: palette.border)))
           : null,
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           SizedBox(
             width: labelWidth,

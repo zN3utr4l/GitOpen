@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../domain/repositories/repo_id.dart';
-import '../domain/commits/commit_sha.dart';
+import 'package:gitopen/domain/commits/commit_sha.dart';
+import 'package:gitopen/domain/repositories/repo_id.dart';
 
 final activeWorkspaceIdProvider = StateProvider<RepoId?>((_) => null);
 final selectedCommitShaProvider = StateProvider<CommitSha?>((_) => null);

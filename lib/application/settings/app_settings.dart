@@ -1,11 +1,26 @@
-import 'package:flutter/widgets.dart';
 import 'package:equatable/equatable.dart';
-import '../git_identity/git_identity.dart';
+import 'package:flutter/widgets.dart';
+import 'package:gitopen/application/auth/auth_resolver.dart' show AuthResolver;
+import 'package:gitopen/application/git_identity/git_identity.dart';
 
 enum AppTheme { dark, light }
 enum DefaultPullStrategy { ffOnly, merge, rebase }
 
 final class AppSettingsState extends Equatable {
+
+  const AppSettingsState({
+    this.theme = AppTheme.dark,
+    this.externalEditorPath,
+    this.defaultPullStrategy = DefaultPullStrategy.merge,
+    this.commitSignoffDefault = false,
+    this.fontSize = 12,
+    this.fontFamily,
+    this.githubClientId,
+    this.autoUpdateCheck = true,
+    this.keybindings = const {},
+    this.gitIdentities = const [],
+    this.authRepoBindings = const {},
+  });
   final AppTheme theme;
   final String? externalEditorPath;
   final DefaultPullStrategy defaultPullStrategy;
@@ -22,20 +37,6 @@ final class AppSettingsState extends Equatable {
   /// always uses the right one — overrides the implicit "single profile
   /// per host" fallback in [AuthResolver].
   final Map<String, String> authRepoBindings;
-
-  const AppSettingsState({
-    this.theme = AppTheme.dark,
-    this.externalEditorPath,
-    this.defaultPullStrategy = DefaultPullStrategy.merge,
-    this.commitSignoffDefault = false,
-    this.fontSize = 12,
-    this.fontFamily,
-    this.githubClientId,
-    this.autoUpdateCheck = true,
-    this.keybindings = const {},
-    this.gitIdentities = const [],
-    this.authRepoBindings = const {},
-  });
 
   AppSettingsState copyWith({
     AppTheme? theme,

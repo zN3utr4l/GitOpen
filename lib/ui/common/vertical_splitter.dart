@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../theme/app_palette.dart';
+import 'package:gitopen/ui/theme/app_palette.dart';
 
 /// Two-pane vertical split with a draggable horizontal handle in between.
 /// Top pane fills the leftover space; bottom pane is the resizable one.
@@ -8,22 +8,20 @@ import '../theme/app_palette.dart';
 /// - Double-click resets the bottom pane to [defaultBottom].
 /// - Bottom height is clamped to [minBottom] .. (parent height - [minTop]).
 class VerticalSplitter extends StatefulWidget {
+
+  const VerticalSplitter({
+    required this.top, required this.bottom, super.key,
+    this.defaultBottom = 320,
+    this.minBottom = 140,
+    this.minTop = 200,
+    this.handleHeight = 5,
+  });
   final Widget top;
   final Widget bottom;
   final double defaultBottom;
   final double minBottom;
   final double minTop;
   final double handleHeight;
-
-  const VerticalSplitter({
-    super.key,
-    required this.top,
-    required this.bottom,
-    this.defaultBottom = 320,
-    this.minBottom = 140,
-    this.minTop = 200,
-    this.handleHeight = 5,
-  });
 
   @override
   State<VerticalSplitter> createState() => _VerticalSplitterState();
@@ -40,8 +38,10 @@ class _VerticalSplitterState extends State<VerticalSplitter> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final maxBottom = constraints.maxHeight - widget.minTop;
-        final clamped =
-            _bottom.clamp(widget.minBottom, maxBottom < widget.minBottom ? widget.minBottom : maxBottom);
+        final clamped = _bottom.clamp(
+          widget.minBottom,
+          maxBottom < widget.minBottom ? widget.minBottom : maxBottom,
+        );
         return Column(
           children: [
             Expanded(child: widget.top),

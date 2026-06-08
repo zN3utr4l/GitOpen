@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../application/active_workspace_provider.dart';
-import '../../application/auth/auth_profile.dart';
-import '../../application/git/repo_state_provider.dart';
-import '../../application/operations/running_operation.dart';
-import '../../application/providers.dart';
-import '../../domain/repositories/repo_location.dart';
-import '../dialogs/account_switcher_dialog.dart';
-import '../theme/app_palette.dart';
-import '../operations/activity_panel.dart';
+import 'package:gitopen/application/active_workspace_provider.dart';
+import 'package:gitopen/application/auth/auth_profile.dart';
+import 'package:gitopen/application/git/repo_state_provider.dart';
+import 'package:gitopen/application/operations/running_operation.dart';
+import 'package:gitopen/application/providers.dart';
+import 'package:gitopen/application/workspaces/workspace.dart';
+import 'package:gitopen/domain/repositories/repo_location.dart';
+import 'package:gitopen/ui/dialogs/account_switcher_dialog.dart';
+import 'package:gitopen/ui/operations/activity_panel.dart';
+import 'package:gitopen/ui/theme/app_palette.dart';
 
 class StatusBar extends ConsumerWidget {
   const StatusBar({super.key});
@@ -19,18 +20,21 @@ class StatusBar extends ConsumerWidget {
     final p = AppPalette.of(context);
     final activeId = ref.watch(activeWorkspaceIdProvider);
     final workspaces = ref.watch(workspaceManagerProvider);
-    final active =
-        workspaces.where((w) => w.location.id == activeId).cast<dynamic>().firstOrNull;
+    final active = workspaces
+        .where((w) => w.location.id == activeId)
+        .cast<Workspace?>()
+        .firstOrNull;
 
     if (active == null) {
       return Container(height: 22, color: p.bg3);
     }
-    final repo = active.location as RepoLocation;
+    final repo = active.location;
     final branchesAsync = ref.watch(branchesProvider(repo));
     final statusAsync = ref.watch(repoStatusProvider(repo));
     final inProgressAsync = ref.watch(repoStateProvider(repo));
     final ops = ref.watch(operationsProvider);
-    final running = ops.where((o) => o.status == OperationStatus.running).length;
+    final running =
+        ops.where((o) => o.status == OperationStatus.running).length;
 
     return Container(
       height: 22,
@@ -38,7 +42,12 @@ class StatusBar extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Row(children: [
         branchesAsync.when(
-          loading: () => Text('loading...', style: TextStyle(color: p.fg2, fontSize: 11)),
+          loading: () => Text(
+            'loading...',
+            style: TextStyle(color: p.fg2, fontSize: 11),
+          ),
+          // The explicit parameter types document the AsyncValue.when error
+          // signature; the closure-parameter-type lint is not useful here.
           // ignore: avoid_types_on_closure_parameters
           error: (Object e, StackTrace s) => const SizedBox.shrink(),
           data: (branches) {
@@ -88,7 +97,7 @@ class StatusBar extends ConsumerWidget {
         _ActiveAccountChip(repo: repo),
         const SizedBox(width: 12),
         InkWell(
-          onTap: () => showDialog(
+          onTap: () => showDialog<void>(
             context: context,
             builder: (_) => const ActivityPanel(),
           ),
@@ -115,8 +124,8 @@ class StatusBar extends ConsumerWidget {
 /// recreates the future on each rebuild, and FutureBuilder's completion
 /// triggers another rebuild → another future, ad infinitum.
 class _ActiveAccountChip extends ConsumerWidget {
-  final RepoLocation repo;
   const _ActiveAccountChip({required this.repo});
+  final RepoLocation repo;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -157,4 +166,3 @@ class _ActiveAccountChip extends ConsumerWidget {
         .setAuthBinding(repo.id.value, chosen.id);
   }
 }
-

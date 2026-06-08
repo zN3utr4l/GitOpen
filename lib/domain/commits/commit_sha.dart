@@ -1,9 +1,9 @@
 import 'package:equatable/equatable.dart';
 
 final class CommitSha extends Equatable {
-  final String value;
 
   CommitSha(String input) : value = _normalize(input);
+  final String value;
 
   static String _normalize(String input) {
     if (input.trim().isEmpty) {

@@ -6,11 +6,6 @@
 /// uses that to render the local name + a sync indicator + the remote
 /// host(s) rather than two stacked pills.
 class RefDecoration {
-  final String name;
-  final bool isRemote;
-  final bool isTag;
-  final bool isCurrent;
-  final List<String> syncedRemotes;
 
   const RefDecoration({
     required this.name,
@@ -19,6 +14,11 @@ class RefDecoration {
     required this.isCurrent,
     this.syncedRemotes = const [],
   });
+  final String name;
+  final bool isRemote;
+  final bool isTag;
+  final bool isCurrent;
+  final List<String> syncedRemotes;
 
   bool get isSynced => syncedRemotes.isNotEmpty;
 }

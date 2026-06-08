@@ -1,9 +1,19 @@
 import 'package:equatable/equatable.dart';
 
-import '../commits/commit_sha.dart';
-import 'working_file_entry.dart';
+import 'package:gitopen/domain/commits/commit_sha.dart';
+import 'package:gitopen/domain/status/working_file_entry.dart';
 
 final class RepoStatus extends Equatable {
+
+  const RepoStatus({
+    required this.isDetached,
+    required this.isBare,
+    required this.entries,
+    this.currentBranch,
+    this.headSha,
+    this.ahead = 0,
+    this.behind = 0,
+  });
   final String? currentBranch;
   final CommitSha? headSha;
   final bool isDetached;
@@ -15,16 +25,6 @@ final class RepoStatus extends Equatable {
   /// Both default to 0 when the branch has no upstream.
   final int ahead;
   final int behind;
-
-  const RepoStatus({
-    this.currentBranch,
-    this.headSha,
-    required this.isDetached,
-    required this.isBare,
-    required this.entries,
-    this.ahead = 0,
-    this.behind = 0,
-  });
 
   @override
   List<Object?> get props =>

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../application/auth/auth_profile.dart';
-import '../../application/providers.dart';
-import '../theme/app_palette.dart';
-import 'app_dialog.dart';
-import 'auth_dialog.dart';
+import 'package:gitopen/application/auth/auth_profile.dart';
+import 'package:gitopen/application/git/auth_spec.dart';
+import 'package:gitopen/application/providers.dart';
+import 'package:gitopen/ui/dialogs/app_dialog.dart';
+import 'package:gitopen/ui/dialogs/auth_dialog.dart';
+import 'package:gitopen/ui/theme/app_palette.dart';
 
 /// Shown when a git op fails because the currently-used credential does
 /// not have access to the repository (e.g. "repository not found" — typical
@@ -15,16 +15,14 @@ import 'auth_dialog.dart';
 /// (binding it to the current repo), or sign in with a fresh account that
 /// gets added on the spot.
 class AccountSwitcherDialog extends ConsumerStatefulWidget {
+
+  const AccountSwitcherDialog({
+    required this.host, required this.contextMessage, super.key,
+    this.currentProfileId,
+  });
   final String host;
   final String? currentProfileId;
   final String contextMessage;
-
-  const AccountSwitcherDialog({
-    super.key,
-    required this.host,
-    required this.contextMessage,
-    this.currentProfileId,
-  });
 
   /// Returns the chosen [AuthProfile] (already persisted), or `null` if
   /// the user dismissed without choosing.  Caller is responsible for
@@ -72,7 +70,6 @@ class _AccountSwitcherDialogState
     return AppDialog(
       title: 'Choose account for ${widget.host}',
       subtitle: widget.contextMessage,
-      width: 460,
       contentPadding: EdgeInsets.zero,
       content: FutureBuilder<List<AuthProfile>>(
         future: _profiles,
@@ -150,13 +147,12 @@ class _AccountSwitcherDialogState
   }
 
   String _kindLabel(AuthProfile p) {
-    return switch (p.spec.runtimeType.toString()) {
-      'AuthHttpsPat' => 'HTTPS PAT',
-      'AuthHttpsBasic' => 'HTTPS Basic',
-      'AuthSsh' => 'SSH Key',
-      'AuthGitHubOauth' => 'GitHub OAuth',
-      'AuthSystemDefault' => 'System default',
-      _ => 'Credential',
+    return switch (p.spec) {
+      AuthHttpsPat() => 'HTTPS PAT',
+      AuthHttpsBasic() => 'HTTPS Basic',
+      AuthSsh() => 'SSH Key',
+      AuthGitHubOauth() => 'GitHub OAuth',
+      AuthSystemDefault() => 'System default',
     };
   }
 }

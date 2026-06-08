@@ -6,32 +6,33 @@ import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gitopen/application/active_workspace_provider.dart';
+import 'package:gitopen/application/git/repo_state_provider.dart';
+import 'package:gitopen/application/main_view_provider.dart';
+import 'package:gitopen/application/operations/running_operation.dart';
+import 'package:gitopen/application/providers.dart';
+import 'package:gitopen/application/settings/app_settings.dart';
+import 'package:gitopen/application/settings/settings_open_provider.dart';
+import 'package:gitopen/application/workspaces/workspace.dart';
+import 'package:gitopen/domain/repositories/repo_location.dart';
+import 'package:gitopen/infrastructure/logging/app_logger.dart';
+import 'package:gitopen/ui/bottom_panel/bottom_panel.dart';
+import 'package:gitopen/ui/commit_graph/commit_graph_panel.dart';
+import 'package:gitopen/ui/common/vertical_splitter.dart';
+import 'package:gitopen/ui/conflicts/conflict_resolution_panel.dart';
+import 'package:gitopen/ui/operations/toast_overlay.dart';
+import 'package:gitopen/ui/settings/settings_page.dart';
+import 'package:gitopen/ui/shell/repo_selector.dart';
+import 'package:gitopen/ui/shell/view_selector.dart';
+import 'package:gitopen/ui/sidebar/sidebar.dart';
+import 'package:gitopen/ui/status_bar/status_bar.dart';
+import 'package:gitopen/ui/theme/app_palette.dart';
+import 'package:gitopen/ui/toolbar/git_toolbar.dart';
+import 'package:gitopen/ui/welcome/welcome_screen.dart';
+import 'package:gitopen/ui/working_copy/working_copy_panel.dart';
+import 'package:logger/logger.dart';
 
-import 'application/active_workspace_provider.dart';
-import 'application/git/repo_state_provider.dart';
-import 'application/main_view_provider.dart';
-import 'application/operations/running_operation.dart';
-import 'application/providers.dart';
-import 'application/settings/app_settings.dart';
-import 'application/settings/settings_open_provider.dart';
-import 'application/workspaces/workspace.dart';
-import 'infrastructure/logging/app_logger.dart';
-import 'ui/theme/app_palette.dart';
-import 'ui/bottom_panel/bottom_panel.dart';
-import 'ui/commit_graph/commit_graph_panel.dart';
-import 'ui/common/vertical_splitter.dart';
-import 'ui/conflicts/conflict_resolution_panel.dart';
-import 'ui/operations/toast_overlay.dart';
-import 'ui/settings/settings_page.dart';
-import 'ui/shell/repo_selector.dart';
-import 'ui/shell/view_selector.dart';
-import 'ui/sidebar/sidebar.dart';
-import 'ui/status_bar/status_bar.dart';
-import 'ui/toolbar/git_toolbar.dart';
-import 'ui/welcome/welcome_screen.dart';
-import 'ui/working_copy/working_copy_panel.dart';
-
-final _log = appLog;
+final Logger _log = appLog;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -86,7 +87,7 @@ Future<void> _rehydrate(ProviderContainer container) async {
     for (final p in paths) {
       try {
         await manager.open(p);
-      } catch (e) {
+      } on Object catch (e) {
         _log.w('Failed to reopen workspace $p: $e');
       }
     }
@@ -95,7 +96,7 @@ Future<void> _rehydrate(ProviderContainer container) async {
       container.read(activeWorkspaceIdProvider.notifier).state =
           workspaces.first.location.id;
     }
-  } catch (e) {
+  } on Object catch (e) {
     _log.w('Rehydration failed: $e');
   }
 }
@@ -118,7 +119,7 @@ void _subscribePersistence(ProviderContainer container) {
       final paths = next.map((w) => w.location.path).toList();
       try {
         await persistence.saveOpenPaths(paths);
-      } catch (e) {
+      } on Object catch (e) {
         _log.w('Persist failed: $e');
       }
     },
@@ -133,7 +134,7 @@ Future<void> _checkForUpdatesQuietly(ProviderContainer container) async {
     if (newer != null) {
       _log.i('Update available: $newer');
     }
-  } catch (e) {
+  } on Object catch (e) {
     _log.d('Startup update check failed (non-critical): $e');
   }
 }
@@ -144,7 +145,8 @@ class GitOpenApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = ref.watch(appSettingsProvider.select((s) => s.theme));
-    final palette = theme == AppTheme.dark ? AppPalette.dark() : AppPalette.light();
+    final palette =
+        theme == AppTheme.dark ? AppPalette.dark() : AppPalette.light();
     return MaterialApp(
       title: 'GitOpen',
       debugShowCheckedModeBanner: false,
@@ -198,7 +200,7 @@ class _ShellState extends ConsumerState<Shell> {
       }
       ops.finishSuccess(id);
       ref.invalidate(gitReadOperationsProvider);
-    } catch (e) {
+    } on Object catch (e) {
       ops.finishFailure(id, e.toString());
     }
   }
@@ -211,13 +213,17 @@ class _ShellState extends ConsumerState<Shell> {
         ? null
         : workspaces.firstWhereOrNull((w) => w.location.id == activeId);
     final settingsOpen = ref.watch(settingsOpenProvider);
-    final bindings = ref.watch(appSettingsProvider.select((s) => s.keybindings));
+    final bindings =
+        ref.watch(appSettingsProvider.select((s) => s.keybindings));
 
     return Shortcuts(
       shortcuts: <ShortcutActivator, Intent>{
-        if (bindings['commit'] != null) bindings['commit']!: const _CommitIntent(),
-        if (bindings['fetch'] != null) bindings['fetch']!: const _FetchIntent(),
-        if (bindings['openSettings'] != null) bindings['openSettings']!: const _OpenSettingsIntent(),
+        if (bindings['commit'] != null)
+          bindings['commit']!: const _CommitIntent(),
+        if (bindings['fetch'] != null)
+          bindings['fetch']!: const _FetchIntent(),
+        if (bindings['openSettings'] != null)
+          bindings['openSettings']!: const _OpenSettingsIntent(),
       },
       child: Actions(
         actions: <Type, Action<Intent>>{
@@ -228,7 +234,10 @@ class _ShellState extends ConsumerState<Shell> {
             },
           ),
           _FetchIntent: CallbackAction<_FetchIntent>(
-            onInvoke: (_) { _fetchActive(); return null; },
+            onInvoke: (_) {
+              unawaited(_fetchActive());
+              return null;
+            },
           ),
           _OpenSettingsIntent: CallbackAction<_OpenSettingsIntent>(
             onInvoke: (_) {
@@ -265,37 +274,7 @@ class _ShellState extends ConsumerState<Shell> {
                                     ? const WelcomeScreen()
                                     : settingsOpen
                                         ? const SettingsPage()
-                                        : Builder(builder: (context) {
-                                            final view = ref.watch(mainViewProvider);
-                                            final repoStateAsync = ref.watch(
-                                                repoStateProvider(active.location));
-                                            final inProgressOp =
-                                                repoStateAsync.valueOrNull;
-                                            final hasConflict =
-                                                inProgressOp == InProgressOp.merge ||
-                                                inProgressOp == InProgressOp.cherryPick ||
-                                                inProgressOp == InProgressOp.revert;
-                                            return Column(
-                                              children: [
-                                                const ViewSelector(),
-                                                Expanded(
-                                                  child: hasConflict
-                                                      ? ConflictResolutionPanel(
-                                                          repo: active.location)
-                                                      : view == MainView.changes
-                                                          ? WorkingCopyPanel(
-                                                              repo: active.location)
-                                                          : VerticalSplitter(
-                                                              top: CommitGraphPanel(
-                                                                  repo: active.location),
-                                                              bottom: BottomPanel(
-                                                                  repo: active.location),
-                                                            ),
-                                                ),
-                                                const StatusBar(),
-                                              ],
-                                            );
-                                          }),
+                                        : _RepoBody(repo: active.location),
                           ),
                         ),
                       ],
@@ -314,6 +293,40 @@ class _ShellState extends ConsumerState<Shell> {
   }
 }
 
+/// The main repo content area shown once a workspace is active and the
+/// settings page is closed.
+class _RepoBody extends ConsumerWidget {
+  const _RepoBody({required this.repo});
+
+  final RepoLocation repo;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final view = ref.watch(mainViewProvider);
+    final repoStateAsync = ref.watch(repoStateProvider(repo));
+    final inProgressOp = repoStateAsync.valueOrNull;
+    final hasConflict = inProgressOp == InProgressOp.merge ||
+        inProgressOp == InProgressOp.cherryPick ||
+        inProgressOp == InProgressOp.revert;
+    return Column(
+      children: [
+        const ViewSelector(),
+        Expanded(
+          child: hasConflict
+              ? ConflictResolutionPanel(repo: repo)
+              : view == MainView.changes
+                  ? WorkingCopyPanel(repo: repo)
+                  : VerticalSplitter(
+                      top: CommitGraphPanel(repo: repo),
+                      bottom: BottomPanel(repo: repo),
+                    ),
+        ),
+        const StatusBar(),
+      ],
+    );
+  }
+}
+
 class _TitleBar extends ConsumerWidget {
   const _TitleBar();
 
@@ -321,7 +334,7 @@ class _TitleBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = AppPalette.of(context);
     return WindowTitleBarBox(
-      child: Container(
+      child: ColoredBox(
         color: palette.bg3,
         child: Row(
           children: [

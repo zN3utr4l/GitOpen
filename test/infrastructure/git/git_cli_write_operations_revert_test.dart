@@ -14,11 +14,18 @@ void main() {
     try {
       final headSha = f.headSha;
       final sut = GitCliWriteOperations();
-      final res = await sut.revert(RepoLocation(RepoId.newId(), f.path, 't'), CommitSha(headSha));
-      expect(res, isA<GitSuccess>());
-      expect((res as GitSuccess).value, isA<RevertApplied>());
+      final res = await sut.revert(
+        RepoLocation(RepoId.newId(), f.path, 't'),
+        CommitSha(headSha),
+      );
+      expect(res, isA<GitSuccess<RevertOutcome>>());
+      expect((res as GitSuccess<RevertOutcome>).value, isA<RevertApplied>());
       // Verify the revert commit appears in the log
-      final out = await Process.run('git', ['log', '--oneline'], workingDirectory: f.path);
+      final out = await Process.run(
+        'git',
+        ['log', '--oneline'],
+        workingDirectory: f.path,
+      );
       expect(out.stdout.toString(), contains('Revert'));
     } finally {
       await f.dispose();

@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../application/git/git_result.dart';
-import '../../application/providers.dart';
-import '../../domain/diff/diff_hunk.dart';
-import '../../domain/diff/diff_line.dart';
-import '../../domain/diff/diff_spec.dart';
-import '../../domain/diff/file_diff.dart';
-import '../../domain/repositories/repo_location.dart';
-import '../../domain/status/working_file_entry.dart';
-import '../common/app_context_menu.dart';
-import '../dialogs/confirm_dialog.dart';
-import '../theme/app_palette.dart';
-import 'commit_compose.dart';
+import 'package:gitopen/application/git/git_result.dart';
+import 'package:gitopen/application/providers.dart';
+import 'package:gitopen/domain/diff/diff_hunk.dart';
+import 'package:gitopen/domain/diff/diff_line.dart';
+import 'package:gitopen/domain/diff/diff_spec.dart';
+import 'package:gitopen/domain/diff/file_diff.dart';
+import 'package:gitopen/domain/repositories/repo_location.dart';
+import 'package:gitopen/domain/status/working_file_entry.dart';
+import 'package:gitopen/ui/common/app_context_menu.dart';
+import 'package:gitopen/ui/dialogs/confirm_dialog.dart';
+import 'package:gitopen/ui/theme/app_palette.dart';
+import 'package:gitopen/ui/working_copy/commit_compose.dart';
 
 /// Discards working-tree changes for the supplied entries.
 ///
@@ -39,40 +39,46 @@ Future<bool> _discardEntries(
   return r1 is GitSuccess && r2 is GitSuccess;
 }
 
-final _workingCopyStatusProvider =
-    FutureProvider.family.autoDispose<List<WorkingFileEntry>, RepoLocation>((ref, repo) async {
-  final git = ref.watch(gitReadOperationsProvider);
-  final status = await git.getStatus(repo);
-  return status.entries;
-});
+final AutoDisposeFutureProviderFamily<List<WorkingFileEntry>, RepoLocation>
+    _workingCopyStatusProvider =
+    FutureProvider.family.autoDispose<List<WorkingFileEntry>, RepoLocation>(
+  (ref, repo) async {
+    final git = ref.watch(gitReadOperationsProvider);
+    final status = await git.getStatus(repo);
+    return status.entries;
+  },
+);
 
 /// Currently selected file path in the working copy panel.
 /// `null` means no preview is shown.
-final _selectedFileProvider =
+final AutoDisposeStateProvider<({String path, bool staged})?>
+    _selectedFileProvider =
     StateProvider.autoDispose<({String path, bool staged})?>((_) => null);
 
 /// Working-tree-vs-index diff, keyed by (repo, filePath).
-final _unstagedFileDiffProvider = FutureProvider.family
+final AutoDisposeFutureProviderFamily<FileDiff?, (RepoLocation, String)>
+    _unstagedFileDiffProvider = FutureProvider.family
     .autoDispose<FileDiff?, (RepoLocation, String)>((ref, args) async {
   final (repo, filePath) = args;
   final git = ref.read(gitReadOperationsProvider);
   final result = await git.getDiff(repo, const DiffSpecWorkingTreeVsIndex());
   try {
     return result.files.firstWhere((f) => f.path == filePath);
-  } catch (_) {
+  } on Object catch (_) {
     return null;
   }
 });
 
 /// Index-vs-HEAD diff, keyed by (repo, filePath).
-final _stagedFileDiffProvider = FutureProvider.family
+final AutoDisposeFutureProviderFamily<FileDiff?, (RepoLocation, String)>
+    _stagedFileDiffProvider = FutureProvider.family
     .autoDispose<FileDiff?, (RepoLocation, String)>((ref, args) async {
   final (repo, filePath) = args;
   final git = ref.read(gitReadOperationsProvider);
   final result = await git.getDiff(repo, const DiffSpecIndexVsHead());
   try {
     return result.files.firstWhere((f) => f.path == filePath);
-  } catch (_) {
+  } on Object catch (_) {
     return null;
   }
 });
@@ -84,10 +90,10 @@ bool _canExpandHunks(WorkingFileEntry entry) {
 
 /// Builds a minimal unified-diff patch containing only the supplied hunks.
 String buildPatchForHunks(String filePath, List<DiffHunk> hunks) {
-  final buf = StringBuffer();
-  buf.writeln('diff --git a/$filePath b/$filePath');
-  buf.writeln('--- a/$filePath');
-  buf.writeln('+++ b/$filePath');
+  final buf = StringBuffer()
+    ..writeln('diff --git a/$filePath b/$filePath')
+    ..writeln('--- a/$filePath')
+    ..writeln('+++ b/$filePath');
   for (final h in hunks) {
     buf.writeln(h.header);
     for (final line in h.lines) {
@@ -107,18 +113,20 @@ String buildPatchForHunks(String filePath, List<DiffHunk> hunks) {
 // ---------------------------------------------------------------------------
 
 class WorkingCopyPanel extends ConsumerWidget {
+  const WorkingCopyPanel({required this.repo, super.key});
   final RepoLocation repo;
-  const WorkingCopyPanel({super.key, required this.repo});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(_workingCopyStatusProvider(repo));
     final palette = AppPalette.of(context);
-    return Container(
+    return ColoredBox(
       color: palette.bg1,
       child: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e', style: TextStyle(color: palette.accentErr))),
+        error: (e, _) => Center(
+          child: Text('Error: $e', style: TextStyle(color: palette.accentErr)),
+        ),
         data: (entries) {
           final unstaged = entries.where((e) =>
               e.workingTreeState != WorkingFileState.unmodified).toList();
@@ -153,10 +161,14 @@ class WorkingCopyPanel extends ConsumerWidget {
 // ---------------------------------------------------------------------------
 
 class _FileList extends ConsumerWidget {
+  const _FileList({
+    required this.repo,
+    required this.unstaged,
+    required this.staged,
+  });
   final RepoLocation repo;
   final List<WorkingFileEntry> unstaged;
   final List<WorkingFileEntry> staged;
-  const _FileList({required this.repo, required this.unstaged, required this.staged});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -239,16 +251,16 @@ Future<void> _confirmAndDiscardAll(
 // ---------------------------------------------------------------------------
 
 class _HeaderAction {
+  const _HeaderAction(this.label, this.onPressed, {this.danger = false});
   final String label;
   final VoidCallback? onPressed;
   final bool danger;
-  const _HeaderAction(this.label, this.onPressed, {this.danger = false});
 }
 
 class _Header extends StatelessWidget {
+  const _Header({required this.title, this.actions = const []});
   final String title;
   final List<_HeaderAction> actions;
-  const _Header({required this.title, this.actions = const []});
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
@@ -256,7 +268,14 @@ class _Header extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       color: palette.bg2,
       child: Row(children: [
-        Text(title, style: TextStyle(color: palette.fg1, fontSize: 11.5, fontWeight: FontWeight.w600)),
+        Text(
+          title,
+          style: TextStyle(
+            color: palette.fg1,
+            fontSize: 11.5,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         const Spacer(),
         for (final a in actions)
           TextButton(
@@ -277,10 +296,14 @@ class _Header extends StatelessWidget {
 /// preview pane). The checkbox icon toggles stage/unstage. The chevron
 /// expands hunk-level staging.
 class _FileRow extends ConsumerStatefulWidget {
+  const _FileRow({
+    required this.repo,
+    required this.entry,
+    required this.isStaged,
+  });
   final RepoLocation repo;
   final WorkingFileEntry entry;
   final bool isStaged;
-  const _FileRow({required this.repo, required this.entry, required this.isStaged});
 
   @override
   ConsumerState<_FileRow> createState() => _FileRowState();
@@ -327,7 +350,9 @@ class _FileRowState extends ConsumerState<_FileRow> {
         AppMenuItem(
           value: 'toggle',
           label: isStaged ? 'Unstage' : 'Stage',
-          icon: isStaged ? Icons.remove_circle_outline : Icons.add_circle_outline,
+          icon: isStaged
+              ? Icons.remove_circle_outline
+              : Icons.add_circle_outline,
         ),
         if (!isStaged) ...[
           const AppMenuDivider<String>(),
@@ -375,7 +400,7 @@ class _FileRowState extends ConsumerState<_FileRow> {
     final patch = buildPatchForHunks(widget.entry.path, hunksToStage);
     final write = ref.read(gitWriteOperationsProvider);
     await write.stagePatch(widget.repo, patch);
-    setState(() => _checkedHunks.clear());
+    setState(_checkedHunks.clear);
     ref.invalidate(_workingCopyStatusProvider(widget.repo));
   }
 
@@ -435,14 +460,20 @@ class _FileRowState extends ConsumerState<_FileRow> {
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
                 child: Icon(
-                  widget.isStaged ? Icons.check_box : Icons.check_box_outline_blank,
+                  widget.isStaged
+                      ? Icons.check_box
+                      : Icons.check_box_outline_blank,
                   size: 14,
                   color: isSelected ? Colors.white : palette.fg1,
                 ),
               ),
             ),
             const SizedBox(width: 6),
-            _StateBadge(state: widget.isStaged ? widget.entry.indexState : widget.entry.workingTreeState),
+            _StateBadge(
+              state: widget.isStaged
+                  ? widget.entry.indexState
+                  : widget.entry.workingTreeState,
+            ),
             const SizedBox(width: 8),
             Expanded(child: Text(widget.entry.path,
                 overflow: TextOverflow.ellipsis,
@@ -465,7 +496,9 @@ class _FileRowState extends ConsumerState<_FileRow> {
   }
 
   Widget _buildStageSelectedButton() {
-    final diffAsync = ref.watch(_unstagedFileDiffProvider((widget.repo, widget.entry.path)));
+    final diffAsync = ref.watch(
+      _unstagedFileDiffProvider((widget.repo, widget.entry.path)),
+    );
     return diffAsync.maybeWhen(
       data: (fileDiff) {
         if (fileDiff == null) return const SizedBox.shrink();
@@ -488,16 +521,27 @@ class _FileRowState extends ConsumerState<_FileRow> {
   }
 
   Widget _buildHunkSection() {
-    final diffAsync = ref.watch(_unstagedFileDiffProvider((widget.repo, widget.entry.path)));
+    final diffAsync = ref.watch(
+      _unstagedFileDiffProvider((widget.repo, widget.entry.path)),
+    );
     return diffAsync.when(
       loading: () => const Padding(
         padding: EdgeInsets.only(left: 32, top: 4, bottom: 4),
-        child: SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 1.5)),
+        child: SizedBox(
+          height: 16,
+          width: 16,
+          child: CircularProgressIndicator(strokeWidth: 1.5),
+        ),
       ),
       error: (e, _) => Padding(
         padding: const EdgeInsets.only(left: 32, top: 2, bottom: 2),
-        child: Text('Diff error: $e',
-            style: TextStyle(color: AppPalette.of(context).accentErr, fontSize: 11)),
+        child: Text(
+          'Diff error: $e',
+          style: TextStyle(
+            color: AppPalette.of(context).accentErr,
+            fontSize: 11,
+          ),
+        ),
       ),
       data: (fileDiff) {
         if (fileDiff == null || fileDiff.isBinary || fileDiff.hunks.isEmpty) {
@@ -523,9 +567,9 @@ class _FileRowState extends ConsumerState<_FileRow> {
 // ---------------------------------------------------------------------------
 
 class _DiscardIconButton extends StatelessWidget {
+  const _DiscardIconButton({required this.isSelected, required this.onPressed});
   final bool isSelected;
   final VoidCallback onPressed;
-  const _DiscardIconButton({required this.isSelected, required this.onPressed});
 
   @override
   Widget build(BuildContext context) {
@@ -555,16 +599,16 @@ class _DiscardIconButton extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _HunkRow extends StatelessWidget {
-  final DiffHunk hunk;
-  final int index;
-  final bool isChecked;
-  final VoidCallback onToggle;
   const _HunkRow({
     required this.hunk,
     required this.index,
     required this.isChecked,
     required this.onToggle,
   });
+  final DiffHunk hunk;
+  final int index;
+  final bool isChecked;
+  final VoidCallback onToggle;
 
   @override
   Widget build(BuildContext context) {
@@ -601,8 +645,8 @@ class _HunkRow extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _StateBadge extends StatelessWidget {
-  final WorkingFileState state;
   const _StateBadge({required this.state});
+  final WorkingFileState state;
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
@@ -610,9 +654,19 @@ class _StateBadge extends StatelessWidget {
     if (label.isEmpty) return const SizedBox.shrink();
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(3),
-          border: Border.all(color: color.withValues(alpha: 0.5))),
-      child: Text(label, style: TextStyle(color: color, fontSize: 9, fontWeight: FontWeight.w600)),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(3),
+        border: Border.all(color: color.withValues(alpha: 0.5)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 9,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
     );
   }
   (String, Color) _info(WorkingFileState s, AppPalette p) {
@@ -624,7 +678,7 @@ class _StateBadge extends StatelessWidget {
       case WorkingFileState.untracked: return ('?', p.fg2);
       case WorkingFileState.conflicted: return ('U', p.accentWarn);
       case WorkingFileState.ignored: return ('I', p.fg3);
-      default: return ('', Colors.transparent);
+      case WorkingFileState.unmodified: return ('', Colors.transparent);
     }
   }
 }
@@ -634,8 +688,8 @@ class _StateBadge extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _DiffPreviewPane extends ConsumerWidget {
-  final RepoLocation repo;
   const _DiffPreviewPane({required this.repo});
+  final RepoLocation repo;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -659,7 +713,7 @@ class _DiffPreviewPane extends ConsumerWidget {
         ? _stagedFileDiffProvider((repo, sel.path))
         : _unstagedFileDiffProvider((repo, sel.path));
     final async = ref.watch(provider);
-    return Container(
+    return ColoredBox(
       color: palette.bg1,
       child: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -680,7 +734,10 @@ class _DiffPreviewPane extends ConsumerWidget {
             return Center(
               child: Text(
                 'Binary file (no preview)',
-                style: TextStyle(color: palette.fg2, fontStyle: FontStyle.italic),
+                style: TextStyle(
+                  color: palette.fg2,
+                  fontStyle: FontStyle.italic,
+                ),
               ),
             );
           }
@@ -698,9 +755,9 @@ class _DiffPreviewPane extends ConsumerWidget {
 }
 
 class _DiffHeader extends StatelessWidget {
+  const _DiffHeader({required this.path, required this.fileDiff});
   final String path;
   final FileDiff fileDiff;
-  const _DiffHeader({required this.path, required this.fileDiff});
 
   @override
   Widget build(BuildContext context) {
@@ -731,8 +788,8 @@ class _DiffHeader extends StatelessWidget {
 }
 
 class _HunkBlock extends StatelessWidget {
-  final DiffHunk hunk;
   const _HunkBlock({required this.hunk});
+  final DiffHunk hunk;
 
   @override
   Widget build(BuildContext context) {
@@ -765,8 +822,8 @@ class _HunkBlock extends StatelessWidget {
 }
 
 class _DiffLine extends StatelessWidget {
-  final DiffLine line;
   const _DiffLine({required this.line});
+  final DiffLine line;
 
   @override
   Widget build(BuildContext context) {

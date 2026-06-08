@@ -6,17 +6,17 @@ import 'package:gitopen/domain/repositories/repo_location.dart';
 import 'package:gitopen/infrastructure/launcher/system_repo_launcher.dart';
 
 class FakeProcessRunner implements ProcessRunner {
-  final Map<String, ProcessProbeResult> probes;
-  final List<(String exe, List<String> args)> calls = [];
-  /// Spawn fails when the executable matches OR when any token in [executable]
-  /// + [args] matches. The arg-level check lets tests express "the Windows
-  /// terminal chain wraps wt.exe in `cmd /c start ... wt.exe ...`, so fail
-  /// the launch when wt.exe appears in args."
-  final Set<String> failingExecutables;
   FakeProcessRunner({
     this.probes = const {},
     this.failingExecutables = const {},
   });
+  final Map<String, ProcessProbeResult> probes;
+  final List<(String exe, List<String> args)> calls = [];
+  /// Spawn fails when the executable matches OR when any token in `executable`
+  /// + `args` matches. The arg-level check lets tests express "the Windows
+  /// terminal chain wraps wt.exe in `cmd /c start ... wt.exe ...`, so fail
+  /// the launch when wt.exe appears in args."
+  final Set<String> failingExecutables;
 
   @override
   Future<ProcessProbeResult> probe(String command) async =>

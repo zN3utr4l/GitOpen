@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../application/active_workspace_provider.dart';
-import '../../application/providers.dart';
-import '../dialogs/clone_dialog.dart';
-import '../theme/app_palette.dart';
+import 'package:gitopen/application/active_workspace_provider.dart';
+import 'package:gitopen/application/providers.dart';
+import 'package:gitopen/ui/dialogs/clone_dialog.dart';
+import 'package:gitopen/ui/theme/app_palette.dart';
 
 class WelcomeScreen extends ConsumerWidget {
   const WelcomeScreen({super.key});

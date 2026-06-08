@@ -12,8 +12,10 @@ void main() {
     final f = await RepoFixture.withLinearHistory(1);
     try {
       // Modify file_0.txt: original is "content 0\n"
-      File(p.join(f.path, 'file_0.txt')).writeAsStringSync('content 0\nnew line\n');
-      final patch = '''diff --git a/file_0.txt b/file_0.txt
+      File(p.join(f.path, 'file_0.txt'))
+          .writeAsStringSync('content 0\nnew line\n');
+      const patch = '''
+diff --git a/file_0.txt b/file_0.txt
 --- a/file_0.txt
 +++ b/file_0.txt
 @@ -1 +1,2 @@
@@ -21,9 +23,16 @@ void main() {
 +new line
 ''';
       final sut = GitCliWriteOperations();
-      final res = await sut.stagePatch(RepoLocation(RepoId.newId(), f.path, 't'), patch);
-      expect(res, isA<GitSuccess>());
-      final status = await Process.run('git', ['diff', '--cached', '--name-only'], workingDirectory: f.path);
+      final res = await sut.stagePatch(
+        RepoLocation(RepoId.newId(), f.path, 't'),
+        patch,
+      );
+      expect(res, isA<GitSuccess<void>>());
+      final status = await Process.run(
+        'git',
+        ['diff', '--cached', '--name-only'],
+        workingDirectory: f.path,
+      );
       expect(status.stdout.toString(), contains('file_0.txt'));
     } finally {
       await f.dispose();

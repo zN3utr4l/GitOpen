@@ -1,19 +1,20 @@
 import 'dart:io';
 
-import '../../application/launcher/process_runner.dart';
-import '../../application/launcher/repo_launcher.dart';
-import '../../domain/repositories/repo_location.dart';
-import 'system_process_runner.dart';
+import 'package:gitopen/application/launcher/process_runner.dart';
+import 'package:gitopen/application/launcher/repo_launcher.dart';
+import 'package:gitopen/domain/repositories/repo_location.dart';
+import 'package:gitopen/infrastructure/launcher/system_process_runner.dart';
 
+// Platform values: 'windows' | 'macos' | 'linux'.
 class SystemRepoLauncher implements RepoLauncher {
-  final ProcessRunner _runner;
-  final String _platform; // 'windows' | 'macos' | 'linux'
 
   SystemRepoLauncher({
     ProcessRunner? runner,
     String? platformOverride,
   })  : _runner = runner ?? SystemProcessRunner(),
         _platform = platformOverride ?? _detectPlatform();
+  final ProcessRunner _runner;
+  final String _platform;
 
   static String _detectPlatform() {
     if (Platform.isWindows) return 'windows';
@@ -104,10 +105,18 @@ class SystemRepoLauncher implements RepoLauncher {
     (id: 'vscode', displayName: 'VS Code', commands: ['code', 'code.cmd']),
     (id: 'cursor', displayName: 'Cursor', commands: ['cursor', 'cursor.cmd']),
     (id: 'idea', displayName: 'IntelliJ IDEA', commands: ['idea64', 'idea']),
-    (id: 'webstorm', displayName: 'WebStorm', commands: ['webstorm64', 'webstorm']),
+    (
+      id: 'webstorm',
+      displayName: 'WebStorm',
+      commands: ['webstorm64', 'webstorm'],
+    ),
     (id: 'rider', displayName: 'Rider', commands: ['rider64', 'rider']),
     (id: 'sublime', displayName: 'Sublime Text', commands: ['subl']),
-    (id: 'studio', displayName: 'Android Studio', commands: ['studio64', 'studio']),
+    (
+      id: 'studio',
+      displayName: 'Android Studio',
+      commands: ['studio64', 'studio'],
+    ),
     (id: 'fleet', displayName: 'Fleet', commands: ['fleet']),
   ];
 

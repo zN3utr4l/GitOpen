@@ -2,18 +2,14 @@ import 'package:flutter/material.dart';
 
 @immutable
 final class AppPalette extends ThemeExtension<AppPalette> {
-  final Color bg0, bg1, bg2, bg3, bg4, bg5, bgAccent;
-  final Color border, borderStrong;
-  final Color fg0, fg1, fg2, fg3;
-  final Color accentCurrent, accentTag, accentRemote, accentWarn, accentErr;
-  final List<Color> lanePalette;
 
   const AppPalette({
     required this.bg0, required this.bg1, required this.bg2, required this.bg3,
     required this.bg4, required this.bg5, required this.bgAccent,
     required this.border, required this.borderStrong,
     required this.fg0, required this.fg1, required this.fg2, required this.fg3,
-    required this.accentCurrent, required this.accentTag, required this.accentRemote,
+    required this.accentCurrent, required this.accentTag,
+    required this.accentRemote,
     required this.accentWarn, required this.accentErr,
     required this.lanePalette,
   });
@@ -29,8 +25,10 @@ final class AppPalette extends ThemeExtension<AppPalette> {
     accentRemote: Color(0xFF569CD6), accentWarn: Color(0xFFCE9178),
     accentErr: Color(0xFFF48771),
     lanePalette: [
-      Color(0xFF5FB3A1), Color(0xFFD6C068), Color(0xFF6FA8DC), Color(0xFFC97C5D),
-      Color(0xFFB787B3), Color(0xFF7A98C9), Color(0xFFC79A5D), Color(0xFFC97078),
+      Color(0xFF5FB3A1), Color(0xFFD6C068), Color(0xFF6FA8DC),
+      Color(0xFFC97C5D),
+      Color(0xFFB787B3), Color(0xFF7A98C9), Color(0xFFC79A5D),
+      Color(0xFFC97078),
     ],
   );
 
@@ -45,10 +43,31 @@ final class AppPalette extends ThemeExtension<AppPalette> {
     accentRemote: Color(0xFF2A6BB1), accentWarn: Color(0xFFA0552C),
     accentErr: Color(0xFFB92C2C),
     lanePalette: [
-      Color(0xFF2B8C73), Color(0xFF8E7A1C), Color(0xFF2A6BB1), Color(0xFFA0552C),
-      Color(0xFF7E4B7C), Color(0xFF456493), Color(0xFF8F6A1C), Color(0xFFA84858),
+      Color(0xFF2B8C73), Color(0xFF8E7A1C), Color(0xFF2A6BB1),
+      Color(0xFFA0552C),
+      Color(0xFF7E4B7C), Color(0xFF456493), Color(0xFF8F6A1C),
+      Color(0xFFA84858),
     ],
   );
+  final Color bg0;
+  final Color bg1;
+  final Color bg2;
+  final Color bg3;
+  final Color bg4;
+  final Color bg5;
+  final Color bgAccent;
+  final Color border;
+  final Color borderStrong;
+  final Color fg0;
+  final Color fg1;
+  final Color fg2;
+  final Color fg3;
+  final Color accentCurrent;
+  final Color accentTag;
+  final Color accentRemote;
+  final Color accentWarn;
+  final Color accentErr;
+  final List<Color> lanePalette;
 
   @override
   AppPalette copyWith({
@@ -63,7 +82,8 @@ final class AppPalette extends ThemeExtension<AppPalette> {
       bg0: bg0 ?? this.bg0, bg1: bg1 ?? this.bg1, bg2: bg2 ?? this.bg2,
       bg3: bg3 ?? this.bg3, bg4: bg4 ?? this.bg4, bg5: bg5 ?? this.bg5,
       bgAccent: bgAccent ?? this.bgAccent,
-      border: border ?? this.border, borderStrong: borderStrong ?? this.borderStrong,
+      border: border ?? this.border,
+      borderStrong: borderStrong ?? this.borderStrong,
       fg0: fg0 ?? this.fg0, fg1: fg1 ?? this.fg1,
       fg2: fg2 ?? this.fg2, fg3: fg3 ?? this.fg3,
       accentCurrent: accentCurrent ?? this.accentCurrent,

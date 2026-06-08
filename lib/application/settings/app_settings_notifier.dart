@@ -1,13 +1,19 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../infrastructure/persistence/settings_repository.dart';
-import '../git_identity/git_identity.dart';
-import 'app_settings.dart';
+import 'package:gitopen/application/git_identity/git_identity.dart';
+import 'package:gitopen/application/settings/app_settings.dart';
+import 'package:gitopen/infrastructure/persistence/settings_repository.dart';
 
 const _defaultBindings = <String, List<LogicalKeyboardKey>>{
   'commit': [LogicalKeyboardKey.controlLeft, LogicalKeyboardKey.enter],
-  'commitAndPush': [LogicalKeyboardKey.controlLeft, LogicalKeyboardKey.shiftLeft, LogicalKeyboardKey.enter],
+  'commitAndPush': [
+    LogicalKeyboardKey.controlLeft,
+    LogicalKeyboardKey.shiftLeft,
+    LogicalKeyboardKey.enter,
+  ],
   'fetch': [LogicalKeyboardKey.f5],
   'refresh': [LogicalKeyboardKey.controlLeft, LogicalKeyboardKey.keyR],
   'openRepoSelector': [LogicalKeyboardKey.controlLeft, LogicalKeyboardKey.keyT],
@@ -15,10 +21,10 @@ const _defaultBindings = <String, List<LogicalKeyboardKey>>{
 };
 
 class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
-  final SettingsRepository _repo;
   AppSettingsNotifier(this._repo) : super(_defaults()) {
-    _load();
+    unawaited(_load());
   }
+  final SettingsRepository _repo;
 
   static AppSettingsState _defaults() {
     final defaults = <String, LogicalKeySet>{};
@@ -33,7 +39,11 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
     state = AppSettingsState(
       theme: _enumFromString(all['theme'], AppTheme.values, AppTheme.dark),
       externalEditorPath: all['external_editor_path'] as String?,
-      defaultPullStrategy: _enumFromString(all['default_pull_strategy'], DefaultPullStrategy.values, DefaultPullStrategy.merge),
+      defaultPullStrategy: _enumFromString(
+        all['default_pull_strategy'],
+        DefaultPullStrategy.values,
+        DefaultPullStrategy.merge,
+      ),
       commitSignoffDefault: (all['commit_signoff_default'] as bool?) ?? false,
       fontSize: (all['font_size'] as int?) ?? 12,
       fontFamily: all['font_family'] as String?,
@@ -80,6 +90,9 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
     await _repo.put('default_pull_strategy', v.name);
   }
 
+  // Positional bool retained so the method can be used as a void Function(bool)
+  // tear-off for a Switch's onChanged callback in the settings UI.
+  // ignore: avoid_positional_boolean_parameters
   Future<void> setCommitSignoffDefault(bool v) async {
     state = state.copyWith(commitSignoffDefault: v);
     await _repo.put('commit_signoff_default', v);
@@ -100,6 +113,9 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
     await _repo.put('github_client_id', v);
   }
 
+  // Positional bool retained so the method can be used as a void Function(bool)
+  // tear-off for a Switch's onChanged callback in the settings UI.
+  // ignore: avoid_positional_boolean_parameters
   Future<void> setAutoUpdateCheck(bool v) async {
     state = state.copyWith(autoUpdateCheck: v);
     await _repo.put('auto_update_check', v);
@@ -150,7 +166,10 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
     v.forEach((key, value) {
       if (key is String && value is List) {
         final ids = value.cast<int>();
-        final keys = ids.map(LogicalKeyboardKey.findKeyByKeyId).whereType<LogicalKeyboardKey>().toSet();
+        final keys = ids
+            .map(LogicalKeyboardKey.findKeyByKeyId)
+            .whereType<LogicalKeyboardKey>()
+            .toSet();
         if (keys.isNotEmpty) result[key] = LogicalKeySet.fromSet(keys);
       }
     });

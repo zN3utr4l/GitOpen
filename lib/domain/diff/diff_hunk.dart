@@ -1,14 +1,8 @@
 import 'package:equatable/equatable.dart';
 
-import 'diff_line.dart';
+import 'package:gitopen/domain/diff/diff_line.dart';
 
 final class DiffHunk extends Equatable {
-  final int oldStart;
-  final int oldCount;
-  final int newStart;
-  final int newCount;
-  final String header;
-  final List<DiffLine> lines;
 
   const DiffHunk({
     required this.oldStart,
@@ -18,7 +12,14 @@ final class DiffHunk extends Equatable {
     required this.header,
     required this.lines,
   });
+  final int oldStart;
+  final int oldCount;
+  final int newStart;
+  final int newCount;
+  final String header;
+  final List<DiffLine> lines;
 
   @override
-  List<Object?> get props => [oldStart, oldCount, newStart, newCount, header, lines];
+  List<Object?> get props =>
+      [oldStart, oldCount, newStart, newCount, header, lines];
 }

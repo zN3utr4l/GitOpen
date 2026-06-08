@@ -1,28 +1,29 @@
 import 'package:flutter/material.dart';
-import '../../application/commit_graph/commit_node.dart';
-import '../../application/commit_graph/lane_segment.dart';
+import 'package:gitopen/application/commit_graph/commit_node.dart';
+import 'package:gitopen/application/commit_graph/lane_segment.dart';
+import 'package:gitopen/ui/theme/app_palette.dart' show AppPalette;
 
-const double kLaneSpacing = 16.0;
-const double kLanePad = 12.0;
-const double kRowHeight = 26.0;
-const double kHalfHeight = 13.0;
+const double kLaneSpacing = 16;
+const double kLanePad = 12;
+const double kRowHeight = 26;
+const double kHalfHeight = 13;
 
 double laneX(int lane) => kLanePad + lane * kLaneSpacing;
 
 double svgWidth(int maxLane) => kLanePad * 2 + kLaneSpacing * (maxLane + 1);
 
 class LanePainter extends CustomPainter {
-  final CommitNode node;
-  final int maxLane;
-  /// The lane colour palette, passed in from the caller that has a
-  /// [BuildContext] (and therefore access to [AppPalette]).
-  final List<Color> lanePalette;
 
   const LanePainter({
     required this.node,
     required this.maxLane,
     required this.lanePalette,
   });
+  final CommitNode node;
+  final int maxLane;
+  /// The lane colour palette, passed in from the caller that has a
+  /// [BuildContext] (and therefore access to [AppPalette]).
+  final List<Color> lanePalette;
 
   Color _laneColor(int idx) => lanePalette[idx.abs() % lanePalette.length];
 
@@ -67,5 +68,7 @@ class LanePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant LanePainter old) =>
-      old.node != node || old.maxLane != maxLane || old.lanePalette != lanePalette;
+      old.node != node ||
+      old.maxLane != maxLane ||
+      old.lanePalette != lanePalette;
 }

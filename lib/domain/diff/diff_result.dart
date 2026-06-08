@@ -1,11 +1,11 @@
 import 'package:equatable/equatable.dart';
 
-import 'file_diff.dart';
+import 'package:gitopen/domain/diff/file_diff.dart';
 
 final class DiffResult extends Equatable {
-  final List<FileDiff> files;
 
   const DiffResult({required this.files});
+  final List<FileDiff> files;
 
   @override
   List<Object?> get props => [files];

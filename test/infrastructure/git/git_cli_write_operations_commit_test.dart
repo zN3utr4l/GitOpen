@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gitopen/application/git/commit_request.dart';
 import 'package:gitopen/application/git/git_result.dart';
+import 'package:gitopen/domain/commits/commit_sha.dart';
 import 'package:gitopen/domain/repositories/repo_id.dart';
 import 'package:gitopen/domain/repositories/repo_location.dart';
 import 'package:gitopen/infrastructure/git/git_cli_write_operations.dart';
@@ -18,8 +19,12 @@ void main() {
         final sut = GitCliWriteOperations();
         final res = await sut.commit(RepoLocation(RepoId.newId(), f.path, 't'),
             const CommitRequest(message: 'add new'));
-        expect(res, isA<GitSuccess>());
-        final log = await Process.run('git', ['log', '-1', '--format=%s'], workingDirectory: f.path);
+        expect(res, isA<GitSuccess<CommitSha>>());
+        final log = await Process.run(
+          'git',
+          ['log', '-1', '--format=%s'],
+          workingDirectory: f.path,
+        );
         expect(log.stdout.toString().trim(), 'add new');
       } finally { await f.dispose(); }
     });
@@ -30,8 +35,12 @@ void main() {
         final sut = GitCliWriteOperations();
         final res = await sut.commit(RepoLocation(RepoId.newId(), f.path, 't'),
             const CommitRequest(message: 'amended', amend: true));
-        expect(res, isA<GitSuccess>());
-        final log = await Process.run('git', ['log', '-1', '--format=%s'], workingDirectory: f.path);
+        expect(res, isA<GitSuccess<CommitSha>>());
+        final log = await Process.run(
+          'git',
+          ['log', '-1', '--format=%s'],
+          workingDirectory: f.path,
+        );
         expect(log.stdout.toString().trim(), 'amended');
       } finally { await f.dispose(); }
     });
@@ -44,8 +53,12 @@ void main() {
         final sut = GitCliWriteOperations();
         final res = await sut.commit(RepoLocation(RepoId.newId(), f.path, 't'),
             const CommitRequest(message: 'signed', signOff: true));
-        expect(res, isA<GitSuccess>());
-        final body = await Process.run('git', ['log', '-1', '--format=%B'], workingDirectory: f.path);
+        expect(res, isA<GitSuccess<CommitSha>>());
+        final body = await Process.run(
+          'git',
+          ['log', '-1', '--format=%B'],
+          workingDirectory: f.path,
+        );
         expect(body.stdout.toString(), contains('Signed-off-by'));
       } finally { await f.dispose(); }
     });

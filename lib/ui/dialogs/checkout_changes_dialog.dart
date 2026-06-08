@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../theme/app_palette.dart';
-import 'app_dialog.dart';
+import 'package:gitopen/ui/dialogs/app_dialog.dart';
+import 'package:gitopen/ui/theme/app_palette.dart';
 
 enum CheckoutAction { discard, stash, keep }
 
@@ -8,8 +8,8 @@ enum CheckoutAction { discard, stash, keep }
 /// what to do with the pending changes: discard, stash, or keep (attempt
 /// checkout as-is; git will refuse if files would be overwritten).
 class CheckoutChangesDialog extends StatelessWidget {
+  const CheckoutChangesDialog({required this.targetRef, super.key});
   final String targetRef;
-  const CheckoutChangesDialog({super.key, required this.targetRef});
 
   static Future<CheckoutAction?> show(
       BuildContext context, String targetRef) async {
@@ -24,7 +24,6 @@ class CheckoutChangesDialog extends StatelessWidget {
     final palette = AppPalette.of(context);
     return AppDialog(
       title: 'Switch to "$targetRef"',
-      width: 460,
       content: Text(
         'You have uncommitted changes. What would you like to do with them?',
         style: TextStyle(color: palette.fg1, fontSize: 12.5, height: 1.4),

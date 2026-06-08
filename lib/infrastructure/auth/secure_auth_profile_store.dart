@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'dart:math';
 
-import '../../application/auth/auth_profile.dart';
-import '../../application/auth/auth_profile_store.dart';
-import '../../application/git/auth_spec.dart';
-import '../logging/app_logger.dart';
-import 'dpapi_storage.dart';
+import 'package:gitopen/application/auth/auth_profile.dart';
+import 'package:gitopen/application/auth/auth_profile_store.dart';
+import 'package:gitopen/application/git/auth_spec.dart';
+import 'package:gitopen/infrastructure/auth/dpapi_storage.dart';
+import 'package:gitopen/infrastructure/logging/app_logger.dart';
 
 /// DPAPI-backed implementation of [AuthProfileStore].
 ///
@@ -20,6 +20,9 @@ import 'dpapi_storage.dart';
 /// into profiles.  Old keys are left in place to avoid data loss in case
 /// of a roll-back.
 class SecureAuthProfileStore implements AuthProfileStore {
+
+  SecureAuthProfileStore({DpapiStorage? storage})
+      : _storage = storage ?? DpapiStorage.instance;
   static const _profilePrefix = 'gitopen:auth:profile:';
   static const _profileIndexKey = 'gitopen:auth:profile_index';
   static const _migrationMarker = 'gitopen:auth:migrated_v1';
@@ -30,9 +33,6 @@ class SecureAuthProfileStore implements AuthProfileStore {
 
   final DpapiStorage _storage;
   bool _migrated = false;
-
-  SecureAuthProfileStore({DpapiStorage? storage})
-      : _storage = storage ?? DpapiStorage.instance;
 
   // ---------------------------------------------------------------------------
   // AuthProfileStore interface
@@ -69,10 +69,10 @@ class SecureAuthProfileStore implements AuthProfileStore {
 
   @override
   Future<AuthProfile> upsert({
-    String? id,
     required String host,
     required String username,
     required AuthSpec spec,
+    String? id,
   }) async {
     await _ensureMigrated();
     final effectiveId = id ?? _generateId();
@@ -105,7 +105,7 @@ class SecureAuthProfileStore implements AuthProfileStore {
     if (raw == null) return null;
     try {
       return _decode(id, raw);
-    } catch (_) {
+    } on Object catch (_) {
       return null;
     }
   }
@@ -142,7 +142,7 @@ class SecureAuthProfileStore implements AuthProfileStore {
   /// then re-run the migration, then call upsert again, etc. forever.
   /// The recursion never stops to read from a real I/O source after the
   /// in-memory file cache warms, so it loops as a pure microtask burst —
-  /// which silently starves every [Timer] and [Process] callback in the
+  /// which silently starves every `Timer` and `Process` callback in the
   /// isolate, presenting as a total UI freeze with no error.
   Future<void> _ensureMigrated() async {
     if (_migrated) return;
@@ -179,7 +179,7 @@ class SecureAuthProfileStore implements AuthProfileStore {
           username: _usernameFromSpec(spec),
           spec: spec,
         );
-      } catch (_) {
+      } on Object catch (_) {
         // Skip unparseable entries — they remain in place under their old key.
       }
     }
@@ -261,7 +261,7 @@ class SecureAuthProfileStore implements AuthProfileStore {
     try {
       final m = jsonDecode(raw) as Map<String, dynamic>;
       return _decodeSpec(m);
-    } catch (_) {
+    } on Object catch (_) {
       return null;
     }
   }

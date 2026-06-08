@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../application/main_view_provider.dart';
-import '../theme/app_palette.dart';
+import 'package:gitopen/application/main_view_provider.dart';
+import 'package:gitopen/ui/theme/app_palette.dart';
 
 /// Segmented toggle between the commit-graph view and the working-copy
 /// changes view. Lives at the top of the main panel area.
@@ -40,16 +40,16 @@ class ViewSelector extends ConsumerWidget {
 }
 
 class _SegmentButton extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final bool selected;
-  final VoidCallback onTap;
   const _SegmentButton({
     required this.label,
     required this.icon,
     required this.selected,
     required this.onTap,
   });
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
