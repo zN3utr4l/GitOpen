@@ -332,7 +332,7 @@ final class GitCliWriteOperations implements GitWriteOperations {
         _runner.executable,
         effectiveArgs,
         workingDirectory: cwd,
-        environment: helper.env.isEmpty ? null : helper.env,
+        environment: buildGitEnvironment(helper.env),
       );
       // Drain stdout so the process never blocks on a full pipe.
       unawaited(proc.stdout.drain<void>());
@@ -410,6 +410,7 @@ final class GitCliWriteOperations implements GitWriteOperations {
     final result = await Process.run(
       _runner.executable, args,
       workingDirectory: r.path,
+      environment: buildGitEnvironment(),
       stdoutEncoding: utf8,
       stderrEncoding: utf8,
     );
@@ -479,6 +480,7 @@ final class GitCliWriteOperations implements GitWriteOperations {
         ref,
       ],
       workingDirectory: r.path,
+      environment: buildGitEnvironment(),
       stdoutEncoding: utf8,
       stderrEncoding: utf8,
     );
@@ -504,6 +506,7 @@ final class GitCliWriteOperations implements GitWriteOperations {
     final result = await Process.run(
       _runner.executable, args,
       workingDirectory: r.path,
+      environment: buildGitEnvironment(),
       stdoutEncoding: utf8,
       stderrEncoding: utf8,
     );
@@ -560,6 +563,7 @@ final class GitCliWriteOperations implements GitWriteOperations {
     final result = await Process.run(
       _runner.executable, ['cherry-pick', sha.value],
       workingDirectory: r.path,
+      environment: buildGitEnvironment(),
       stdoutEncoding: utf8,
       stderrEncoding: utf8,
     );
@@ -604,6 +608,7 @@ final class GitCliWriteOperations implements GitWriteOperations {
     final result = await Process.run(
       _runner.executable, ['revert', '--no-edit', sha.value],
       workingDirectory: r.path,
+      environment: buildGitEnvironment(),
       stdoutEncoding: utf8,
       stderrEncoding: utf8,
     );

@@ -4,6 +4,19 @@ import 'dart:io';
 
 import '../logging/app_logger.dart';
 
+/// Locale forced on every git subprocess so stdout/stderr messages are
+/// always parseable English, regardless of the host system locale. The
+/// error classifier matches English substrings, so this keeps it
+/// deterministic on non-English machines.
+const Map<String, String> kGitLocaleEnv = {'LC_ALL': 'C', 'LANG': 'C'};
+
+/// Merges caller-supplied [extra] env (e.g. credential-helper vars) with
+/// the forced C locale. Locale keys are applied last so they always win.
+Map<String, String> buildGitEnvironment([
+  Map<String, String> extra = const {},
+]) =>
+    {...extra, ...kGitLocaleEnv};
+
 final class GitProcessException implements Exception {
   final List<String> args;
   final int exitCode;
@@ -35,6 +48,7 @@ class GitProcessRunner {
       executable,
       args,
       workingDirectory: workingDir,
+      environment: buildGitEnvironment(),
       stdoutEncoding: utf8,
       stderrEncoding: utf8,
     );
@@ -49,8 +63,8 @@ class GitProcessRunner {
 
   Future<String> runWithStdin(
       String workingDir, List<String> args, String input) async {
-    final proc =
-        await Process.start(executable, args, workingDirectory: workingDir);
+    final proc = await Process.start(executable, args,
+        workingDirectory: workingDir, environment: buildGitEnvironment());
     proc.stdin.add(utf8.encode(input));
     await proc.stdin.close();
     final outBuf = StringBuffer();
@@ -66,7 +80,7 @@ class GitProcessRunner {
 
   Stream<String> streamLines(String workingDir, List<String> args) async* {
     final p = await Process.start(executable, args,
-        workingDirectory: workingDir);
+        workingDirectory: workingDir, environment: buildGitEnvironment());
     final stdoutLines =
         p.stdout.transform(utf8.decoder).transform(const LineSplitter());
     final stderrBuf = StringBuffer();
