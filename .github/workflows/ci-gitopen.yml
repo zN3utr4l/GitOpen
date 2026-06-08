@@ -11,6 +11,8 @@ concurrency:
 
 permissions:
   contents: read
+  checks: write
+  pull-requests: write
 
 jobs:
   build-and-test:
@@ -53,5 +55,53 @@ jobs:
       - name: Analyze
         run: flutter analyze
 
+      # `--machine` emits a JSON event stream (consumed by the test reporter);
+      # `--coverage` writes coverage/lcov.info. Run under bash on every OS so the
+      # redirect produces UTF-8 (pwsh `>` would emit UTF-16 and break parsing).
       - name: Test
-        run: flutter test
+        shell: bash
+        run: flutter test --machine --coverage > test-results.json
+
+      - name: Publish test results
+        uses: dorny/test-reporter@a43b3a5f7366b97d083190328d2c652e1a8b6aa2 # v3.0.0
+        if: always()
+        with:
+          name: 'GitOpen Tests (${{ matrix.os }})'
+          path: 'test-results.json'
+          reporter: 'flutter-json'
+
+      # Coverage tooling below runs on Linux only: CodeCoverageSummary is a
+      # Docker action (Linux runners) and one coverage report per PR is enough.
+      - name: Convert coverage to Cobertura
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          pip install lcov_cobertura
+          lcov_cobertura coverage/lcov.info -o coverage/cobertura.xml
+
+      - name: Code coverage summary
+        if: matrix.os == 'ubuntu-latest'
+        uses: irongut/CodeCoverageSummary@51cc3a756ddcd398d447c044c02cb6aa83fdae95 # v1.3.0
+        with:
+          filename: 'coverage/cobertura.xml'
+          badge: true
+          fail_below_min: false
+          format: 'markdown'
+          hide_branch_rate: false
+          hide_complexity: true
+          indicators: true
+          output: 'both'
+          # Thresholds: <good below>/<acceptable below>. Informational only for
+          # now — set fail_below_min=true + thresholds='70 85' once a baseline
+          # is established.
+          thresholds: '50 75'
+
+      - name: Add coverage comment to PR
+        if: matrix.os == 'ubuntu-latest' && github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0 # v3.0.4
+        with:
+          recreate: true
+          path: code-coverage-results.md
+
+      - name: Check outdated packages
+        continue-on-error: true
+        run: flutter pub outdated
