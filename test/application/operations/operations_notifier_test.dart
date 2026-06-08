@@ -8,13 +8,13 @@ void main() {
   test('start + finishSuccess transitions state and persists', () async {
     final db = newInMemoryDb();
     final notifier = OperationsNotifier(ActivityLogRepository(db));
-    await Future.delayed(const Duration(milliseconds: 50)); // let hydrate
+    await Future<void>.delayed(const Duration(milliseconds: 50)); // hydrate
     final id = notifier.start(OpKind.fetch, 'Fetching origin');
     expect(notifier.state, hasLength(1));
     expect(notifier.state.first.status, OperationStatus.running);
     notifier.finishSuccess(id);
     expect(notifier.state.first.status, OperationStatus.success);
-    await Future.delayed(const Duration(milliseconds: 50)); // let upsert complete
+    await Future<void>.delayed(const Duration(milliseconds: 50)); // upsert
     await db.close();
   });
 }

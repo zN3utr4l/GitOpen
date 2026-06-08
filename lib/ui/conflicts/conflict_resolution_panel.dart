@@ -2,14 +2,15 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gitopen/application/git/repo_state_provider.dart';
+import 'package:gitopen/application/providers.dart';
+import 'package:gitopen/domain/repositories/repo_location.dart';
+import 'package:gitopen/domain/status/working_file_entry.dart';
+import 'package:gitopen/ui/theme/app_palette.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../application/git/repo_state_provider.dart';
-import '../../application/providers.dart';
-import '../../domain/repositories/repo_location.dart';
-import '../../domain/status/working_file_entry.dart';
-import '../theme/app_palette.dart';
 
-final _conflictsProvider =
+final AutoDisposeFutureProviderFamily<List<String>, RepoLocation>
+    _conflictsProvider =
     FutureProvider.family.autoDispose<List<String>, RepoLocation>(
         (ref, repo) async {
   final git = ref.watch(gitReadOperationsProvider);
@@ -21,15 +22,15 @@ final _conflictsProvider =
 });
 
 class ConflictResolutionPanel extends ConsumerWidget {
+  const ConflictResolutionPanel({required this.repo, super.key});
   final RepoLocation repo;
-  const ConflictResolutionPanel({super.key, required this.repo});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final opAsync = ref.watch(repoStateProvider(repo));
     final filesAsync = ref.watch(_conflictsProvider(repo));
     final palette = AppPalette.of(context);
-    return Container(
+    return ColoredBox(
       color: palette.bg1,
       child: opAsync.when(
         loading: () => const SizedBox.shrink(),
@@ -80,7 +81,8 @@ class ConflictResolutionPanel extends ConsumerWidget {
                           trailing:
                               Row(mainAxisSize: MainAxisSize.min, children: [
                             TextButton(
-                              onPressed: () => _openInEditor(ref, repo.path, path),
+                              onPressed: () =>
+                                  _openInEditor(ref, repo.path, path),
                               child: const Text('Open'),
                             ),
                             TextButton(
@@ -120,7 +122,11 @@ class ConflictResolutionPanel extends ConsumerWidget {
     );
   }
 
-  Future<void> _openInEditor(WidgetRef ref, String repoPath, String filePath) async {
+  Future<void> _openInEditor(
+    WidgetRef ref,
+    String repoPath,
+    String filePath,
+  ) async {
     final settingsPath = ref.read(appSettingsProvider).externalEditorPath;
     if (settingsPath != null && settingsPath.isNotEmpty) {
       final fullPath = '$repoPath/$filePath';

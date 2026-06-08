@@ -1,23 +1,22 @@
 import 'package:flutter/material.dart';
-import '../theme/app_palette.dart';
-import 'ref_decoration.dart';
+import 'package:gitopen/ui/commit_graph/ref_decoration.dart';
+import 'package:gitopen/ui/theme/app_palette.dart';
 
 /// Fork-style ref pill. Renders as a single pill split into two halves
 /// when the local branch is synced with one or more remotes: left half
 /// shows the branch name (with ✓ if current), right half shows the
 /// remote name(s) prefixed with ⇄ to signal the sync.
 class RefPill extends StatelessWidget {
+  const RefPill({
+    required this.decoration, super.key,
+    this.onTap,
+    this.onDoubleTap,
+  });
   final RefDecoration decoration;
   /// Invoked when the user single-clicks the pill.
   final VoidCallback? onTap;
   /// Invoked when the user double-clicks the pill (typically: checkout).
   final VoidCallback? onDoubleTap;
-  const RefPill({
-    super.key,
-    required this.decoration,
-    this.onTap,
-    this.onDoubleTap,
-  });
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +35,7 @@ class RefPill extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1.5),
         decoration: BoxDecoration(
           color: palette.bg,
-          border: Border.all(color: palette.border, width: 1),
+          border: Border.all(color: palette.border),
           borderRadius: BorderRadius.circular(4),
         ),
         child: localSide,
@@ -45,7 +44,7 @@ class RefPill extends StatelessWidget {
       pill = Container(
         decoration: BoxDecoration(
           color: palette.bg,
-          border: Border.all(color: palette.border, width: 1),
+          border: Border.all(color: palette.border),
           borderRadius: BorderRadius.circular(4),
         ),
         child: IntrinsicHeight(
@@ -53,7 +52,10 @@ class RefPill extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1.5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 7,
+                  vertical: 1.5,
+                ),
                 child: localSide,
               ),
               Container(
@@ -61,7 +63,10 @@ class RefPill extends StatelessWidget {
                 color: palette.border,
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1.5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 7,
+                  vertical: 1.5,
+                ),
                 color: palette.remoteTintBg,
                 child: _Section(
                   icon: Icon(Icons.sync_alt, size: 10, color: palette.remoteFg),
@@ -139,10 +144,10 @@ class RefPill extends StatelessWidget {
 }
 
 class _Section extends StatelessWidget {
+  const _Section({required this.icon, required this.label, required this.fg});
   final Widget icon;
   final String label;
   final Color fg;
-  const _Section({required this.icon, required this.label, required this.fg});
 
   @override
   Widget build(BuildContext context) {
@@ -166,11 +171,6 @@ class _Section extends StatelessWidget {
 }
 
 class _PillPalette {
-  final Color bg;
-  final Color border;
-  final Color fg;
-  final Color remoteTintBg;
-  final Color remoteFg;
   const _PillPalette({
     required this.bg,
     required this.border,
@@ -178,4 +178,9 @@ class _PillPalette {
     required this.remoteTintBg,
     required this.remoteFg,
   });
+  final Color bg;
+  final Color border;
+  final Color fg;
+  final Color remoteTintBg;
+  final Color remoteFg;
 }

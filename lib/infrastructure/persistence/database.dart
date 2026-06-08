@@ -1,16 +1,19 @@
 import 'dart:io';
+
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
-import 'tables/repositories_table.dart';
-import 'tables/settings_table.dart';
-import 'tables/activity_log_table.dart';
-import 'path_provider_helper.dart';
+import 'package:gitopen/infrastructure/persistence/path_provider_helper.dart';
+import 'package:gitopen/infrastructure/persistence/tables/activity_log_table.dart';
+import 'package:gitopen/infrastructure/persistence/tables/repositories_table.dart';
+import 'package:gitopen/infrastructure/persistence/tables/settings_table.dart';
 
 part 'database.g.dart';
 
 @DriftDatabase(tables: [Repositories, Settings, ActivityLog])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_open());
+  // A super parameter can't be used here because the positional `e` is also
+  // referenced by name in tests; keep the explicit forwarding constructor.
   // ignore: use_super_parameters
   AppDatabase.forTesting(QueryExecutor e) : super(e);
 

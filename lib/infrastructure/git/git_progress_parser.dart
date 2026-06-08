@@ -1,4 +1,4 @@
-import '../../application/git/git_progress.dart';
+import 'package:gitopen/application/git/git_progress.dart';
 
 class GitProgressParser {
   static final _regex = RegExp(r'^(?:remote:\s*)?(?<phase>[^:]+):\s+(?<pct>\d+)%');

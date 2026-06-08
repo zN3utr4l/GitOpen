@@ -1,13 +1,13 @@
 import 'dart:io';
 
-import '../../application/launcher/process_runner.dart';
+import 'package:gitopen/application/launcher/process_runner.dart';
 
 class SystemProcessRunner implements ProcessRunner {
   @override
   Future<ProcessProbeResult> probe(String command) async {
     final probe = Platform.isWindows ? 'where' : 'which';
     try {
-      final result = await Process.run(probe, [command], runInShell: false);
+      final result = await Process.run(probe, [command]);
       if (result.exitCode != 0) return const ProcessProbeResult(false, null);
       final out = (result.stdout as String).trim();
       if (out.isEmpty) return const ProcessProbeResult(false, null);

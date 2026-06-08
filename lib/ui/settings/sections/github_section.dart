@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gitopen/application/providers.dart';
+import 'package:gitopen/ui/dialogs/app_dialog.dart';
+import 'package:gitopen/ui/settings/settings_widgets.dart';
+import 'package:gitopen/ui/theme/app_palette.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../../application/providers.dart';
-import '../../dialogs/app_dialog.dart';
-import '../../theme/app_palette.dart';
-import '../settings_widgets.dart';
 
 class GitHubSection extends ConsumerStatefulWidget {
   const GitHubSection({super.key});

@@ -1,10 +1,13 @@
-import '../../domain/commits/commit_sha.dart';
+import 'package:gitopen/domain/commits/commit_sha.dart';
 
 /// Selects how a merge is performed.
-/// - [defaultStrategy]: fast-forward if possible, otherwise create a merge commit.
+/// - [defaultStrategy]: fast-forward if possible, otherwise create a merge
+///   commit.
 /// - [noFF]: always create a merge commit (`--no-ff`).
-/// - [squash]: collapse all changes into a single, uncommitted index update (`--squash`).
-/// - [noCommit]: prepare the merge but leave the commit to the user (`--no-commit`).
+/// - [squash]: collapse all changes into a single, uncommitted index update
+///   (`--squash`).
+/// - [noCommit]: prepare the merge but leave the commit to the user
+///   (`--no-commit`).
 enum MergeStrategy { defaultStrategy, noFF, squash, noCommit }
 
 /// Result of a dry-run merge check (`git merge-tree`).
@@ -17,8 +20,8 @@ final class MergePreviewClean extends MergePreview {
 }
 
 final class MergePreviewConflicts extends MergePreview {
-  final List<String> conflictedPaths;
   const MergePreviewConflicts(this.conflictedPaths);
+  final List<String> conflictedPaths;
 }
 
 sealed class MergeOutcome {
@@ -26,13 +29,13 @@ sealed class MergeOutcome {
 }
 
 final class MergeFastForward extends MergeOutcome {
-  final CommitSha newHead;
   const MergeFastForward(this.newHead);
+  final CommitSha newHead;
 }
 
 final class MergeMerged extends MergeOutcome {
-  final CommitSha mergeCommit;
   const MergeMerged(this.mergeCommit);
+  final CommitSha mergeCommit;
 }
 
 /// The working tree changed but no commit was created — produced by `--squash`
@@ -46,8 +49,8 @@ final class MergeUpToDate extends MergeOutcome {
 }
 
 final class MergeConflict extends MergeOutcome {
-  final List<String> conflictedPaths;
   const MergeConflict(this.conflictedPaths);
+  final List<String> conflictedPaths;
 }
 
 sealed class CherryPickOutcome {
@@ -55,13 +58,13 @@ sealed class CherryPickOutcome {
 }
 
 final class CherryPickApplied extends CherryPickOutcome {
-  final CommitSha newCommit;
   const CherryPickApplied(this.newCommit);
+  final CommitSha newCommit;
 }
 
 final class CherryPickConflict extends CherryPickOutcome {
-  final List<String> conflictedPaths;
   const CherryPickConflict(this.conflictedPaths);
+  final List<String> conflictedPaths;
 }
 
 sealed class RevertOutcome {
@@ -69,13 +72,13 @@ sealed class RevertOutcome {
 }
 
 final class RevertApplied extends RevertOutcome {
-  final CommitSha newCommit;
   const RevertApplied(this.newCommit);
+  final CommitSha newCommit;
 }
 
 final class RevertConflict extends RevertOutcome {
-  final List<String> conflictedPaths;
   const RevertConflict(this.conflictedPaths);
+  final List<String> conflictedPaths;
 }
 
 sealed class RebaseOutcome {
@@ -83,8 +86,8 @@ sealed class RebaseOutcome {
 }
 
 final class RebaseApplied extends RebaseOutcome {
-  final CommitSha newHead;
   const RebaseApplied(this.newHead);
+  final CommitSha newHead;
 }
 
 final class RebaseUpToDate extends RebaseOutcome {
@@ -92,6 +95,6 @@ final class RebaseUpToDate extends RebaseOutcome {
 }
 
 final class RebaseConflict extends RebaseOutcome {
-  final List<String> conflictedPaths;
   const RebaseConflict(this.conflictedPaths);
+  final List<String> conflictedPaths;
 }

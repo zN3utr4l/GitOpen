@@ -1,11 +1,38 @@
 import 'dart:io';
 import 'package:equatable/equatable.dart';
-import '../../domain/repositories/repo_location.dart';
+import 'package:gitopen/domain/repositories/repo_location.dart';
 
-enum OpKind { fetch, pull, push, clone, commit, merge, cherryPick, stash, branch, reset, other }
+enum OpKind {
+  fetch,
+  pull,
+  push,
+  clone,
+  commit,
+  merge,
+  cherryPick,
+  stash,
+  branch,
+  reset,
+  other,
+}
+
 enum OperationStatus { pending, running, success, failed, cancelled }
 
 class RunningOperation extends Equatable {
+
+  const RunningOperation({
+    required this.id,
+    required this.kind,
+    required this.label,
+    required this.startedAt, this.repo,
+    this.status = OperationStatus.pending,
+    this.progress,
+    this.phase = '',
+    this.stderrTail = const [],
+    this.finishedAt,
+    this.process,
+    this.errorMessage,
+  });
   final String id;
   final OpKind kind;
   final String label;
@@ -18,21 +45,6 @@ class RunningOperation extends Equatable {
   final DateTime? finishedAt;
   final Process? process;
   final String? errorMessage;
-
-  const RunningOperation({
-    required this.id,
-    required this.kind,
-    required this.label,
-    this.repo,
-    this.status = OperationStatus.pending,
-    this.progress,
-    this.phase = '',
-    this.stderrTail = const [],
-    required this.startedAt,
-    this.finishedAt,
-    this.process,
-    this.errorMessage,
-  });
 
   RunningOperation copyWith({
     OperationStatus? status,

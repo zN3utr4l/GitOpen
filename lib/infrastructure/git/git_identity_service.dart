@@ -1,11 +1,11 @@
-import '../../domain/repositories/repo_location.dart';
-import 'git_process_runner.dart';
+import 'package:gitopen/domain/repositories/repo_location.dart';
+import 'package:gitopen/infrastructure/git/git_process_runner.dart';
 
 /// Reads and writes the per-repo `user.name` / `user.email` config.
 class GitIdentityService {
-  final GitProcessRunner _runner;
   GitIdentityService({GitProcessRunner? runner})
       : _runner = runner ?? GitProcessRunner();
+  final GitProcessRunner _runner;
 
   /// Returns the local (per-repo) identity, or null for either field if
   /// it has not been set in the repo's own config.
@@ -19,9 +19,9 @@ class GitIdentityService {
   /// local overrides global, global overrides nothing.
   Future<({String? name, String? email})> readEffective(
       RepoLocation repo) async {
-    final name = await _readKey(repo, 'user.name', global: false) ??
+    final name = await _readKey(repo, 'user.name') ??
         await _readKey(repo, 'user.name', global: true);
-    final email = await _readKey(repo, 'user.email', global: false) ??
+    final email = await _readKey(repo, 'user.email') ??
         await _readKey(repo, 'user.email', global: true);
     return (name: name, email: email);
   }

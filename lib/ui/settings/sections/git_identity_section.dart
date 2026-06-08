@@ -1,19 +1,23 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../application/active_workspace_provider.dart';
-import '../../../application/git_identity/git_identity.dart';
-import '../../../application/providers.dart';
-import '../../../domain/repositories/repo_location.dart';
-import '../../common/author_avatar.dart';
-import '../../dialogs/app_dialog.dart';
-import '../../theme/app_palette.dart';
-import '../settings_widgets.dart';
+import 'package:gitopen/application/active_workspace_provider.dart';
+import 'package:gitopen/application/git_identity/git_identity.dart';
+import 'package:gitopen/application/providers.dart';
+import 'package:gitopen/domain/repositories/repo_location.dart';
+import 'package:gitopen/ui/common/author_avatar.dart';
+import 'package:gitopen/ui/dialogs/app_dialog.dart';
+import 'package:gitopen/ui/settings/settings_widgets.dart';
+import 'package:gitopen/ui/theme/app_palette.dart';
 
-final _activeRepoIdentityProvider = FutureProvider.autoDispose
-    .family<({String? name, String? email}), RepoLocation>((ref, repo) async {
-  return ref.watch(gitIdentityServiceProvider).readEffective(repo);
-});
+final AutoDisposeFutureProviderFamily<({String? email, String? name}),
+        RepoLocation> _activeRepoIdentityProvider =
+    FutureProvider.autoDispose
+        .family<({String? name, String? email}), RepoLocation>(
+  (ref, repo) async {
+    return ref.watch(gitIdentityServiceProvider).readEffective(repo);
+  },
+);
 
 class GitIdentitySection extends ConsumerWidget {
   const GitIdentitySection({super.key});
@@ -36,7 +40,8 @@ class GitIdentitySection extends ConsumerWidget {
           const SettingsPageHeader(
             title: 'Git Identity',
             description:
-                'Author name and email used for new commits. Each repository can override the global default.',
+                'Author name and email used for new commits. Each repository '
+                'can override the global default.',
           ),
           const SettingsSectionTitle('Current repository'),
           if (activeRepo == null)
@@ -113,8 +118,8 @@ class _NoRepoHint extends StatelessWidget {
 }
 
 class _CurrentIdentityCard extends ConsumerWidget {
-  final RepoLocation repo;
   const _CurrentIdentityCard({required this.repo});
+  final RepoLocation repo;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -138,7 +143,6 @@ class _CurrentIdentityCard extends ConsumerWidget {
           final name = id.name ?? '(not set)';
           final email = id.email ?? '(not set)';
           return Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               AuthorAvatar(name: name, email: email, size: 36),
               const SizedBox(width: 14),
@@ -175,16 +179,16 @@ class _CurrentIdentityCard extends ConsumerWidget {
 }
 
 class _ProfileTile extends ConsumerWidget {
-  final int index;
-  final GitIdentity identity;
-  final RepoLocation? activeRepo;
-  final bool isLast;
   const _ProfileTile({
     required this.index,
     required this.identity,
     required this.activeRepo,
     required this.isLast,
   });
+  final int index;
+  final GitIdentity identity;
+  final RepoLocation? activeRepo;
+  final bool isLast;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -247,7 +251,7 @@ class _ProfileTile extends ConsumerWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Applied "${identity.label}" to this repo')),
       );
-    } catch (e) {
+    } on Object catch (e) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -341,16 +345,16 @@ class _AddProfileFormState extends ConsumerState<_AddProfileForm> {
 }
 
 class _Field extends StatelessWidget {
-  final String label;
-  final String hint;
-  final TextEditingController controller;
-  final VoidCallback onChanged;
   const _Field({
     required this.label,
     required this.hint,
     required this.controller,
     required this.onChanged,
   });
+  final String label;
+  final String hint;
+  final TextEditingController controller;
+  final VoidCallback onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -358,12 +362,13 @@ class _Field extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           SizedBox(
             width: 80,
-            child:
-                Text(label, style: TextStyle(color: palette.fg1, fontSize: 12.5)),
+            child: Text(
+              label,
+              style: TextStyle(color: palette.fg1, fontSize: 12.5),
+            ),
           ),
           Expanded(
             child: TextField(

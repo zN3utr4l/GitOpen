@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../application/providers.dart';
-import '../../domain/commits/commit_sha.dart';
-import '../../domain/repositories/repo_location.dart';
-import '../theme/app_palette.dart';
-import 'app_dialog.dart';
+import 'package:gitopen/application/providers.dart';
+import 'package:gitopen/domain/commits/commit_sha.dart';
+import 'package:gitopen/domain/repositories/repo_location.dart';
+import 'package:gitopen/ui/dialogs/app_dialog.dart';
+import 'package:gitopen/ui/theme/app_palette.dart';
 
 class BranchCreateDialog extends ConsumerStatefulWidget {
+  const BranchCreateDialog({required this.repo, super.key, this.at});
   final RepoLocation repo;
   final CommitSha? at;
-  const BranchCreateDialog({super.key, required this.repo, this.at});
 
   static Future<bool> show(BuildContext context, RepoLocation r,
       {CommitSha? at}) async {

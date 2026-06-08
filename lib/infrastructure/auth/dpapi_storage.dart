@@ -27,8 +27,8 @@ import 'package:win32/win32.dart';
 class DpapiStorage {
   DpapiStorage._();
 
-  static DpapiStorage? _instance;
-  static DpapiStorage get instance => _instance ??= DpapiStorage._();
+  /// Shared lazily-created singleton instance.
+  static final DpapiStorage instance = DpapiStorage._();
 
   /// Resolved once and cached.
   Directory? _credDir;
@@ -36,7 +36,9 @@ class DpapiStorage {
   Future<Directory> _getCredDir() async {
     if (_credDir != null) return _credDir!;
     final appData = await getApplicationSupportDirectory();
-    final dir = Directory('${appData.path}${Platform.pathSeparator}credentials');
+    final dir = Directory(
+      '${appData.path}${Platform.pathSeparator}credentials',
+    );
     if (!dir.existsSync()) dir.createSync(recursive: true);
     _credDir = dir;
     return dir;
@@ -62,7 +64,7 @@ class DpapiStorage {
       final plain = _dpApiDecrypt(encrypted);
       if (plain == null) return null;
       return utf8.decode(plain);
-    } catch (_) {
+    } on Object catch (_) {
       return null;
     }
   }
@@ -107,7 +109,7 @@ class DpapiStorage {
   ///
   /// Returns the ciphertext blob as [Uint8List].
   Uint8List _dpApiEncrypt(Uint8List plain) {
-    return using((Arena arena) {
+    return using((arena) {
       // Input DATA_BLOB
       final inBlob = arena<CRYPT_INTEGER_BLOB>();
       final inBytes = arena<ffi.Uint8>(plain.length);
@@ -154,7 +156,7 @@ class DpapiStorage {
   ///
   /// Returns `null` if decryption fails (e.g. wrong user / corrupted blob).
   Uint8List? _dpApiDecrypt(Uint8List cipher) {
-    return using((Arena arena) {
+    return using((arena) {
       final inBlob = arena<CRYPT_INTEGER_BLOB>();
       final inBytes = arena<ffi.Uint8>(cipher.length);
       for (var i = 0; i < cipher.length; i++) {

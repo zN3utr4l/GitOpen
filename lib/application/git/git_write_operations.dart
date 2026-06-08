@@ -1,10 +1,10 @@
-import '../../domain/commits/commit_sha.dart';
-import '../../domain/repositories/repo_location.dart';
-import 'auth_spec.dart';
-import 'commit_request.dart';
-import 'git_progress.dart';
-import 'git_result.dart';
-import 'merge_outcome.dart';
+import 'package:gitopen/application/git/auth_spec.dart';
+import 'package:gitopen/application/git/commit_request.dart';
+import 'package:gitopen/application/git/git_progress.dart';
+import 'package:gitopen/application/git/git_result.dart';
+import 'package:gitopen/application/git/merge_outcome.dart';
+import 'package:gitopen/domain/commits/commit_sha.dart';
+import 'package:gitopen/domain/repositories/repo_location.dart';
 
 enum PullStrategy { ffOnly, merge, rebase }
 enum ResetMode { soft, mixed, hard }
@@ -24,27 +24,62 @@ abstract interface class GitWriteOperations {
 
   Future<GitResult<void>> createBranch(RepoLocation r, String name,
       {CommitSha? at, bool checkout = false});
-  Future<GitResult<void>> checkout(RepoLocation r, String ref, {bool force = false});
+  Future<GitResult<void>> checkout(
+    RepoLocation r,
+    String ref, {
+    bool force = false,
+  });
   Future<GitResult<void>> deleteBranch(RepoLocation r, String name,
       {bool force = false, bool remote = false});
-  Future<GitResult<void>> renameBranch(RepoLocation r, String oldName, String newName);
-  Future<GitResult<void>> setUpstream(RepoLocation r, String branch, String upstream);
+  Future<GitResult<void>> renameBranch(
+    RepoLocation r,
+    String oldName,
+    String newName,
+  );
+  Future<GitResult<void>> setUpstream(
+    RepoLocation r,
+    String branch,
+    String upstream,
+  );
 
   Future<GitResult<void>> addRemote(RepoLocation r, String name, String url);
   Future<GitResult<void>> removeRemote(RepoLocation r, String name);
-  Future<GitResult<void>> renameRemote(RepoLocation r, String oldName, String newName);
+  Future<GitResult<void>> renameRemote(
+    RepoLocation r,
+    String oldName,
+    String newName,
+  );
   Future<GitResult<void>> setRemoteUrl(RepoLocation r, String name, String url);
 
   Future<GitResult<void>> createTag(RepoLocation r, String name,
       {CommitSha? at, String? message});
   Future<GitResult<void>> deleteTag(RepoLocation r, String name);
 
-  Stream<GitProgress> fetch(RepoLocation r, {String? remote, bool all = false, AuthSpec? auth});
-  Stream<GitProgress> pull(RepoLocation r, PullStrategy strategy, {AuthSpec? auth});
-  Stream<GitProgress> push(RepoLocation r,
-      {String? remote, String? branch, bool forceWithLease = false, bool pushTags = false, AuthSpec? auth});
+  Stream<GitProgress> fetch(
+    RepoLocation r, {
+    String? remote,
+    bool all = false,
+    AuthSpec? auth,
+  });
+  Stream<GitProgress> pull(
+    RepoLocation r,
+    PullStrategy strategy, {
+    AuthSpec? auth,
+  });
+  Stream<GitProgress> push(
+    RepoLocation r, {
+    String? remote,
+    String? branch,
+    bool forceWithLease = false,
+    bool pushTags = false,
+    AuthSpec? auth,
+  });
 
-  Future<GitResult<void>> stashSave(RepoLocation r, String message, {bool includeUntracked = false});
+  Future<GitResult<void>> stashSave(
+    RepoLocation r,
+    String message, {
+    bool includeUntracked = false,
+  });
   Future<GitResult<void>> stashPop(RepoLocation r, int index);
   Future<GitResult<void>> stashApply(RepoLocation r, int index);
   Future<GitResult<void>> stashDrop(RepoLocation r, int index);
@@ -58,7 +93,10 @@ abstract interface class GitWriteOperations {
   /// Implemented with `git merge-tree` so the working tree is not touched.
   Future<GitResult<MergePreview>> previewMerge(RepoLocation r, String ref);
 
-  Future<GitResult<CherryPickOutcome>> cherryPick(RepoLocation r, CommitSha sha);
+  Future<GitResult<CherryPickOutcome>> cherryPick(
+    RepoLocation r,
+    CommitSha sha,
+  );
   Future<GitResult<void>> cherryPickAbort(RepoLocation r);
   Future<GitResult<CommitSha>> cherryPickContinue(RepoLocation r);
 

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../application/providers.dart';
-import '../../dialogs/app_dialog.dart';
-import '../../theme/app_palette.dart';
-import '../key_combination_capture.dart';
-import '../settings_widgets.dart';
+import 'package:gitopen/application/providers.dart';
+import 'package:gitopen/ui/dialogs/app_dialog.dart';
+import 'package:gitopen/ui/settings/key_combination_capture.dart';
+import 'package:gitopen/ui/settings/settings_widgets.dart';
+import 'package:gitopen/ui/theme/app_palette.dart';
 
 class KeybindingsSection extends ConsumerWidget {
   const KeybindingsSection({super.key});
@@ -52,16 +52,16 @@ class KeybindingsSection extends ConsumerWidget {
 }
 
 class _KeybindingRow extends ConsumerWidget {
-  final String actionId;
-  final String label;
-  final LogicalKeySet? keySet;
-  final bool isLast;
   const _KeybindingRow({
     required this.actionId,
     required this.label,
     required this.keySet,
     required this.isLast,
   });
+  final String actionId;
+  final String label;
+  final LogicalKeySet? keySet;
+  final bool isLast;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

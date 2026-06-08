@@ -1,10 +1,19 @@
 import 'package:flutter/material.dart';
-import '../theme/app_palette.dart';
+import 'package:gitopen/ui/theme/app_palette.dart';
 
 /// Palette-aware modal frame used across the app. Replaces bare
 /// [AlertDialog]/[Dialog] usages so every modal has matching chrome —
 /// header band, separator, padded body, and a footer action row.
 class AppDialog extends StatelessWidget {
+
+  const AppDialog({
+    required this.title, required this.content, super.key,
+    this.actions = const [],
+    this.subtitle,
+    this.width = 460,
+    this.contentPadding = const EdgeInsets.fromLTRB(20, 16, 20, 16),
+    this.busy = false,
+  });
   final String title;
   final String? subtitle;
   final Widget content;
@@ -12,17 +21,6 @@ class AppDialog extends StatelessWidget {
   final double width;
   final EdgeInsetsGeometry contentPadding;
   final bool busy;
-
-  const AppDialog({
-    super.key,
-    required this.title,
-    required this.content,
-    this.actions = const [],
-    this.subtitle,
-    this.width = 460,
-    this.contentPadding = const EdgeInsets.fromLTRB(20, 16, 20, 16),
-    this.busy = false,
-  });
 
   @override
   Widget build(BuildContext context) {
@@ -107,44 +105,36 @@ enum AppButtonKind { primary, secondary, danger }
 /// Button that adapts to the app palette and three semantic kinds.
 /// Use as the action in [AppDialog].
 class AppButton extends StatefulWidget {
-  final String label;
-  final VoidCallback? onPressed;
-  final AppButtonKind kind;
-  final IconData? icon;
-  final bool autofocus;
 
   const AppButton({
-    super.key,
-    required this.label,
-    required this.onPressed,
+    required this.label, required this.onPressed, super.key,
     this.kind = AppButtonKind.secondary,
     this.icon,
     this.autofocus = false,
   });
 
   const AppButton.primary({
-    super.key,
-    required this.label,
-    required this.onPressed,
+    required this.label, required this.onPressed, super.key,
     this.icon,
     this.autofocus = false,
   }) : kind = AppButtonKind.primary;
 
   const AppButton.secondary({
-    super.key,
-    required this.label,
-    required this.onPressed,
+    required this.label, required this.onPressed, super.key,
     this.icon,
     this.autofocus = false,
   }) : kind = AppButtonKind.secondary;
 
   const AppButton.danger({
-    super.key,
-    required this.label,
-    required this.onPressed,
+    required this.label, required this.onPressed, super.key,
     this.icon,
     this.autofocus = false,
   }) : kind = AppButtonKind.danger;
+  final String label;
+  final VoidCallback? onPressed;
+  final AppButtonKind kind;
+  final IconData? icon;
+  final bool autofocus;
 
   @override
   State<AppButton> createState() => _AppButtonState();

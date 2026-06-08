@@ -1,26 +1,25 @@
 import 'package:flutter/material.dart';
-import '../theme/app_palette.dart';
-import 'app_dialog.dart';
+import 'package:gitopen/ui/dialogs/app_dialog.dart';
+import 'package:gitopen/ui/theme/app_palette.dart';
 
 enum RemoteDialogMode { add, editUrl, rename }
 
 class RemoteDialogResult {
+  const RemoteDialogResult({required this.name, required this.url});
   final String name;
   final String url;
-  const RemoteDialogResult({required this.name, required this.url});
 }
 
 class RemoteDialog extends StatefulWidget {
-  final RemoteDialogMode mode;
-  final String? initialName;
-  final String? initialUrl;
 
   const RemoteDialog({
-    super.key,
-    required this.mode,
+    required this.mode, super.key,
     this.initialName,
     this.initialUrl,
   });
+  final RemoteDialogMode mode;
+  final String? initialName;
+  final String? initialUrl;
 
   static Future<RemoteDialogResult?> showAdd(BuildContext context) =>
       showDialog<RemoteDialogResult>(
@@ -113,7 +112,6 @@ class _RemoteDialogState extends State<RemoteDialog> {
 
     return AppDialog(
       title: _title,
-      width: 460,
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,

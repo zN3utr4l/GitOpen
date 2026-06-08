@@ -1,13 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:gitopen/application/commit_graph/commit_node.dart';
+import 'package:gitopen/ui/commit_graph/lane_painter.dart';
+import 'package:gitopen/ui/commit_graph/ref_decoration.dart';
+import 'package:gitopen/ui/commit_graph/ref_pill.dart';
+import 'package:gitopen/ui/common/author_avatar.dart';
+import 'package:gitopen/ui/theme/app_palette.dart';
 import 'package:intl/intl.dart';
-import '../../application/commit_graph/commit_node.dart';
-import '../common/author_avatar.dart';
-import '../theme/app_palette.dart';
-import 'lane_painter.dart';
-import 'ref_decoration.dart';
-import 'ref_pill.dart';
 
 class CommitRow extends StatelessWidget {
+
+  const CommitRow({
+    required this.node,
+    required this.maxLane,
+    required this.refs,
+    required this.isSelected,
+    required this.onTap,
+    super.key,
+    this.onSecondaryTap,
+    this.onRefTap,
+    this.onRefDoubleTap,
+  });
   final CommitNode node;
   final int maxLane;
   final List<RefDecoration> refs;
@@ -20,18 +32,6 @@ class CommitRow extends StatelessWidget {
   final void Function(RefDecoration ref)? onRefTap;
   /// Called when the user double-clicks one of the ref pills.
   final void Function(RefDecoration ref)? onRefDoubleTap;
-
-  const CommitRow({
-    super.key,
-    required this.node,
-    required this.maxLane,
-    required this.refs,
-    required this.isSelected,
-    required this.onTap,
-    this.onSecondaryTap,
-    this.onRefTap,
-    this.onRefDoubleTap,
-  });
 
   static final _dateFmt = DateFormat('yyyy-MM-dd HH:mm');
 
@@ -92,8 +92,9 @@ class CommitRow extends StatelessWidget {
                               padding: const EdgeInsets.only(right: 4),
                               child: RefPill(
                                 decoration: r,
-                                onTap:
-                                    onRefTap == null ? null : () => onRefTap!(r),
+                                onTap: onRefTap == null
+                                    ? null
+                                    : () => onRefTap!(r),
                                 onDoubleTap: onRefDoubleTap == null ||
                                         r.isCurrent
                                     ? null
@@ -106,7 +107,10 @@ class CommitRow extends StatelessWidget {
                               node.commit.summary,
                               overflow: TextOverflow.ellipsis,
                               maxLines: 1,
-                              style: TextStyle(color: textColor, fontSize: 12.5),
+                              style: TextStyle(
+                                color: textColor,
+                                fontSize: 12.5,
+                              ),
                             ),
                           ),
                         ],

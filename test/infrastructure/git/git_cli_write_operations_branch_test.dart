@@ -1,9 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gitopen/application/git/git_result.dart';
 import 'package:gitopen/domain/repositories/repo_id.dart';
 import 'package:gitopen/domain/repositories/repo_location.dart';
 import 'package:gitopen/infrastructure/git/git_cli_write_operations.dart';
-import 'dart:io';
+
 import '../../_helpers/repo_fixture.dart';
 
 void main() {
@@ -15,8 +17,12 @@ void main() {
       try {
         final sut = GitCliWriteOperations();
         final res = await sut.createBranch(loc(f), 'feature/x');
-        expect(res, isA<GitSuccess>());
-        final out = await Process.run('git', ['branch', '--list'], workingDirectory: f.path);
+        expect(res, isA<GitSuccess<void>>());
+        final out = await Process.run(
+          'git',
+          ['branch', '--list'],
+          workingDirectory: f.path,
+        );
         expect(out.stdout.toString(), contains('feature/x'));
       } finally { await f.dispose(); }
     });
@@ -26,8 +32,12 @@ void main() {
       try {
         final sut = GitCliWriteOperations();
         final res = await sut.checkout(loc(f), 'feature');
-        expect(res, isA<GitSuccess>());
-        final out = await Process.run('git', ['rev-parse', '--abbrev-ref', 'HEAD'], workingDirectory: f.path);
+        expect(res, isA<GitSuccess<void>>());
+        final out = await Process.run(
+          'git',
+          ['rev-parse', '--abbrev-ref', 'HEAD'],
+          workingDirectory: f.path,
+        );
         expect(out.stdout.toString().trim(), 'feature');
       } finally { await f.dispose(); }
     });
@@ -38,7 +48,7 @@ void main() {
         final sut = GitCliWriteOperations();
         await sut.checkout(loc(f), 'master');
         final res = await sut.deleteBranch(loc(f), 'feature', force: true);
-        expect(res, isA<GitSuccess>());
+        expect(res, isA<GitSuccess<void>>());
       } finally { await f.dispose(); }
     });
 
@@ -46,8 +56,12 @@ void main() {
       final f = await RepoFixture.withBranches();
       try {
         final sut = GitCliWriteOperations();
-        final res = await sut.renameBranch(loc(f), 'feature', 'feature-renamed');
-        expect(res, isA<GitSuccess>());
+        final res = await sut.renameBranch(
+          loc(f),
+          'feature',
+          'feature-renamed',
+        );
+        expect(res, isA<GitSuccess<void>>());
       } finally { await f.dispose(); }
     });
   });

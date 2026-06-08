@@ -1,15 +1,10 @@
 import 'package:equatable/equatable.dart';
 
-import '../commits/commit_sha.dart';
+import 'package:gitopen/domain/commits/commit_sha.dart';
 
 enum FileTreeKind { blob, tree, submodule, symlink }
 
 final class FileTreeEntry extends Equatable {
-  final String name;
-  final String fullPath;
-  final FileTreeKind kind;
-  final int? sizeBytes;
-  final CommitSha? containingCommit;
 
   const FileTreeEntry({
     required this.name,
@@ -18,7 +13,13 @@ final class FileTreeEntry extends Equatable {
     this.sizeBytes,
     this.containingCommit,
   });
+  final String name;
+  final String fullPath;
+  final FileTreeKind kind;
+  final int? sizeBytes;
+  final CommitSha? containingCommit;
 
   @override
-  List<Object?> get props => [name, fullPath, kind, sizeBytes, containingCommit];
+  List<Object?> get props =>
+      [name, fullPath, kind, sizeBytes, containingCommit];
 }

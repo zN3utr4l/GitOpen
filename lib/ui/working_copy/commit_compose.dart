@@ -1,28 +1,33 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../application/active_workspace_provider.dart';
-import '../../application/git/commit_request.dart';
-import '../../application/git/git_result.dart';
-import '../../application/providers.dart';
-import '../../domain/commits/commit_sha.dart';
-import '../../domain/repositories/repo_location.dart';
-import '../common/author_avatar.dart';
-import '../dialogs/app_dialog.dart';
-import '../theme/app_palette.dart';
+import 'package:gitopen/application/active_workspace_provider.dart';
+import 'package:gitopen/application/git/commit_request.dart';
+import 'package:gitopen/application/git/git_result.dart';
+import 'package:gitopen/application/providers.dart';
+import 'package:gitopen/domain/commits/commit_sha.dart';
+import 'package:gitopen/domain/repositories/repo_location.dart';
+import 'package:gitopen/ui/common/author_avatar.dart';
+import 'package:gitopen/ui/dialogs/app_dialog.dart';
+import 'package:gitopen/ui/theme/app_palette.dart';
 
 class CommitCompose extends ConsumerStatefulWidget {
+  const CommitCompose({required this.repo, super.key});
   final RepoLocation repo;
-  const CommitCompose({super.key, required this.repo});
   @override
   ConsumerState<CommitCompose> createState() => _CommitComposeState();
 }
 
 /// Lookup of the effective author identity for the active repo — driving
 /// the small "Committing as …" header in the compose panel.
-final _composeIdentityProvider = FutureProvider.autoDispose
-    .family<({String? name, String? email}), RepoLocation>(
-        (ref, repo) => ref.read(gitIdentityServiceProvider).readEffective(repo));
+final AutoDisposeFutureProviderFamily<({String? email, String? name}),
+        RepoLocation> _composeIdentityProvider =
+    FutureProvider.autoDispose.family<({String? name, String? email}),
+            RepoLocation>(
+  (ref, repo) => ref.read(gitIdentityServiceProvider).readEffective(repo),
+);
 
 class _CommitComposeState extends ConsumerState<CommitCompose> {
   final _ctl = TextEditingController();
@@ -57,7 +62,7 @@ class _CommitComposeState extends ConsumerState<CommitCompose> {
     if (triggerCount != _lastTrigger) {
       _lastTrigger = triggerCount;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _commit();
+        if (mounted) unawaited(_commit());
       });
     }
 
@@ -153,9 +158,9 @@ class _CommitComposeState extends ConsumerState<CommitCompose> {
 }
 
 class _IdentityStrip extends StatelessWidget {
+  const _IdentityStrip({required this.identity, required this.amend});
   final ({String? name, String? email})? identity;
   final bool amend;
-  const _IdentityStrip({required this.identity, required this.amend});
 
   @override
   Widget build(BuildContext context) {
@@ -164,7 +169,7 @@ class _IdentityStrip extends StatelessWidget {
     final email = identity?.email ?? '';
     return Row(
       children: [
-        AuthorAvatar(name: name, email: email, size: 18),
+        AuthorAvatar(name: name, email: email),
         const SizedBox(width: 8),
         Expanded(
           child: RichText(
@@ -208,16 +213,16 @@ class _IdentityStrip extends StatelessWidget {
 }
 
 class _MessageField extends StatefulWidget {
-  final TextEditingController controller;
-  final FocusNode focusNode;
-  final VoidCallback? onSubmit;
-  final AppPalette palette;
   const _MessageField({
     required this.controller,
     required this.focusNode,
     required this.onSubmit,
     required this.palette,
   });
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final VoidCallback? onSubmit;
+  final AppPalette palette;
 
   @override
   State<_MessageField> createState() => _MessageFieldState();
@@ -303,9 +308,9 @@ class _SubmitIntent extends Intent {
 }
 
 class _SubjectMeter extends StatelessWidget {
+  const _SubjectMeter({required this.subject, required this.palette});
   final String subject;
   final AppPalette palette;
-  const _SubjectMeter({required this.subject, required this.palette});
 
   static const _good = 50;
   static const _max = 72;
@@ -356,16 +361,16 @@ class _SubjectMeter extends StatelessWidget {
 }
 
 class _OptionPill extends StatefulWidget {
-  final IconData icon;
-  final String label;
-  final bool active;
-  final VoidCallback onTap;
   const _OptionPill({
     required this.icon,
     required this.label,
     required this.active,
     required this.onTap,
   });
+  final IconData icon;
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
 
   @override
   State<_OptionPill> createState() => _OptionPillState();
@@ -426,16 +431,16 @@ class _OptionPillState extends State<_OptionPill> {
 }
 
 class _CommitButton extends StatelessWidget {
-  final bool busy;
-  final bool enabled;
-  final bool amend;
-  final VoidCallback onTap;
   const _CommitButton({
     required this.busy,
     required this.enabled,
     required this.amend,
     required this.onTap,
   });
+  final bool busy;
+  final bool enabled;
+  final bool amend;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {

@@ -1,28 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../infrastructure/logging/app_logger.dart';
-import '../../application/active_workspace_provider.dart';
-import '../../application/branch_visibility_provider.dart';
-import '../../application/main_view_provider.dart';
-import '../../application/providers.dart';
-import '../../application/scroll_request_provider.dart';
-import '../../domain/commits/commit_sha.dart';
-import '../../domain/refs/branch.dart';
-import '../../domain/refs/remote.dart';
-import '../../domain/refs/stash.dart';
-import '../../domain/refs/tag.dart';
-import '../../application/git/git_result.dart';
-import '../../application/git/merge_outcome.dart';
-import '../../domain/repositories/repo_location.dart';
-import '../../application/operations/running_operation.dart';
-import '../checkout/safe_checkout.dart';
-import '../common/app_context_menu.dart';
-import '../dialogs/app_dialog.dart';
-import '../dialogs/confirm_dialog.dart';
-import '../dialogs/merge_dialog.dart';
-import '../dialogs/remote_dialog.dart';
-import '../theme/app_palette.dart';
-import 'branch_tree.dart';
+import 'package:gitopen/application/active_workspace_provider.dart';
+import 'package:gitopen/application/branch_visibility_provider.dart';
+import 'package:gitopen/application/git/git_result.dart';
+import 'package:gitopen/application/git/merge_outcome.dart';
+import 'package:gitopen/application/main_view_provider.dart';
+import 'package:gitopen/application/operations/running_operation.dart';
+import 'package:gitopen/application/providers.dart';
+import 'package:gitopen/application/scroll_request_provider.dart';
+import 'package:gitopen/domain/commits/commit_sha.dart';
+import 'package:gitopen/domain/refs/branch.dart';
+import 'package:gitopen/domain/refs/remote.dart';
+import 'package:gitopen/domain/refs/stash.dart';
+import 'package:gitopen/domain/refs/tag.dart';
+import 'package:gitopen/domain/repositories/repo_location.dart';
+import 'package:gitopen/infrastructure/logging/app_logger.dart';
+import 'package:gitopen/ui/checkout/safe_checkout.dart';
+import 'package:gitopen/ui/common/app_context_menu.dart';
+import 'package:gitopen/ui/dialogs/app_dialog.dart';
+import 'package:gitopen/ui/dialogs/confirm_dialog.dart';
+import 'package:gitopen/ui/dialogs/merge_dialog.dart';
+import 'package:gitopen/ui/dialogs/remote_dialog.dart';
+import 'package:gitopen/ui/sidebar/branch_tree.dart';
+import 'package:gitopen/ui/theme/app_palette.dart';
 
 /// Selects [sha] in the graph and asks the graph panel to scroll it into
 /// view. Also switches the main view back to the graph if the user is
@@ -34,14 +34,14 @@ void _revealCommit(WidgetRef ref, CommitSha sha) {
 }
 
 class _SidebarData {
+  _SidebarData(this.branches, this.tags, this.remotes, this.stashes);
   final List<Branch> branches;
   final List<Tag> tags;
   final List<Remote> remotes;
   final List<Stash> stashes;
-  _SidebarData(this.branches, this.tags, this.remotes, this.stashes);
 }
 
-final _sidebarDataProvider =
+final FutureProviderFamily<_SidebarData, RepoLocation> _sidebarDataProvider =
     FutureProvider.family<_SidebarData, RepoLocation>((ref, repo) async {
   final git = ref.watch(gitReadOperationsProvider);
   appLog.i('sidebar: awaiting shared branches for ${repo.displayName}');
@@ -65,10 +65,7 @@ class Sidebar extends ConsumerWidget {
     final workspaces = ref.watch(workspaceManagerProvider);
     final activeWs = active == null
         ? null
-        : workspaces
-            .where((w) => w.location.id == active)
-            .cast<dynamic>()
-            .firstOrNull;
+        : workspaces.where((w) => w.location.id == active).firstOrNull;
 
     final palette = AppPalette.of(context);
     return Container(
@@ -86,9 +83,8 @@ class Sidebar extends ConsumerWidget {
               ),
             )
           : Consumer(builder: (context, ref, _) {
-              final repo = activeWs.location as RepoLocation;
-              final async =
-                  ref.watch(_sidebarDataProvider(repo));
+              final repo = activeWs.location;
+              final async = ref.watch(_sidebarDataProvider(repo));
               return async.when(
                 data: (data) => _SidebarContent(data: data, repo: repo),
                 loading: () =>
@@ -108,13 +104,14 @@ class Sidebar extends ConsumerWidget {
 }
 
 class _SidebarContent extends ConsumerWidget {
+  const _SidebarContent({required this.data, required this.repo});
   final _SidebarData data;
   final RepoLocation repo;
-  const _SidebarContent({required this.data, required this.repo});
 
   void _refreshSidebar(WidgetRef ref) {
-    ref.invalidate(_sidebarDataProvider(repo));
-    ref.invalidate(gitReadOperationsProvider);
+    ref
+      ..invalidate(_sidebarDataProvider(repo))
+      ..invalidate(gitReadOperationsProvider);
   }
 
   @override
@@ -155,7 +152,11 @@ class _SidebarContent extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     for (final t in data.tags)
-                      _TagRow(tag: t, repo: repo, onRefresh: () => _refreshSidebar(ref)),
+                      _TagRow(
+                        tag: t,
+                        repo: repo,
+                        onRefresh: () => _refreshSidebar(ref),
+                      ),
                   ],
                 ),
         ),
@@ -167,7 +168,11 @@ class _SidebarContent extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     for (final s in data.stashes)
-                      _StashRow(stash: s, repo: repo, onRefresh: () => _refreshSidebar(ref)),
+                      _StashRow(
+                        stash: s,
+                        repo: repo,
+                        onRefresh: () => _refreshSidebar(ref),
+                      ),
                   ],
                 ),
         ),
@@ -181,11 +186,15 @@ class _SidebarContent extends ConsumerWidget {
 // ---------------------------------------------------------------------------
 
 class _TagRow extends ConsumerWidget {
+
+  const _TagRow({
+    required this.tag,
+    required this.repo,
+    required this.onRefresh,
+  });
   final Tag tag;
   final RepoLocation repo;
   final VoidCallback onRefresh;
-
-  const _TagRow({required this.tag, required this.repo, required this.onRefresh});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -208,7 +217,10 @@ class _TagRow extends ConsumerWidget {
           child: Text(
             tag.name,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: AppPalette.of(context).fg1, fontSize: 12.5),
+            style: TextStyle(
+              color: AppPalette.of(context).fg1,
+              fontSize: 12.5,
+            ),
           ),
         ),
       ),
@@ -221,10 +233,19 @@ class _TagRow extends ConsumerWidget {
       context,
       globalPosition: globalPos,
       entries: const [
-        AppMenuItem(value: 'checkout', label: 'Checkout', icon: Icons.swap_horiz),
+        AppMenuItem(
+          value: 'checkout',
+          label: 'Checkout',
+          icon: Icons.swap_horiz,
+        ),
         AppMenuItem(value: 'push_tag', label: 'Push tag', icon: Icons.upload),
         AppMenuDivider(),
-        AppMenuItem(value: 'delete_tag', label: 'Delete tag', icon: Icons.delete_outline, danger: true),
+        AppMenuItem(
+          value: 'delete_tag',
+          label: 'Delete tag',
+          icon: Icons.delete_outline,
+          danger: true,
+        ),
       ],
     );
 
@@ -237,8 +258,8 @@ class _TagRow extends ConsumerWidget {
         onRefresh();
 
       case 'push_tag':
-        // Push the specific tag to origin using the push stream; fire-and-forget
-        // with no progress tracking for simplicity.
+        // Push the specific tag to origin using the push stream;
+        // fire-and-forget with no progress tracking for simplicity.
         final stream = write.push(repo, branch: tag.name, pushTags: true);
         await stream.drain<void>();
         onRefresh();
@@ -264,11 +285,15 @@ class _TagRow extends ConsumerWidget {
 // ---------------------------------------------------------------------------
 
 class _StashRow extends ConsumerWidget {
+
+  const _StashRow({
+    required this.stash,
+    required this.repo,
+    required this.onRefresh,
+  });
   final Stash stash;
   final RepoLocation repo;
   final VoidCallback onRefresh;
-
-  const _StashRow({required this.stash, required this.repo, required this.onRefresh});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -282,7 +307,10 @@ class _StashRow extends ConsumerWidget {
           child: Text(
             'stash@{${stash.index}} — ${stash.message}',
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: AppPalette.of(context).fg1, fontSize: 12.5),
+            style: TextStyle(
+              color: AppPalette.of(context).fg1,
+              fontSize: 12.5,
+            ),
           ),
         ),
       ),
@@ -295,10 +323,19 @@ class _StashRow extends ConsumerWidget {
       context,
       globalPosition: globalPos,
       entries: const [
-        AppMenuItem(value: 'apply', label: 'Apply', icon: Icons.file_download_outlined),
+        AppMenuItem(
+          value: 'apply',
+          label: 'Apply',
+          icon: Icons.file_download_outlined,
+        ),
         AppMenuItem(value: 'pop', label: 'Pop', icon: Icons.upload_outlined),
         AppMenuDivider(),
-        AppMenuItem(value: 'drop', label: 'Drop', icon: Icons.delete_outline, danger: true),
+        AppMenuItem(
+          value: 'drop',
+          label: 'Drop',
+          icon: Icons.delete_outline,
+          danger: true,
+        ),
       ],
     );
 
@@ -331,10 +368,10 @@ class _StashRow extends ConsumerWidget {
 }
 
 class _Section extends StatefulWidget {
+  const _Section({required this.title, required this.child, this.trailing});
   final String title;
   final Widget child;
   final Widget? trailing;
-  const _Section({required this.title, required this.child, this.trailing});
 
   @override
   State<_Section> createState() => _SectionState();
@@ -385,8 +422,8 @@ class _SectionState extends State<_Section> {
 }
 
 class _EmptyHint extends StatelessWidget {
-  final String text;
   const _EmptyHint(this.text);
+  final String text;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -404,9 +441,9 @@ class _EmptyHint extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _AddRemoteIconButton extends ConsumerWidget {
+  const _AddRemoteIconButton({required this.repo, required this.onChanged});
   final RepoLocation repo;
   final VoidCallback onChanged;
-  const _AddRemoteIconButton({required this.repo, required this.onChanged});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -422,9 +459,9 @@ class _AddRemoteIconButton extends ConsumerWidget {
 }
 
 class _AddRemoteEmptyState extends ConsumerWidget {
+  const _AddRemoteEmptyState({required this.repo, required this.onChanged});
   final RepoLocation repo;
   final VoidCallback onChanged;
-  const _AddRemoteEmptyState({required this.repo, required this.onChanged});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -449,14 +486,14 @@ class _AddRemoteEmptyState extends ConsumerWidget {
 }
 
 class _RemoteGroup extends ConsumerStatefulWidget {
-  final Remote remote;
-  final RepoLocation repo;
-  final VoidCallback onChanged;
   const _RemoteGroup({
     required this.remote,
     required this.repo,
     required this.onChanged,
   });
+  final Remote remote;
+  final RepoLocation repo;
+  final VoidCallback onChanged;
 
   @override
   ConsumerState<_RemoteGroup> createState() => _RemoteGroupState();
@@ -486,7 +523,12 @@ class _RemoteGroupState extends ConsumerState<_RemoteGroup> {
                   _showMenu(context, ref, details.globalPosition),
               child: Container(
                 color: _hover ? palette.bg3 : Colors.transparent,
-                padding: const EdgeInsets.only(left: 6, right: 6, top: 3, bottom: 3),
+                padding: const EdgeInsets.only(
+                  left: 6,
+                  right: 6,
+                  top: 3,
+                  bottom: 3,
+                ),
                 child: Row(
                   children: [
                     Icon(
@@ -538,11 +580,24 @@ class _RemoteGroupState extends ConsumerState<_RemoteGroup> {
       context,
       globalPosition: globalPos,
       entries: const [
-        AppMenuItem(value: 'fetch', label: 'Fetch', icon: Icons.cloud_download_outlined),
+        AppMenuItem(
+          value: 'fetch',
+          label: 'Fetch',
+          icon: Icons.cloud_download_outlined,
+        ),
         AppMenuItem(value: 'edit_url', label: 'Edit URL…', icon: Icons.link),
-        AppMenuItem(value: 'rename', label: 'Rename…', icon: Icons.drive_file_rename_outline),
+        AppMenuItem(
+          value: 'rename',
+          label: 'Rename…',
+          icon: Icons.drive_file_rename_outline,
+        ),
         AppMenuDivider(),
-        AppMenuItem(value: 'remove', label: 'Remove', icon: Icons.delete_outline, danger: true),
+        AppMenuItem(
+          value: 'remove',
+          label: 'Remove',
+          icon: Icons.delete_outline,
+          danger: true,
+        ),
       ],
     );
     if (selected == null || !context.mounted) return;
@@ -616,17 +671,17 @@ Future<void> _fetchRemote(
     }
     ops.finishSuccess(id);
     ref.invalidate(gitReadOperationsProvider);
-  } catch (e) {
+  } on Object catch (e) {
     ops.finishFailure(id, e.toString());
   }
 }
 
 class BranchTreeView extends ConsumerStatefulWidget {
+  const BranchTreeView(
+      {required this.nodes, required this.repo, super.key, this.depth = 0});
   final List<BranchTreeNode> nodes;
   final int depth;
   final RepoLocation repo;
-  const BranchTreeView(
-      {super.key, required this.nodes, this.depth = 0, required this.repo});
 
   @override
   ConsumerState<BranchTreeView> createState() => _BranchTreeViewState();
@@ -664,18 +719,43 @@ class _BranchTreeViewState extends ConsumerState<BranchTreeView> {
 
     final entries = <AppContextMenuEntry<String>>[
       if (!isCurrent)
-        const AppMenuItem(value: 'checkout', label: 'Checkout', icon: Icons.swap_horiz),
+        const AppMenuItem(
+          value: 'checkout',
+          label: 'Checkout',
+          icon: Icons.swap_horiz,
+        ),
       if (!isCurrent) ...const [
-        AppMenuItem(value: 'merge', label: 'Merge into current', icon: Icons.call_merge),
-        AppMenuItem(value: 'rebase', label: 'Rebase current onto this', icon: Icons.compare_arrows),
+        AppMenuItem(
+          value: 'merge',
+          label: 'Merge into current',
+          icon: Icons.call_merge,
+        ),
+        AppMenuItem(
+          value: 'rebase',
+          label: 'Rebase current onto this',
+          icon: Icons.compare_arrows,
+        ),
         AppMenuDivider(),
       ],
       if (isLocal) ...const [
-        AppMenuItem(value: 'rename', label: 'Rename…', icon: Icons.drive_file_rename_outline),
-        AppMenuItem(value: 'upstream', label: 'Set upstream…', icon: Icons.link),
+        AppMenuItem(
+          value: 'rename',
+          label: 'Rename…',
+          icon: Icons.drive_file_rename_outline,
+        ),
+        AppMenuItem(
+          value: 'upstream',
+          label: 'Set upstream…',
+          icon: Icons.link,
+        ),
         AppMenuDivider(),
       ],
-      const AppMenuItem(value: 'delete', label: 'Delete', icon: Icons.delete_outline, danger: true),
+      const AppMenuItem(
+        value: 'delete',
+        label: 'Delete',
+        icon: Icons.delete_outline,
+        danger: true,
+      ),
     ];
 
     final selected = await AppContextMenu.show<String>(
@@ -703,14 +783,20 @@ class _BranchTreeViewState extends ConsumerState<BranchTreeView> {
           targetRef: current ?? 'HEAD',
         );
         if (strategy == null) return;
-        final result = await write.merge(widget.repo, branchName, strategy: strategy);
+        final result = await write.merge(
+          widget.repo,
+          branchName,
+          strategy: strategy,
+        );
         _refresh();
         if (!context.mounted) return;
         if (result case GitSuccess(value: final MergeConflict outcome)) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                  'Merge conflict in ${outcome.conflictedPaths.length} file(s). Resolve in the conflicts panel below.'),
+                'Merge conflict in ${outcome.conflictedPaths.length} '
+                'file(s). Resolve in the conflicts panel below.',
+              ),
               backgroundColor: palette.accentErr,
             ),
           );
@@ -738,7 +824,9 @@ class _BranchTreeViewState extends ConsumerState<BranchTreeView> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                  'Rebase conflict in ${outcome.conflictedPaths.length} file(s). Resolve in the conflicts panel below.'),
+                'Rebase conflict in ${outcome.conflictedPaths.length} '
+                'file(s). Resolve in the conflicts panel below.',
+              ),
               backgroundColor: palette.accentErr,
             ),
           );
@@ -852,9 +940,13 @@ class _BranchTreeViewState extends ConsumerState<BranchTreeView> {
                   SizedBox(
                     width: 12,
                     child: current
-                        ? Text('✓',
+                        ? Text(
+                            '✓',
                             style: TextStyle(
-                                color: AppPalette.of(context).accentCurrent, fontSize: 11))
+                              color: AppPalette.of(context).accentCurrent,
+                              fontSize: 11,
+                            ),
+                          )
                         : null,
                   ),
                   const SizedBox(width: 4),
@@ -933,7 +1025,12 @@ class _BranchTreeViewState extends ConsumerState<BranchTreeView> {
             ]),
           ),
         ),
-        if (open) BranchTreeView(nodes: n.children, depth: depth + 1, repo: widget.repo),
+        if (open)
+          BranchTreeView(
+            nodes: n.children,
+            depth: depth + 1,
+            repo: widget.repo,
+          ),
       ],
     );
   }

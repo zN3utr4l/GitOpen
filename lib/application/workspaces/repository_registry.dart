@@ -1,5 +1,5 @@
-import '../../domain/repositories/repo_id.dart';
-import '../../domain/repositories/repo_location.dart';
+import 'package:gitopen/domain/repositories/repo_id.dart';
+import 'package:gitopen/domain/repositories/repo_location.dart';
 
 abstract interface class RepositoryRegistry {
   Future<RepoLocation> add(String path);

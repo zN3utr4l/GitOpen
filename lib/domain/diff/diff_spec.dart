@@ -1,25 +1,25 @@
 import 'package:equatable/equatable.dart';
 
-import '../commits/commit_sha.dart';
+import 'package:gitopen/domain/commits/commit_sha.dart';
 
 sealed class DiffSpec extends Equatable {
   const DiffSpec();
 }
 
 final class DiffSpecCommitVsParent extends DiffSpec {
-  final CommitSha commitSha;
 
   const DiffSpecCommitVsParent(this.commitSha);
+  final CommitSha commitSha;
 
   @override
   List<Object?> get props => [commitSha];
 }
 
 final class DiffSpecCommitVsCommit extends DiffSpec {
-  final CommitSha from;
-  final CommitSha to;
 
   const DiffSpecCommitVsCommit(this.from, this.to);
+  final CommitSha from;
+  final CommitSha to;
 
   @override
   List<Object?> get props => [from, to];

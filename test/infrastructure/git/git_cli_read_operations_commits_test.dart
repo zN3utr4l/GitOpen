@@ -14,7 +14,8 @@ void main() {
       final f = await RepoFixture.withLinearHistory(5);
       try {
         final sut = GitCliReadOperations();
-        final commits = await sut.getCommits(loc(f), const CommitQuery()).toList();
+        final commits =
+            await sut.getCommits(loc(f), const CommitQuery()).toList();
         expect(commits, hasLength(5));
         expect(commits.first.sha.value, f.headSha);
       } finally {
@@ -39,7 +40,8 @@ void main() {
       final f = await RepoFixture.empty();
       try {
         final sut = GitCliReadOperations();
-        final commits = await sut.getCommits(loc(f), const CommitQuery()).toList();
+        final commits =
+            await sut.getCommits(loc(f), const CommitQuery()).toList();
         expect(commits, isEmpty);
       } finally {
         await f.dispose();
@@ -50,7 +52,8 @@ void main() {
       final f = await RepoFixture.withLinearHistory(1);
       try {
         final sut = GitCliReadOperations();
-        final commits = await sut.getCommits(loc(f), const CommitQuery()).toList();
+        final commits =
+            await sut.getCommits(loc(f), const CommitQuery()).toList();
         expect(commits, hasLength(1));
         final c = commits.first;
         expect(c.author.name, 'Test');

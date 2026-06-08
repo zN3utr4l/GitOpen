@@ -1,12 +1,8 @@
 import 'package:equatable/equatable.dart';
 
-import '../commits/commit_sha.dart';
+import 'package:gitopen/domain/commits/commit_sha.dart';
 
 final class Stash extends Equatable {
-  final int index;
-  final CommitSha sha;
-  final String message;
-  final DateTime createdAt;
 
   const Stash({
     required this.index,
@@ -14,6 +10,10 @@ final class Stash extends Equatable {
     required this.message,
     required this.createdAt,
   });
+  final int index;
+  final CommitSha sha;
+  final String message;
+  final DateTime createdAt;
 
   @override
   List<Object?> get props => [index, sha, message, createdAt];

@@ -3,15 +3,15 @@ sealed class GitResult<T> {
 }
 
 final class GitSuccess<T> extends GitResult<T> {
-  final T value;
   const GitSuccess(this.value);
+  final T value;
 }
 
 final class GitFailure<T> extends GitResult<T> {
+  const GitFailure(this.kind, this.message, [this.rawOutput]);
   final GitErrorKind kind;
   final String message;
   final String? rawOutput;
-  const GitFailure(this.kind, this.message, [this.rawOutput]);
 }
 
 enum GitErrorKind {

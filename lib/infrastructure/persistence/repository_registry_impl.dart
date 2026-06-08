@@ -1,13 +1,13 @@
 import 'package:drift/drift.dart';
+import 'package:gitopen/application/workspaces/repository_registry.dart';
+import 'package:gitopen/domain/repositories/repo_id.dart';
+import 'package:gitopen/domain/repositories/repo_location.dart';
+import 'package:gitopen/infrastructure/persistence/database.dart';
 import 'package:path/path.dart' as p;
-import '../../application/workspaces/repository_registry.dart';
-import '../../domain/repositories/repo_id.dart';
-import '../../domain/repositories/repo_location.dart';
-import 'database.dart';
 
 final class DriftRepositoryRegistry implements RepositoryRegistry {
-  final AppDatabase _db;
   DriftRepositoryRegistry(this._db);
+  final AppDatabase _db;
 
   @override
   Future<RepoLocation> add(String path) async {
@@ -15,7 +15,11 @@ final class DriftRepositoryRegistry implements RepositoryRegistry {
           ..where((r) => r.path.equals(path)))
         .getSingleOrNull();
     if (existing != null) {
-      return RepoLocation(RepoId(existing.id), existing.path, existing.displayName);
+      return RepoLocation(
+        RepoId(existing.id),
+        existing.path,
+        existing.displayName,
+      );
     }
     final id = RepoId.newId();
     final allRows = await _db.select(_db.repositories).get();
@@ -62,7 +66,9 @@ final class DriftRepositoryRegistry implements RepositoryRegistry {
   Future<void> touchLastOpened(RepoId id) async {
     await (_db.update(_db.repositories)
           ..where((r) => r.id.equals(id.value)))
-        .write(RepositoriesCompanion(lastOpenedUtc: Value(DateTime.now().toUtc())));
+        .write(
+      RepositoriesCompanion(lastOpenedUtc: Value(DateTime.now().toUtc())),
+    );
   }
 
   static String _displayName(String path) {

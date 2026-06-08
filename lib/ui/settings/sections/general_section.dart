@@ -1,11 +1,13 @@
+import 'dart:async';
+
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../application/settings/app_settings.dart';
-import '../../../application/providers.dart';
-import '../../dialogs/app_dialog.dart';
-import '../../theme/app_palette.dart';
-import '../settings_widgets.dart';
+import 'package:gitopen/application/providers.dart';
+import 'package:gitopen/application/settings/app_settings.dart';
+import 'package:gitopen/ui/dialogs/app_dialog.dart';
+import 'package:gitopen/ui/settings/settings_widgets.dart';
+import 'package:gitopen/ui/theme/app_palette.dart';
 
 class GeneralSection extends ConsumerWidget {
   const GeneralSection({super.key});
@@ -40,7 +42,10 @@ class GeneralSection extends ConsumerWidget {
                     ),
                     segments: const [
                       ButtonSegment(value: AppTheme.dark, label: Text('Dark')),
-                      ButtonSegment(value: AppTheme.light, label: Text('Light')),
+                      ButtonSegment(
+                        value: AppTheme.light,
+                        label: Text('Light'),
+                      ),
                     ],
                     selected: {s.theme},
                     onSelectionChanged: (v) => notifier.setTheme(v.first),
@@ -61,7 +66,7 @@ class GeneralSection extends ConsumerWidget {
                       onFieldSubmitted: (v) {
                         final i = int.tryParse(v);
                         if (i != null && i >= 10 && i <= 24) {
-                          notifier.setFontSize(i);
+                          unawaited(notifier.setFontSize(i));
                         }
                       },
                     ),
@@ -75,7 +80,8 @@ class GeneralSection extends ConsumerWidget {
           SettingsCard(
             child: SettingsRow(
               label: 'External editor',
-              description: 'Used by "Open in editor" — leave empty for system default.',
+              description:
+                  'Used by "Open in editor" — leave empty for system default.',
               divider: false,
               child: Row(
                 children: [
@@ -102,7 +108,9 @@ class GeneralSection extends ConsumerWidget {
                       const group = XTypeGroup(
                           label: 'Executable', extensions: ['exe']);
                       final f = await openFile(acceptedTypeGroups: [group]);
-                      if (f != null) notifier.setExternalEditorPath(f.path);
+                      if (f != null) {
+                        await notifier.setExternalEditorPath(f.path);
+                      }
                     },
                   ),
                 ],
@@ -134,7 +142,9 @@ class GeneralSection extends ConsumerWidget {
                           child: Text('Fast-forward only')),
                     ],
                     onChanged: (v) {
-                      if (v != null) notifier.setDefaultPullStrategy(v);
+                      if (v != null) {
+                        unawaited(notifier.setDefaultPullStrategy(v));
+                      }
                     },
                   ),
                 ),

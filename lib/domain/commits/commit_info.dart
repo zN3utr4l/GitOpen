@@ -1,15 +1,9 @@
 import 'package:equatable/equatable.dart';
 
-import 'commit_sha.dart';
-import 'commit_signature.dart';
+import 'package:gitopen/domain/commits/commit_sha.dart';
+import 'package:gitopen/domain/commits/commit_signature.dart';
 
 final class CommitInfo extends Equatable {
-  final CommitSha sha;
-  final List<CommitSha> parentShas;
-  final CommitSignature author;
-  final CommitSignature committer;
-  final String summary;
-  final String message;
 
   const CommitInfo({
     required this.sha,
@@ -19,7 +13,14 @@ final class CommitInfo extends Equatable {
     required this.summary,
     required this.message,
   });
+  final CommitSha sha;
+  final List<CommitSha> parentShas;
+  final CommitSignature author;
+  final CommitSignature committer;
+  final String summary;
+  final String message;
 
   @override
-  List<Object?> get props => [sha, parentShas, author, committer, summary, message];
+  List<Object?> get props =>
+      [sha, parentShas, author, committer, summary, message];
 }

@@ -3,30 +3,30 @@ import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
 
-import '../../application/git/git_read_operations.dart';
-import '../logging/app_logger.dart';
-import '../../domain/commits/commit_info.dart';
-import '../../domain/commits/commit_sha.dart';
-import '../../domain/commits/commit_signature.dart';
-import '../../domain/diff/diff_hunk.dart';
-import '../../domain/diff/diff_line.dart';
-import '../../domain/diff/diff_result.dart';
-import '../../domain/diff/diff_spec.dart';
-import '../../domain/diff/file_diff.dart';
-import '../../domain/files/file_tree_entry.dart';
-import '../../domain/refs/branch.dart';
-import '../../domain/refs/remote.dart';
-import '../../domain/refs/stash.dart';
-import '../../domain/refs/tag.dart';
-import '../../domain/repositories/repo_location.dart';
-import '../../domain/status/repo_status.dart';
-import '../../domain/status/working_file_entry.dart';
-import 'git_process_runner.dart';
+import 'package:gitopen/application/git/git_read_operations.dart';
+import 'package:gitopen/domain/commits/commit_info.dart';
+import 'package:gitopen/domain/commits/commit_sha.dart';
+import 'package:gitopen/domain/commits/commit_signature.dart';
+import 'package:gitopen/domain/diff/diff_hunk.dart';
+import 'package:gitopen/domain/diff/diff_line.dart';
+import 'package:gitopen/domain/diff/diff_result.dart';
+import 'package:gitopen/domain/diff/diff_spec.dart';
+import 'package:gitopen/domain/diff/file_diff.dart';
+import 'package:gitopen/domain/files/file_tree_entry.dart';
+import 'package:gitopen/domain/refs/branch.dart';
+import 'package:gitopen/domain/refs/remote.dart';
+import 'package:gitopen/domain/refs/stash.dart';
+import 'package:gitopen/domain/refs/tag.dart';
+import 'package:gitopen/domain/repositories/repo_location.dart';
+import 'package:gitopen/domain/status/repo_status.dart';
+import 'package:gitopen/domain/status/working_file_entry.dart';
+import 'package:gitopen/infrastructure/git/git_process_runner.dart';
+import 'package:gitopen/infrastructure/logging/app_logger.dart';
 
 final class GitCliReadOperations implements GitReadOperations {
-  final GitProcessRunner _runner;
   GitCliReadOperations({GitProcessRunner? runner})
       : _runner = runner ?? GitProcessRunner();
+  final GitProcessRunner _runner;
 
   @override
   Future<RepoStatus> getStatus(RepoLocation repo) async {
@@ -36,9 +36,9 @@ final class GitCliReadOperations implements GitReadOperations {
 
     String? branch;
     CommitSha? headSha;
-    bool detached = false;
-    int ahead = 0;
-    int behind = 0;
+    var detached = false;
+    var ahead = 0;
+    var behind = 0;
     final entries = <WorkingFileEntry>[];
 
     // With -z, records are NUL-terminated. Split on NUL to get tokens.
@@ -498,9 +498,11 @@ final class GitCliReadOperations implements GitReadOperations {
 
   @override
   Future<List<Tag>> getTags(RepoLocation repo) async {
+    const format = '--format=%(refname:short)%00%(refname)%00'
+        '%(*objectname)%00%(objectname)%00%(objecttype)';
     final args = [
       'for-each-ref',
-      '--format=%(refname:short)%00%(refname)%00%(*objectname)%00%(objectname)%00%(objecttype)',
+      format,
       'refs/tags',
     ];
     final stdout = await _runner.run(repo.path, args);
@@ -561,9 +563,11 @@ final class GitCliReadOperations implements GitReadOperations {
     if (remoteUrls.isEmpty) return [];
 
     // Step 2: get remote branches grouped by remote name
+    const branchFormat = '--format=%(refname)%00%(objectname)%00%(HEAD)%00'
+        '%(upstream)%00%(upstream:track)';
     final branchArgs = [
       'for-each-ref',
-      '--format=%(refname)%00%(objectname)%00%(HEAD)%00%(upstream)%00%(upstream:track)',
+      branchFormat,
       'refs/remotes',
     ];
     final branchOut = await _runner.run(repo.path, branchArgs);
@@ -601,8 +605,8 @@ final class GitCliReadOperations implements GitReadOperations {
         // Skip the HEAD symbolic ref (e.g., refs/remotes/origin/HEAD)
         if (withoutPrefix.endsWith('/HEAD')) continue;
 
-        int ahead = 0;
-        int behind = 0;
+        var ahead = 0;
+        var behind = 0;
         if (track.isNotEmpty) {
           final m = aheadBehindRe.firstMatch(track);
           if (m != null) {
@@ -635,7 +639,8 @@ final class GitCliReadOperations implements GitReadOperations {
 
   @override
   Future<List<Stash>> getStashes(RepoLocation repo) async {
-    // git stash list exits 0 even with an empty stash; empty output = no stashes.
+    // git stash list exits 0 even with an empty stash; empty output means no
+    // stashes.
     final stdout = await _runner.run(
         repo.path, ['stash', 'list', '--format=%H%x00%gd%x00%gs%x00%ai']);
     if (stdout.trim().isEmpty) return [];
@@ -659,7 +664,7 @@ final class GitCliReadOperations implements GitReadOperations {
       DateTime createdAt;
       try {
         createdAt = DateTime.parse(dateStr);
-      } catch (_) {
+      } on Object catch (_) {
         createdAt = DateTime.fromMillisecondsSinceEpoch(0);
       }
 
@@ -678,7 +683,13 @@ final class GitCliReadOperations implements GitReadOperations {
   Future<DiffResult> getDiff(RepoLocation repo, DiffSpec spec) async {
     final args = switch (spec) {
       DiffSpecCommitVsParent(:final commitSha) => [
-          'show', commitSha.value, '--format=', '--raw', '-p', '--no-color',
+          // `--first-parent -m` makes merge commits emit a normal 2-way diff
+          // against their first parent (Fork/GitKraken default) instead of a
+          // combined diff (diff --cc / @@@) the unified parser can't read.
+          // It is a no-op on normal and root commits, so it is safe for all
+          // single-commit diffs.
+          'show', commitSha.value, '--first-parent', '-m',
+          '--format=', '--raw', '-p', '--no-color',
         ],
       DiffSpecCommitVsCommit(:final from, :final to) => [
           'diff', '${from.value}..${to.value}', '--raw', '-p', '--no-color',
@@ -824,11 +835,9 @@ final class GitCliReadOperations implements GitReadOperations {
             }
             hunkLines.add(DiffLine(
                 kind: DiffLineKind.addition,
-                oldLine: null,
                 newLine: newLine++,
                 content: line.substring(1)));
             added++;
-            break;
           case '-':
             if (line.startsWith('---')) {
               i++;
@@ -837,18 +846,15 @@ final class GitCliReadOperations implements GitReadOperations {
             hunkLines.add(DiffLine(
                 kind: DiffLineKind.deletion,
                 oldLine: oldLine++,
-                newLine: null,
                 content: line.substring(1)));
             deleted++;
-            break;
           case ' ':
             hunkLines.add(DiffLine(
                 kind: DiffLineKind.context,
                 oldLine: oldLine++,
                 newLine: newLine++,
                 content: line.substring(1)));
-            break;
-          case '\\':
+          case r'\':
             // "\ No newline at end of file" — ignore
             break;
           default:
@@ -945,7 +951,7 @@ final class GitCliReadOperations implements GitReadOperations {
 }
 
 class _RawEntry {
+  _RawEntry(this.status, this.oldPath);
   final String status;
   final String? oldPath;
-  _RawEntry(this.status, this.oldPath);
 }

@@ -1,27 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../application/git/git_result.dart';
-import '../../application/git/merge_outcome.dart';
-import '../../application/providers.dart';
-import '../../domain/repositories/repo_location.dart';
-import '../theme/app_palette.dart';
-import 'app_dialog.dart';
+import 'package:gitopen/application/git/git_result.dart';
+import 'package:gitopen/application/git/merge_outcome.dart';
+import 'package:gitopen/application/providers.dart';
+import 'package:gitopen/domain/repositories/repo_location.dart';
+import 'package:gitopen/ui/dialogs/app_dialog.dart';
+import 'package:gitopen/ui/theme/app_palette.dart';
 
 /// Asks the user which merge strategy to use before kicking off a merge,
 /// while running a dry-run conflict check in the background so the user
 /// sees up front whether the merge is going to be clean.
 class MergeDialog extends ConsumerStatefulWidget {
-  final RepoLocation repo;
-  final String sourceRef;
-  final String targetRef;
 
   const MergeDialog({
-    super.key,
     required this.repo,
     required this.sourceRef,
     required this.targetRef,
+    super.key,
   });
+  final RepoLocation repo;
+  final String sourceRef;
+  final String targetRef;
 
   /// Returns the chosen [MergeStrategy], or `null` if the user cancelled.
   static Future<MergeStrategy?> show(
@@ -51,8 +50,9 @@ class _MergeDialogState extends ConsumerState<MergeDialog> {
   @override
   void initState() {
     super.initState();
-    _previewFuture =
-        ref.read(gitWriteOperationsProvider).previewMerge(widget.repo, widget.sourceRef);
+    _previewFuture = ref
+        .read(gitWriteOperationsProvider)
+        .previewMerge(widget.repo, widget.sourceRef);
   }
 
   @override
@@ -72,9 +72,17 @@ class _MergeDialogState extends ConsumerState<MergeDialog> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                _RefRow(label: 'Merge:', ref: widget.sourceRef, palette: palette),
+                _RefRow(
+                  label: 'Merge:',
+                  ref: widget.sourceRef,
+                  palette: palette,
+                ),
                 const SizedBox(height: 8),
-                _RefRow(label: 'Into:', ref: widget.targetRef, palette: palette),
+                _RefRow(
+                  label: 'Into:',
+                  ref: widget.targetRef,
+                  palette: palette,
+                ),
                 const SizedBox(height: 16),
                 _StrategyRow(
                   value: _strategy,
@@ -92,7 +100,7 @@ class _MergeDialogState extends ConsumerState<MergeDialog> {
         ),
         AppButton.secondary(
           label: 'Cancel',
-          onPressed: () => Navigator.pop(context, null),
+          onPressed: () => Navigator.pop(context),
         ),
         AppButton.primary(
           label: 'Merge',
@@ -105,8 +113,8 @@ class _MergeDialogState extends ConsumerState<MergeDialog> {
 }
 
 class _LeadingIcon extends StatelessWidget {
-  final AppPalette palette;
   const _LeadingIcon({required this.palette});
+  final AppPalette palette;
 
   @override
   Widget build(BuildContext context) {
@@ -127,15 +135,18 @@ class _LeadingIcon extends StatelessWidget {
 }
 
 class _RefRow extends StatelessWidget {
+  const _RefRow({
+    required this.label,
+    required this.ref,
+    required this.palette,
+  });
   final String label;
   final String ref;
   final AppPalette palette;
-  const _RefRow({required this.label, required this.ref, required this.palette});
 
   @override
   Widget build(BuildContext context) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         SizedBox(
           width: 64,
@@ -168,19 +179,18 @@ class _RefRow extends StatelessWidget {
 }
 
 class _StrategyRow extends StatelessWidget {
-  final MergeStrategy value;
-  final ValueChanged<MergeStrategy> onChanged;
-  final AppPalette palette;
   const _StrategyRow({
     required this.value,
     required this.onChanged,
     required this.palette,
   });
+  final MergeStrategy value;
+  final ValueChanged<MergeStrategy> onChanged;
+  final AppPalette palette;
 
   @override
   Widget build(BuildContext context) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         SizedBox(
           width: 96,
@@ -227,9 +237,9 @@ class _StrategyRow extends StatelessWidget {
 }
 
 class _StrategyEntry extends StatelessWidget {
+  const _StrategyEntry({required this.strategy, required this.palette});
   final MergeStrategy strategy;
   final AppPalette palette;
-  const _StrategyEntry({required this.strategy, required this.palette});
 
   @override
   Widget build(BuildContext context) {
@@ -274,16 +284,28 @@ Future<String?> currentBranchName(WidgetRef ref, RepoLocation repo) async {
 }
 
 (String, String, String?) _strategyLabels(MergeStrategy s) => switch (s) {
-      MergeStrategy.defaultStrategy => ('Default', 'Fast-forward if possible', null),
-      MergeStrategy.noFF => ('No Fast-Forward', 'Always create a merge commit', '--no-ff'),
+      MergeStrategy.defaultStrategy => (
+          'Default',
+          'Fast-forward if possible',
+          null,
+        ),
+      MergeStrategy.noFF => (
+          'No Fast-Forward',
+          'Always create a merge commit',
+          '--no-ff',
+        ),
       MergeStrategy.squash => ('Squash', 'Squash merge', '--squash'),
-      MergeStrategy.noCommit => ("Don't Commit", 'Merge without commit', '--no-commit'),
+      MergeStrategy.noCommit => (
+          "Don't Commit",
+          'Merge without commit',
+          '--no-commit',
+        ),
     };
 
 class _PreviewBanner extends StatelessWidget {
+  const _PreviewBanner({required this.future, required this.palette});
   final Future<GitResult<MergePreview>> future;
   final AppPalette palette;
-  const _PreviewBanner({required this.future, required this.palette});
 
   @override
   Widget build(BuildContext context) {
@@ -295,7 +317,10 @@ class _PreviewBanner extends StatelessWidget {
             SizedBox(
               width: 14,
               height: 14,
-              child: CircularProgressIndicator(strokeWidth: 1.6, color: palette.fg3),
+              child: CircularProgressIndicator(
+                strokeWidth: 1.6,
+                color: palette.fg3,
+              ),
             ),
             const SizedBox(width: 8),
             Text('Checking for conflicts…',
@@ -338,7 +363,8 @@ class _PreviewBanner extends StatelessWidget {
               child: Text(
                 n == 0
                     ? 'Merge will cause conflicts'
-                    : 'Merge will cause conflicts in $n file${n == 1 ? '' : 's'}',
+                    : 'Merge will cause conflicts in $n '
+                        'file${n == 1 ? '' : 's'}',
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(color: palette.fg1, fontSize: 12),
               ),

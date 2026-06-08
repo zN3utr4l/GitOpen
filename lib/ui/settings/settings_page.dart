@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../application/settings/settings_open_provider.dart';
-import '../theme/app_palette.dart';
-import 'sections/about_section.dart';
-import 'sections/authentication_section.dart';
-import 'sections/general_section.dart';
-import 'sections/git_identity_section.dart';
-import 'sections/github_section.dart';
-import 'sections/keybindings_section.dart';
-import 'sections/updates_section.dart';
+import 'package:gitopen/application/settings/settings_open_provider.dart';
+import 'package:gitopen/ui/settings/sections/about_section.dart';
+import 'package:gitopen/ui/settings/sections/authentication_section.dart';
+import 'package:gitopen/ui/settings/sections/general_section.dart';
+import 'package:gitopen/ui/settings/sections/git_identity_section.dart';
+import 'package:gitopen/ui/settings/sections/github_section.dart';
+import 'package:gitopen/ui/settings/sections/keybindings_section.dart';
+import 'package:gitopen/ui/settings/sections/updates_section.dart';
+import 'package:gitopen/ui/theme/app_palette.dart';
 
 enum SettingsSectionId {
   general,
@@ -52,7 +52,7 @@ class _State extends ConsumerState<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    return Container(
+    return ColoredBox(
       color: palette.bg1,
       child: Row(
         children: [
@@ -64,7 +64,7 @@ class _State extends ConsumerState<SettingsPage> {
                 ref.read(settingsOpenProvider.notifier).state = false,
           ),
           Expanded(
-            child: Container(
+            child: ColoredBox(
               color: palette.bg1,
               child: _renderSection(_selected),
             ),
@@ -88,15 +88,11 @@ class _State extends ConsumerState<SettingsPage> {
 }
 
 class _NavGroup {
-  final String title;
   const _NavGroup(this.title);
+  final String title;
 }
 
 class _Sidebar extends StatelessWidget {
-  final SettingsSectionId selected;
-  final List<(_NavGroup, List<SettingsSectionId>)> groups;
-  final ValueChanged<SettingsSectionId> onSelect;
-  final VoidCallback onClose;
 
   const _Sidebar({
     required this.selected,
@@ -104,6 +100,10 @@ class _Sidebar extends StatelessWidget {
     required this.onSelect,
     required this.onClose,
   });
+  final SettingsSectionId selected;
+  final List<(_NavGroup, List<SettingsSectionId>)> groups;
+  final ValueChanged<SettingsSectionId> onSelect;
+  final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
@@ -153,8 +153,8 @@ class _Sidebar extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget {
-  final VoidCallback onClose;
   const _Header({required this.onClose});
+  final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
@@ -182,8 +182,8 @@ class _Header extends StatelessWidget {
 }
 
 class _CloseButton extends StatefulWidget {
-  final VoidCallback onTap;
   const _CloseButton({required this.onTap});
+  final VoidCallback onTap;
 
   @override
   State<_CloseButton> createState() => _CloseButtonState();
@@ -221,15 +221,15 @@ class _CloseButtonState extends State<_CloseButton> {
 }
 
 class _NavItem extends StatefulWidget {
-  final SettingsSectionId section;
-  final bool selected;
-  final VoidCallback onTap;
 
   const _NavItem({
     required this.section,
     required this.selected,
     required this.onTap,
   });
+  final SettingsSectionId section;
+  final bool selected;
+  final VoidCallback onTap;
 
   @override
   State<_NavItem> createState() => _NavItemState();

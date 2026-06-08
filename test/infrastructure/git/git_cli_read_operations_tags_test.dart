@@ -6,10 +6,12 @@ import 'package:gitopen/infrastructure/git/git_cli_read_operations.dart';
 import '../../_helpers/repo_fixture.dart';
 
 void main() {
-  RepoLocation loc(RepoFixture f) => RepoLocation(RepoId.newId(), f.path, 'test');
+  RepoLocation loc(RepoFixture f) =>
+      RepoLocation(RepoId.newId(), f.path, 'test');
 
   group('GitCliReadOperations.getTags', () {
-    test('returns tags on multiple commits, both annotated and lightweight', () async {
+    test('returns tags on multiple commits, both annotated and lightweight',
+        () async {
       final f = await RepoFixture.withLinearHistory(3);
       try {
         // Tag the oldest commit with an annotated tag.

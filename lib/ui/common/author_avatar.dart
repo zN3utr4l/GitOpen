@@ -9,16 +9,14 @@ import 'package:flutter/material.dart';
 /// Cached at the framework level (Image.network keeps an in-memory cache),
 /// so the same avatar rendered many times in a list re-uses one download.
 class AuthorAvatar extends StatelessWidget {
+
+  const AuthorAvatar({
+    required this.name, required this.email, super.key,
+    this.size = 18,
+  });
   final String name;
   final String email;
   final double size;
-
-  const AuthorAvatar({
-    super.key,
-    required this.name,
-    required this.email,
-    this.size = 18,
-  });
 
   @override
   Widget build(BuildContext context) {
@@ -54,10 +52,6 @@ class AuthorAvatar extends StatelessWidget {
 /// Always renders the initials disc; the network image stacks on top
 /// when it loads so there is no empty flash.
 class _Fallback extends StatelessWidget {
-  final String name;
-  final String email;
-  final double size;
-  final Widget child;
 
   const _Fallback({
     required this.name,
@@ -65,6 +59,10 @@ class _Fallback extends StatelessWidget {
     required this.size,
     required this.child,
   });
+  final String name;
+  final String email;
+  final double size;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {

@@ -1,9 +1,9 @@
-import 'auth_profile.dart';
-import '../git/auth_spec.dart';
+import 'package:gitopen/application/auth/auth_profile.dart';
+import 'package:gitopen/application/git/auth_spec.dart';
 
 /// Persistent multi-account credential store.
 ///
-/// Replaces the older host-keyed [CredentialsStore]: every entry is keyed by
+/// Replaces the older host-keyed `CredentialsStore`: every entry is keyed by
 /// a stable profile id, and any number of profiles may exist for the same
 /// host.  Implementations are expected to migrate old single-credential
 /// entries transparently on first access.
@@ -20,10 +20,10 @@ abstract interface class AuthProfileStore {
   /// Create a new profile or overwrite the existing one with the same id.
   /// If [id] is null, a fresh id is generated and returned.
   Future<AuthProfile> upsert({
-    String? id,
     required String host,
     required String username,
     required AuthSpec spec,
+    String? id,
   });
 
   /// Delete the profile with the given id.  No-op if absent.

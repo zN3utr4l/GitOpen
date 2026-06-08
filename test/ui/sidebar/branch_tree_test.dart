@@ -10,7 +10,6 @@ Branch b(String name, {bool isCurrent = false, bool isRemote = false}) =>
       isRemote: isRemote,
       isCurrent: isCurrent,
       tipSha: CommitSha('aaaaaaaa'),
-      upstreamFullName: null,
       ahead: 0,
       behind: 0,
     );

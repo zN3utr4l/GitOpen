@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../domain/commits/commit_sha.dart';
+import 'package:gitopen/domain/commits/commit_sha.dart';
 
 /// Set to a commit SHA to request the commit graph to scroll that commit
 /// into view. The graph panel consumes and clears it; the value carries no

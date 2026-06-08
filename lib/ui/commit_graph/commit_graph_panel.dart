@@ -4,31 +4,32 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../infrastructure/logging/app_logger.dart';
-import '../../application/active_workspace_provider.dart';
-import '../../application/branch_visibility_provider.dart';
-import '../../application/commit_graph/commit_graph_layout.dart';
-import '../../application/commit_graph/commit_node.dart';
-import '../../application/git/git_read_operations.dart';
-import '../../application/git/git_result.dart';
-import '../../application/git/git_write_operations.dart';
-import '../../application/git/merge_outcome.dart';
-import '../../application/git/repo_state_provider.dart';
-import '../../application/providers.dart';
-import '../../application/scroll_request_provider.dart';
-import '../../domain/commits/commit_info.dart';
-import '../../domain/commits/commit_sha.dart';
-import '../../domain/repositories/repo_location.dart';
-import '../checkout/safe_checkout.dart';
-import '../common/app_context_menu.dart';
-import '../dialogs/app_dialog.dart';
-import '../dialogs/branch_create_dialog.dart';
-import '../dialogs/confirm_dialog.dart';
-import '../dialogs/merge_dialog.dart';
-import '../theme/app_palette.dart';
-import 'commit_row.dart';
-import 'local_changes_row.dart';
-import 'ref_decoration.dart';
+import 'package:gitopen/application/active_workspace_provider.dart';
+import 'package:gitopen/application/branch_visibility_provider.dart';
+import 'package:gitopen/application/commit_graph/commit_graph_layout.dart';
+import 'package:gitopen/application/commit_graph/commit_node.dart';
+import 'package:gitopen/application/git/git_read_operations.dart';
+import 'package:gitopen/application/git/git_result.dart';
+import 'package:gitopen/application/git/git_write_operations.dart';
+import 'package:gitopen/application/git/merge_outcome.dart';
+import 'package:gitopen/application/git/repo_state_provider.dart';
+import 'package:gitopen/application/providers.dart';
+import 'package:gitopen/application/scroll_request_provider.dart';
+import 'package:gitopen/domain/commits/commit_info.dart';
+import 'package:gitopen/domain/commits/commit_sha.dart';
+import 'package:gitopen/domain/refs/branch.dart';
+import 'package:gitopen/domain/repositories/repo_location.dart';
+import 'package:gitopen/infrastructure/logging/app_logger.dart';
+import 'package:gitopen/ui/checkout/safe_checkout.dart';
+import 'package:gitopen/ui/commit_graph/commit_row.dart';
+import 'package:gitopen/ui/commit_graph/local_changes_row.dart';
+import 'package:gitopen/ui/commit_graph/ref_decoration.dart';
+import 'package:gitopen/ui/common/app_context_menu.dart';
+import 'package:gitopen/ui/dialogs/app_dialog.dart';
+import 'package:gitopen/ui/dialogs/branch_create_dialog.dart';
+import 'package:gitopen/ui/dialogs/confirm_dialog.dart';
+import 'package:gitopen/ui/dialogs/merge_dialog.dart';
+import 'package:gitopen/ui/theme/app_palette.dart';
 
 /// Top-level wrapper required by [compute] to run the layout in a
 /// background isolate.  The layout pass is O(N×L) on the commit count and
@@ -45,13 +46,13 @@ List<CommitNode> _layoutInIsolate(List<CommitInfo> commits) {
 const _gitLogTimeout = Duration(seconds: 60);
 
 class _GraphData {
+  _GraphData(this.nodes, this.refsBySha, this.maxLane);
   final List<CommitNode> nodes;
   final Map<String, List<RefDecoration>> refsBySha;
   final int maxLane;
-  _GraphData(this.nodes, this.refsBySha, this.maxLane);
 }
 
-final commitGraphDataProvider =
+final FutureProviderFamily<_GraphData, RepoLocation> _commitGraphDataProvider =
     FutureProvider.family<_GraphData, RepoLocation>((ref, repo) async {
   final git = ref.watch(gitReadOperationsProvider);
 
@@ -80,7 +81,10 @@ final commitGraphDataProvider =
       ? const CommitQuery(take: takeCommits)
       : CommitQuery(take: takeCommits, refs: refsForLog);
 
-  appLog.i('graph: running git log (max=$takeCommits, refs=${refsForLog.length})');
+  appLog.i(
+    'graph: running git log '
+    '(max=$takeCommits, refs=${refsForLog.length})',
+  );
   final List<CommitInfo> commits;
   try {
     commits = await git.getCommits(repo, query).toList().timeout(
@@ -103,8 +107,8 @@ final commitGraphDataProvider =
   appLog.i('graph: layout done (${nodes.length} nodes)');
 
   // Bucket all branches by tip sha, splitting locals from remotes.
-  final localsBySha = <String, List<dynamic>>{};
-  final remotesBySha = <String, List<dynamic>>{};
+  final localsBySha = <String, List<Branch>>{};
+  final remotesBySha = <String, List<Branch>>{};
   for (final b in branches) {
     final tip = b.tipSha;
     if (tip == null) continue;
@@ -118,13 +122,13 @@ final commitGraphDataProvider =
   // First pass: locals (possibly merged with their tracked remote(s)).
   for (final entry in localsBySha.entries) {
     final sha = entry.key;
-    for (final dynamic b in entry.value) {
+    for (final b in entry.value) {
       final merged = <String>[];
       // A local branch with upstream pointing to a remote that also lives at
       // this same sha gets merged.
       if (b.upstreamFullName != null) {
         final remotesHere = remotesBySha[sha] ?? const [];
-        for (final dynamic r in remotesHere) {
+        for (final r in remotesHere) {
           if (r.fullName == b.upstreamFullName) {
             merged.add(r.name); // e.g. "origin/master"
             consumedRemotes.add(r.fullName);
@@ -134,7 +138,7 @@ final commitGraphDataProvider =
       // Also fold remotes that share the bare branch name even without
       // explicit upstream config (covers detached configurations).
       final remotesHere = remotesBySha[sha] ?? const [];
-      for (final dynamic r in remotesHere) {
+      for (final r in remotesHere) {
         if (consumedRemotes.contains(r.fullName)) continue;
         final remoteBare = r.name.contains('/')
             ? r.name.substring(r.name.indexOf('/') + 1)
@@ -158,7 +162,7 @@ final commitGraphDataProvider =
   // Second pass: remote refs that weren't merged into any local.
   for (final entry in remotesBySha.entries) {
     final sha = entry.key;
-    for (final dynamic r in entry.value) {
+    for (final r in entry.value) {
       if (consumedRemotes.contains(r.fullName)) continue;
       (refsBySha[sha] ??= []).add(RefDecoration(
         name: r.name,
@@ -211,8 +215,8 @@ final commitGraphDataProvider =
 });
 
 class CommitGraphPanel extends ConsumerStatefulWidget {
+  const CommitGraphPanel({required this.repo, super.key});
   final RepoLocation repo;
-  const CommitGraphPanel({super.key, required this.repo});
 
   @override
   ConsumerState<CommitGraphPanel> createState() => _CommitGraphPanelState();
@@ -227,7 +231,7 @@ class _CommitGraphPanelState extends ConsumerState<CommitGraphPanel> {
     super.dispose();
   }
 
-  void _scrollToSha(CommitSha sha, List<dynamic> nodes) {
+  void _scrollToSha(CommitSha sha, List<CommitNode> nodes) {
     final index = nodes.indexWhere((n) => n.commit.sha == sha);
     if (index < 0 || !_controller.hasClients) return;
     final target = index * 26.0;
@@ -236,23 +240,25 @@ class _CommitGraphPanelState extends ConsumerState<CommitGraphPanel> {
     final maxScroll = position.maxScrollExtent;
     // Center the row in the viewport if possible.
     final centered = (target - viewport / 2 + 13).clamp(0.0, maxScroll);
-    _controller.animateTo(
-      centered,
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOutCubic,
+    unawaited(
+      _controller.animateTo(
+        centered,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final repo = widget.repo;
-    final async = ref.watch(commitGraphDataProvider(repo));
+    final async = ref.watch(_commitGraphDataProvider(repo));
     final palette = AppPalette.of(context);
 
     // Listen for scroll requests from the sidebar / other panels.
     ref.listen<CommitSha?>(scrollRequestProvider, (prev, next) {
       if (next == null) return;
-      final data = ref.read(commitGraphDataProvider(repo)).valueOrNull;
+      final data = ref.read(_commitGraphDataProvider(repo)).valueOrNull;
       if (data == null) return;
       // Schedule after the current frame so the ListView has measured.
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -261,7 +267,7 @@ class _CommitGraphPanelState extends ConsumerState<CommitGraphPanel> {
       });
     });
 
-    return Container(
+    return ColoredBox(
       color: palette.bg1,
       child: async.when(
         data: (data) {
@@ -283,7 +289,8 @@ class _CommitGraphPanelState extends ConsumerState<CommitGraphPanel> {
                   itemCount: data.nodes.length,
                   itemBuilder: (context, i) {
                     final node = data.nodes[i];
-                    final refs = data.refsBySha[node.commit.sha.value] ?? const [];
+                    final refs =
+                        data.refsBySha[node.commit.sha.value] ?? const [];
                     return CommitRow(
                       node: node,
                       maxLane: data.maxLane,
@@ -311,7 +318,7 @@ class _CommitGraphPanelState extends ConsumerState<CommitGraphPanel> {
                           targetRef: r.name,
                         );
                         if (ok) {
-                          ref.invalidate(commitGraphDataProvider(repo));
+                          ref.invalidate(_commitGraphDataProvider(repo));
                         }
                       },
                     );
@@ -343,21 +350,62 @@ class _CommitGraphPanelState extends ConsumerState<CommitGraphPanel> {
       context,
       globalPosition: globalPos,
       entries: const [
-        AppMenuItem(value: 'merge', label: 'Merge into current', icon: Icons.call_merge),
-        AppMenuItem(value: 'rebase', label: 'Rebase current onto this', icon: Icons.compare_arrows),
+        AppMenuItem(
+          value: 'merge',
+          label: 'Merge into current',
+          icon: Icons.call_merge,
+        ),
+        AppMenuItem(
+          value: 'rebase',
+          label: 'Rebase current onto this',
+          icon: Icons.compare_arrows,
+        ),
         AppMenuDivider(),
-        AppMenuItem(value: 'cherry_pick', label: 'Cherry-pick into current', icon: Icons.add_card_outlined),
-        AppMenuItem(value: 'revert', label: 'Revert this commit', icon: Icons.undo),
+        AppMenuItem(
+          value: 'cherry_pick',
+          label: 'Cherry-pick into current',
+          icon: Icons.add_card_outlined,
+        ),
+        AppMenuItem(
+          value: 'revert',
+          label: 'Revert this commit',
+          icon: Icons.undo,
+        ),
         AppMenuDivider(),
-        AppMenuItem(value: 'branch_here', label: 'Create branch here…', icon: Icons.alt_route),
-        AppMenuItem(value: 'tag_here', label: 'Tag here…', icon: Icons.local_offer_outlined),
+        AppMenuItem(
+          value: 'branch_here',
+          label: 'Create branch here…',
+          icon: Icons.alt_route,
+        ),
+        AppMenuItem(
+          value: 'tag_here',
+          label: 'Tag here…',
+          icon: Icons.local_offer_outlined,
+        ),
         AppMenuDivider(),
         AppMenuItem(value: 'copy_sha', label: 'Copy SHA', icon: Icons.copy),
-        AppMenuItem(value: 'copy_short_sha', label: 'Copy short SHA', icon: Icons.copy_outlined),
+        AppMenuItem(
+          value: 'copy_short_sha',
+          label: 'Copy short SHA',
+          icon: Icons.copy_outlined,
+        ),
         AppMenuDivider(),
-        AppMenuItem(value: 'reset_soft', label: 'Reset (soft)', icon: Icons.restore),
-        AppMenuItem(value: 'reset_mixed', label: 'Reset (mixed)', icon: Icons.restore),
-        AppMenuItem(value: 'reset_hard', label: 'Reset (hard)…', icon: Icons.restore, danger: true),
+        AppMenuItem(
+          value: 'reset_soft',
+          label: 'Reset (soft)',
+          icon: Icons.restore,
+        ),
+        AppMenuItem(
+          value: 'reset_mixed',
+          label: 'Reset (mixed)',
+          icon: Icons.restore,
+        ),
+        AppMenuItem(
+          value: 'reset_hard',
+          label: 'Reset (hard)…',
+          icon: Icons.restore,
+          danger: true,
+        ),
       ],
     );
 
@@ -383,16 +431,22 @@ class _CommitGraphPanelState extends ConsumerState<CommitGraphPanel> {
         ref.invalidate(repoStateProvider(repo));
         if (!context.mounted) return;
         if (result case GitSuccess(value: final MergeConflict outcome)) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(
-                'Merge conflict in ${outcome.conflictedPaths.length} file(s). Resolve in the conflicts panel below.'),
-            backgroundColor: palette.accentErr,
-          ));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Merge conflict in ${outcome.conflictedPaths.length} '
+                'file(s). Resolve in the conflicts panel below.',
+              ),
+              backgroundColor: palette.accentErr,
+            ),
+          );
         } else if (result case GitFailure(:final message)) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Merge failed: $message'),
-            backgroundColor: palette.accentErr,
-          ));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Merge failed: $message'),
+              backgroundColor: palette.accentErr,
+            ),
+          );
         }
 
       case 'rebase':
@@ -410,16 +464,22 @@ class _CommitGraphPanelState extends ConsumerState<CommitGraphPanel> {
         ref.invalidate(repoStateProvider(repo));
         if (!context.mounted) return;
         if (result case GitSuccess(value: final RebaseConflict outcome)) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(
-                'Rebase conflict in ${outcome.conflictedPaths.length} file(s). Resolve in the conflicts panel below.'),
-            backgroundColor: palette.accentErr,
-          ));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Rebase conflict in ${outcome.conflictedPaths.length} '
+                'file(s). Resolve in the conflicts panel below.',
+              ),
+              backgroundColor: palette.accentErr,
+            ),
+          );
         } else if (result case GitFailure(:final message)) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Rebase failed: $message'),
-            backgroundColor: palette.accentErr,
-          ));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Rebase failed: $message'),
+              backgroundColor: palette.accentErr,
+            ),
+          );
         }
 
       case 'cherry_pick':
@@ -428,11 +488,12 @@ class _CommitGraphPanelState extends ConsumerState<CommitGraphPanel> {
 
       case 'revert':
         final res = await write.revert(repo, sha);
-        if (res is GitFailure && context.mounted) {
+        if (res case GitFailure(:final message) when context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Revert failed: ${(res as GitFailure).message}')));
+            SnackBar(content: Text('Revert failed: $message')),
+          );
         }
-        ref.invalidate(commitGraphDataProvider(repo));
+        ref.invalidate(_commitGraphDataProvider(repo));
         ref.invalidate(repoStateProvider(repo));
 
       case 'branch_here':
@@ -475,7 +536,8 @@ class _CommitGraphPanelState extends ConsumerState<CommitGraphPanel> {
       final confirmed = await ConfirmDialog.show(
         context,
         title: 'Hard reset',
-        body: 'This will discard all uncommitted changes and rewrite history. Are you sure?',
+        body: 'This will discard all uncommitted changes and rewrite '
+            'history. Are you sure?',
         confirmLabel: 'Reset',
         dangerous: true,
       );
@@ -519,4 +581,3 @@ class _CommitGraphPanelState extends ConsumerState<CommitGraphPanel> {
     return result;
   }
 }
-

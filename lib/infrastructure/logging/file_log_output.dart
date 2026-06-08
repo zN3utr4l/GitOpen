@@ -35,7 +35,7 @@ class FileLogOutput extends LogOutput {
       final f = File(path);
       if (!f.existsSync()) f.createSync(recursive: true);
       return _path = path;
-    } catch (_) {
+    } on Object catch (_) {
       return null;
     }
   }
@@ -58,15 +58,13 @@ class FileLogOutput extends LogOutput {
     try {
       // Build one buffer per event so the underlying syscall happens once.
       final buf = StringBuffer();
-      for (final line in event.lines) {
-        buf.writeln(line);
-      }
+      event.lines.forEach(buf.writeln);
       File(path).writeAsStringSync(
         buf.toString(),
         mode: FileMode.append,
         flush: true,
       );
-    } catch (_) {
+    } on Object catch (_) {
       // NEVER rethrow from a LogOutput.  A throw here would propagate
       // into our global error handlers, which call back into the logger,
       // which would re-throw — a feedback loop that quickly saturates

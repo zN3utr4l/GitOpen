@@ -3,15 +3,14 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gitopen/application/auth/auth_profile.dart';
+import 'package:gitopen/application/git/auth_spec.dart';
+import 'package:gitopen/application/providers.dart';
+import 'package:gitopen/infrastructure/auth/github_device_flow.dart';
+import 'package:gitopen/ui/dialogs/app_dialog.dart';
+import 'package:gitopen/ui/theme/app_palette.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
-
-import '../../application/auth/auth_profile.dart';
-import '../../application/git/auth_spec.dart';
-import '../../application/providers.dart';
-import '../../infrastructure/auth/github_device_flow.dart';
-import '../theme/app_palette.dart';
-import 'app_dialog.dart';
 
 /// Dialog that lets the user sign in with one of three methods:
 ///  - HTTPS personal-access-token (username + token)
@@ -22,13 +21,13 @@ import 'app_dialog.dart';
 /// [authProfileStoreProvider] and returned to the caller, so the caller
 /// can bind the current repository to that profile if desired.
 class AuthDialog extends ConsumerStatefulWidget {
+
+  const AuthDialog({required this.host, super.key, this.editing});
   final String host;
 
   /// When non-null, the dialog edits the existing profile (same id, host)
   /// instead of creating a new one.
   final AuthProfile? editing;
-
-  const AuthDialog({super.key, required this.host, this.editing});
 
   static Future<AuthProfile?> show(
     BuildContext context,
@@ -205,7 +204,7 @@ class _AuthDialogState extends ConsumerState<AuthDialog>
       final spec = AuthGitHubOauth(token);
       final profile = await _saveProfile(username: username, spec: spec);
       if (mounted) Navigator.pop(context, profile);
-    } catch (e) {
+    } on Object catch (e) {
       if (mounted) {
         setState(() {
           _busy = false;
@@ -243,7 +242,7 @@ class _AuthDialogState extends ConsumerState<AuthDialog>
       }
       final profile = await _saveProfile(username: username, spec: spec);
       if (mounted) Navigator.pop(context, profile);
-    } catch (e) {
+    } on Object catch (e) {
       if (mounted) {
         setState(() {
           _busy = false;
@@ -284,7 +283,7 @@ class _AuthDialogState extends ConsumerState<AuthDialog>
         final login = m['login'];
         if (login is String && login.isNotEmpty) return login;
       }
-    } catch (_) {
+    } on Object catch (_) {
       // fall through
     }
     return '(github user)';
@@ -296,9 +295,9 @@ class _AuthDialogState extends ConsumerState<AuthDialog>
 // ---------------------------------------------------------------------------
 
 class _GitHubOAuthTab extends StatefulWidget {
+  const _GitHubOAuthTab({required this.clientId, required this.onToken});
   final String clientId;
   final Future<void> Function(String token) onToken;
-  const _GitHubOAuthTab({required this.clientId, required this.onToken});
 
   @override
   State<_GitHubOAuthTab> createState() => _GitHubOAuthTabState();
@@ -440,7 +439,7 @@ class _GitHubOAuthTabState extends State<_GitHubOAuthTab> {
       await _openBrowser();
       final token = await flow.pollForToken(resp);
       await widget.onToken(token);
-    } catch (e) {
+    } on Object catch (e) {
       if (mounted) {
         setState(() {
           _state = _OAuthState.error;

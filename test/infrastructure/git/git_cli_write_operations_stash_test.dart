@@ -13,12 +13,22 @@ void main() {
     try {
       File(p.join(f.path, 'file_0.txt')).writeAsStringSync('changed');
       final sut = GitCliWriteOperations();
-      final saved = await sut.stashSave(RepoLocation(RepoId.newId(), f.path, 't'), 'my stash');
-      expect(saved, isA<GitSuccess>());
-      final list = await Process.run('git', ['stash', 'list'], workingDirectory: f.path);
+      final saved = await sut.stashSave(
+        RepoLocation(RepoId.newId(), f.path, 't'),
+        'my stash',
+      );
+      expect(saved, isA<GitSuccess<void>>());
+      final list = await Process.run(
+        'git',
+        ['stash', 'list'],
+        workingDirectory: f.path,
+      );
       expect(list.stdout.toString(), contains('my stash'));
-      final popped = await sut.stashPop(RepoLocation(RepoId.newId(), f.path, 't'), 0);
-      expect(popped, isA<GitSuccess>());
+      final popped = await sut.stashPop(
+        RepoLocation(RepoId.newId(), f.path, 't'),
+        0,
+      );
+      expect(popped, isA<GitSuccess<void>>());
     } finally { await f.dispose(); }
   });
 }

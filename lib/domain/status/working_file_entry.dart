@@ -12,10 +12,6 @@ enum WorkingFileState {
 }
 
 final class WorkingFileEntry extends Equatable {
-  final String path;
-  final WorkingFileState indexState;
-  final WorkingFileState workingTreeState;
-  final String? oldPath;
 
   const WorkingFileEntry({
     required this.path,
@@ -23,6 +19,10 @@ final class WorkingFileEntry extends Equatable {
     required this.workingTreeState,
     this.oldPath,
   });
+  final String path;
+  final WorkingFileState indexState;
+  final WorkingFileState workingTreeState;
+  final String? oldPath;
 
   @override
   List<Object?> get props => [path, indexState, workingTreeState, oldPath];

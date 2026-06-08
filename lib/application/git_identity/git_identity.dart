@@ -4,14 +4,14 @@ import 'package:equatable/equatable.dart';
 /// (e.g. "Work", "Personal") shown in the UI; the [name] and [email] are
 /// what get written to a repo's local config as `user.name` and `user.email`.
 final class GitIdentity extends Equatable {
-  final String label;
-  final String name;
-  final String email;
   const GitIdentity({
     required this.label,
     required this.name,
     required this.email,
   });
+  final String label;
+  final String name;
+  final String email;
 
   Map<String, String> toJson() => {
         'label': label,

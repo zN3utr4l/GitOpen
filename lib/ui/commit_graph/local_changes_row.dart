@@ -1,19 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../application/active_workspace_provider.dart';
-import '../../application/main_view_provider.dart';
-import '../../application/providers.dart';
-import '../../domain/repositories/repo_location.dart';
-import '../theme/app_palette.dart';
+import 'package:gitopen/application/active_workspace_provider.dart';
+import 'package:gitopen/application/main_view_provider.dart';
+import 'package:gitopen/application/providers.dart';
+import 'package:gitopen/domain/repositories/repo_location.dart';
+import 'package:gitopen/domain/status/repo_status.dart';
+import 'package:gitopen/ui/theme/app_palette.dart';
 
-final repoStatusProvider = FutureProvider.family.autoDispose((ref, RepoLocation r) async {
+final AutoDisposeFutureProviderFamily<RepoStatus, RepoLocation>
+    repoStatusProvider =
+    FutureProvider.family.autoDispose<RepoStatus, RepoLocation>((ref, r) async {
   final git = ref.watch(gitReadOperationsProvider);
   return git.getStatus(r);
 });
 
 class LocalChangesRow extends ConsumerWidget {
+  const LocalChangesRow({required this.repo, super.key});
   final RepoLocation repo;
-  const LocalChangesRow({super.key, required this.repo});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

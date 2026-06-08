@@ -1,13 +1,13 @@
-import '../../domain/refs/branch.dart';
+import 'package:gitopen/domain/refs/branch.dart';
 
 final class BranchTreeNode {
+
+  BranchTreeNode({required this.name, required this.fullPath, this.branch})
+      : children = [];
   final String name;
   final String fullPath;
   final Branch? branch;
   final List<BranchTreeNode> children;
-
-  BranchTreeNode({required this.name, required this.fullPath, this.branch})
-      : children = [];
 
   bool get isLeaf => branch != null && children.isEmpty;
 }

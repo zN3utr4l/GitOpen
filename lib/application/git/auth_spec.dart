@@ -3,26 +3,26 @@ sealed class AuthSpec {
 }
 
 final class AuthHttpsPat extends AuthSpec {
+  const AuthHttpsPat({required this.username, required this.token});
   final String username;
   final String token;
-  const AuthHttpsPat({required this.username, required this.token});
 }
 
 final class AuthHttpsBasic extends AuthSpec {
+  const AuthHttpsBasic({required this.username, required this.password});
   final String username;
   final String password;
-  const AuthHttpsBasic({required this.username, required this.password});
 }
 
 final class AuthSsh extends AuthSpec {
+  const AuthSsh({required this.privateKeyPath, this.passphrase});
   final String privateKeyPath;
   final String? passphrase;
-  const AuthSsh({required this.privateKeyPath, this.passphrase});
 }
 
 final class AuthGitHubOauth extends AuthSpec {
-  final String accessToken;
   const AuthGitHubOauth(this.accessToken);
+  final String accessToken;
 }
 
 final class AuthSystemDefault extends AuthSpec {

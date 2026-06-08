@@ -1,15 +1,16 @@
-import '../../domain/repositories/repo_location.dart';
+import 'package:flutter/foundation.dart';
+import 'package:gitopen/domain/repositories/repo_location.dart';
 
+@immutable
 class EditorTarget {
-  final String id;
-  final String displayName;
-  final String executable;
-
   const EditorTarget({
     required this.id,
     required this.displayName,
     required this.executable,
   });
+  final String id;
+  final String displayName;
+  final String executable;
 
   @override
   bool operator ==(Object other) => other is EditorTarget && other.id == id;
@@ -22,8 +23,8 @@ class EditorTarget {
 }
 
 class LauncherException implements Exception {
-  final String message;
   const LauncherException(this.message);
+  final String message;
   @override
   String toString() => message;
 }

@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 
-import 'diff_hunk.dart';
+import 'package:gitopen/domain/diff/diff_hunk.dart';
 
 enum FileChangeKind {
   added,
@@ -13,6 +13,16 @@ enum FileChangeKind {
 }
 
 final class FileDiff extends Equatable {
+
+  const FileDiff({
+    required this.path,
+    required this.changeKind,
+    required this.isBinary,
+    required this.linesAdded,
+    required this.linesDeleted,
+    required this.hunks,
+    this.oldPath,
+  });
   final String path;
   final String? oldPath;
   final FileChangeKind changeKind;
@@ -20,16 +30,6 @@ final class FileDiff extends Equatable {
   final int linesAdded;
   final int linesDeleted;
   final List<DiffHunk> hunks;
-
-  const FileDiff({
-    required this.path,
-    this.oldPath,
-    required this.changeKind,
-    required this.isBinary,
-    required this.linesAdded,
-    required this.linesDeleted,
-    required this.hunks,
-  });
 
   @override
   List<Object?> get props => [
