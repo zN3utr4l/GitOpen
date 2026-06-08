@@ -1,0 +1,37 @@
+name: Flutter setup
+description: >-
+  Set up Flutter (pinned), restore dependencies, and run build_runner codegen
+  with a cache of the generated output. Assumes the repo is already checked out.
+
+runs:
+  using: composite
+  steps:
+    # Third-party action SHA-pinned (supply-chain). Bump SHA with the version
+    # comment on release. Flutter pinned for reproducible builds.
+    - name: Setup Flutter
+      uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+      with:
+        channel: stable
+        flutter-version: 3.44.x
+        cache: true
+
+    - name: Pub get
+      shell: bash
+      run: flutter pub get
+
+    # Cache build_runner output so codegen is incremental (~80s -> ~20s warm).
+    # Exact key (lib sources unchanged) => full hit; the pubspec.lock prefix
+    # restore-key gives a warm incremental base. build_runner re-checks inputs,
+    # so a partial restore can never produce stale generated code.
+    - name: Cache codegen output
+      uses: actions/cache@v4
+      with:
+        path: .dart_tool/build
+        key: codegen-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}-${{ hashFiles('lib/**/*.dart') }}
+        restore-keys: |
+          codegen-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}-
+          codegen-${{ runner.os }}-
+
+    - name: Codegen
+      shell: bash
+      run: dart run build_runner build --delete-conflicting-outputs
