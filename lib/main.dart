@@ -9,7 +9,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gitopen/application/active_workspace_provider.dart';
 import 'package:gitopen/application/git/repo_state_provider.dart';
 import 'package:gitopen/application/main_view_provider.dart';
-import 'package:gitopen/application/operations/running_operation.dart';
 import 'package:gitopen/application/providers.dart';
 import 'package:gitopen/application/settings/app_settings.dart';
 import 'package:gitopen/application/settings/settings_open_provider.dart';
@@ -20,6 +19,7 @@ import 'package:gitopen/ui/bottom_panel/bottom_panel.dart';
 import 'package:gitopen/ui/commit_graph/commit_graph_panel.dart';
 import 'package:gitopen/ui/common/vertical_splitter.dart';
 import 'package:gitopen/ui/conflicts/conflict_resolution_panel.dart';
+import 'package:gitopen/ui/git/git_actions_controller.dart';
 import 'package:gitopen/ui/operations/toast_overlay.dart';
 import 'package:gitopen/ui/settings/settings_page.dart';
 import 'package:gitopen/ui/shell/repo_selector.dart';
@@ -176,7 +176,8 @@ class Shell extends ConsumerStatefulWidget {
 }
 
 class _ShellState extends ConsumerState<Shell> {
-  /// F5 — fetch the active repo.
+  /// F5 — fetch the active repo through the shared git-actions controller, so
+  /// it gets the same progress + auth-retry as the toolbar's Fetch button.
   Future<void> _fetchActive() async {
     final activeId = ref.read(activeWorkspaceIdProvider);
     if (activeId == null) return;
@@ -184,25 +185,9 @@ class _ShellState extends ConsumerState<Shell> {
     final active =
         workspaces.firstWhereOrNull((w) => w.location.id == activeId);
     if (active == null) return;
-    final repo = active.location;
-    final ops = ref.read(operationsProvider.notifier);
-    final id = ops.start(OpKind.fetch, 'Fetching origin', repo: repo);
-    final profile = await ref.read(authResolverProvider).resolveForRepo(repo);
-    try {
-      await for (final ev in ref
-          .read(gitWriteOperationsProvider)
-          .fetch(repo, auth: profile?.spec)) {
-        ops.updateProgress(
-          id,
-          (ev as dynamic).fraction as double?,
-          (ev as dynamic).phase as String,
-        );
-      }
-      ops.finishSuccess(id);
-      ref.invalidate(gitReadOperationsProvider);
-    } on Object catch (e) {
-      ops.finishFailure(id, e.toString());
-    }
+    await ref
+        .read(gitActionsControllerProvider)
+        .fetch(context, active.location);
   }
 
   @override

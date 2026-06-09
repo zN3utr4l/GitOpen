@@ -2,6 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gitopen/application/auth/auth_profile.dart';
 import 'package:gitopen/application/auth/auth_profile_store.dart';
 import 'package:gitopen/application/auth/auth_resolver.dart';
+import 'package:gitopen/application/auth/credential_tester.dart';
+import 'package:gitopen/application/git/git_action_ports.dart';
+import 'package:gitopen/application/git/git_actions_service.dart';
 import 'package:gitopen/application/git/git_read_operations.dart';
 import 'package:gitopen/application/git/git_write_operations.dart';
 import 'package:gitopen/application/launcher/repo_launcher.dart';
@@ -17,6 +20,8 @@ import 'package:gitopen/domain/refs/branch.dart';
 import 'package:gitopen/domain/refs/submodule.dart';
 import 'package:gitopen/domain/repositories/repo_location.dart';
 import 'package:gitopen/domain/status/repo_status.dart';
+import 'package:gitopen/infrastructure/auth/git_credential_tester.dart';
+import 'package:gitopen/infrastructure/auth/github_user_service.dart';
 import 'package:gitopen/infrastructure/auth/secure_auth_profile_store.dart';
 import 'package:gitopen/infrastructure/git/git_cli_read_operations.dart';
 import 'package:gitopen/infrastructure/git/git_cli_write_operations.dart';
@@ -24,6 +29,7 @@ import 'package:gitopen/infrastructure/git/git_identity_service.dart';
 import 'package:gitopen/infrastructure/git/git_process_runner.dart';
 import 'package:gitopen/infrastructure/launcher/system_repo_launcher.dart';
 import 'package:gitopen/infrastructure/logging/app_logger.dart';
+import 'package:gitopen/infrastructure/logging/app_logger_port.dart';
 import 'package:gitopen/infrastructure/operations/activity_log_repository.dart';
 import 'package:gitopen/infrastructure/persistence/database.dart';
 import 'package:gitopen/infrastructure/persistence/repository_registry_impl.dart';
@@ -41,6 +47,8 @@ final appDatabaseProvider = Provider<AppDatabase>((ref) {
 final gitProcessRunnerProvider = Provider<GitProcessRunner>((ref) {
   return GitProcessRunner();
 });
+
+final loggerProvider = Provider<LoggerPort>((ref) => const AppLoggerPort());
 
 final gitReadOperationsProvider = Provider<GitReadOperations>((ref) {
   return GitCliReadOperations(runner: ref.watch(gitProcessRunnerProvider));
@@ -63,6 +71,19 @@ final folderPickerProvider = Provider<FolderPicker>((ref) => FolderPicker());
 
 final gitWriteOperationsProvider = Provider<GitWriteOperations>((ref) {
   return GitCliWriteOperations(runner: ref.watch(gitProcessRunnerProvider));
+});
+
+/// Pure orchestrator for git actions (progress + auth-retry + declarative
+/// invalidation). The UI's `GitActionsController` drives it with concrete
+/// ports. `errorText` is wired here — the composition root is the one place
+/// allowed to know how to read git's stderr off a `GitProcessException`.
+final gitActionsServiceProvider = Provider<GitActionsService>((ref) {
+  return GitActionsService(
+    write: ref.watch(gitWriteOperationsProvider),
+    resolveProfile: (repo) =>
+        ref.read(authResolverProvider).resolveForRepo(repo),
+    errorText: (e) => e is GitProcessException ? e.stderr : e.toString(),
+  );
 });
 
 final activityLogRepositoryProvider = Provider<ActivityLogRepository>((ref) {
@@ -177,6 +198,14 @@ final gitIdentityServiceProvider = Provider<GitIdentityService>((ref) {
 
 final repoLauncherProvider = Provider<RepoLauncher>((ref) {
   return SystemRepoLauncher();
+});
+
+final credentialTesterProvider = Provider<CredentialTester>((ref) {
+  return const GitCredentialTester();
+});
+
+final gitHubUserServiceProvider = Provider<GitHubUserService>((ref) {
+  return const GitHubUserService();
 });
 
 final availableEditorsProvider = FutureProvider<List<EditorTarget>>((ref) {

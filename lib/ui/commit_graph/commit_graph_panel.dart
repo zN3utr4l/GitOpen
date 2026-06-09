@@ -10,7 +10,6 @@ import 'package:gitopen/application/commit_graph/commit_graph_layout.dart';
 import 'package:gitopen/application/commit_graph/commit_node.dart';
 import 'package:gitopen/application/commit_search_provider.dart';
 import 'package:gitopen/application/git/git_read_operations.dart';
-import 'package:gitopen/application/git/git_result.dart';
 import 'package:gitopen/application/git/git_write_operations.dart';
 import 'package:gitopen/application/git/merge_outcome.dart';
 import 'package:gitopen/application/git/repo_state_provider.dart';
@@ -20,7 +19,6 @@ import 'package:gitopen/domain/commits/commit_info.dart';
 import 'package:gitopen/domain/commits/commit_sha.dart';
 import 'package:gitopen/domain/refs/branch.dart';
 import 'package:gitopen/domain/repositories/repo_location.dart';
-import 'package:gitopen/infrastructure/logging/app_logger.dart';
 import 'package:gitopen/ui/checkout/safe_checkout.dart';
 import 'package:gitopen/ui/commit_graph/commit_row.dart';
 import 'package:gitopen/ui/commit_graph/local_changes_row.dart';
@@ -31,6 +29,7 @@ import 'package:gitopen/ui/dialogs/branch_create_dialog.dart';
 import 'package:gitopen/ui/dialogs/confirm_dialog.dart';
 import 'package:gitopen/ui/dialogs/interactive_rebase_dialog.dart';
 import 'package:gitopen/ui/dialogs/merge_dialog.dart';
+import 'package:gitopen/ui/git/git_actions_controller.dart';
 import 'package:gitopen/ui/theme/app_palette.dart';
 
 /// Top-level wrapper required by [compute] to run the layout in a
@@ -64,13 +63,14 @@ final FutureProviderFamily<_GraphData, RepoLocation> _commitGraphDataProvider =
   // Watch the search terms so the provider re-runs when the query changes.
   // When empty, the CommitQuery below carries null search fields and the
   // graph behaves exactly as before search existed.
+  final logger = ref.read(loggerProvider);
   final search = ref.watch(commitSearchProvider);
 
-  appLog.i('graph: start load for ${repo.displayName}');
+  logger.i('graph: start load for ${repo.displayName}');
   // Share the branch fetch with the sidebar — same repo, same data, no
   // need to spawn a second `git for-each-ref`.
   final branches = await ref.watch(branchesProvider(repo).future);
-  appLog.i('graph: branches=${branches.length}');
+  logger.i('graph: branches=${branches.length}');
 
   // Compute the set of visible branch fullNames to pass to git log.
   final visibleBranches =
@@ -92,7 +92,7 @@ final FutureProviderFamily<_GraphData, RepoLocation> _commitGraphDataProvider =
     touchingContent: search.touchingContent,
   );
 
-  appLog.i(
+  logger.i(
     'graph: running git log '
     '(max=$takeCommits, refs=${refsForLog.length}, '
     'search=${search.isEmpty ? 'none' : 'active'})',
@@ -108,15 +108,15 @@ final FutureProviderFamily<_GraphData, RepoLocation> _commitGraphDataProvider =
               _gitLogTimeout),
         );
   } on TimeoutException catch (e) {
-    appLog.w('graph: git log timeout — ${e.message}');
+    logger.w('graph: git log timeout — ${e.message}');
     rethrow;
   }
-  appLog.i('graph: commits=${commits.length} — computing layout (isolate)');
+  logger.i('graph: commits=${commits.length} — computing layout (isolate)');
   // Run the layout in a background isolate so a big graph cannot pin the
   // UI thread.  The overhead of [compute] (~tens of ms to spawn) is
   // dwarfed by the layout cost on any non-trivial history.
   final nodes = await compute(_layoutInIsolate, commits);
-  appLog.i('graph: layout done (${nodes.length} nodes)');
+  logger.i('graph: layout done (${nodes.length} nodes)');
 
   // Bucket all branches by tip sha, splitting locals from remotes.
   final localsBySha = <String, List<Branch>>{};
@@ -520,30 +520,10 @@ class _CommitGraphPanelState extends ConsumerState<CommitGraphPanel> {
           sourceRef: sha.short(),
           targetRef: current ?? 'HEAD',
         );
-        if (strategy == null) return;
-        final result =
-            await write.merge(repo, sha.value, strategy: strategy);
-        ref.invalidate(gitReadOperationsProvider);
-        ref.invalidate(repoStateProvider(repo));
-        if (!context.mounted) return;
-        if (result case GitSuccess(value: final MergeConflict outcome)) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Merge conflict in ${outcome.conflictedPaths.length} '
-                'file(s). Resolve in the conflicts panel below.',
-              ),
-              backgroundColor: palette.accentErr,
-            ),
-          );
-        } else if (result case GitFailure(:final message)) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Merge failed: $message'),
-              backgroundColor: palette.accentErr,
-            ),
-          );
-        }
+        if (strategy == null || !context.mounted) return;
+        await ref
+            .read(gitActionsControllerProvider)
+            .merge(context, repo, sha.value, strategy);
 
       case 'rebase':
         if (!context.mounted) return;
@@ -554,29 +534,10 @@ class _CommitGraphPanelState extends ConsumerState<CommitGraphPanel> {
               'This rewrites commits on the current branch.',
           confirmLabel: 'Rebase',
         );
-        if (!confirmed) return;
-        final result = await write.rebase(repo, sha.value);
-        ref.invalidate(gitReadOperationsProvider);
-        ref.invalidate(repoStateProvider(repo));
-        if (!context.mounted) return;
-        if (result case GitSuccess(value: final RebaseConflict outcome)) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Rebase conflict in ${outcome.conflictedPaths.length} '
-                'file(s). Resolve in the conflicts panel below.',
-              ),
-              backgroundColor: palette.accentErr,
-            ),
-          );
-        } else if (result case GitFailure(:final message)) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Rebase failed: $message'),
-              backgroundColor: palette.accentErr,
-            ),
-          );
-        }
+        if (!confirmed || !context.mounted) return;
+        await ref
+            .read(gitActionsControllerProvider)
+            .rebase(context, repo, sha.value);
 
       case 'interactive_rebase':
         if (!context.mounted) return;
@@ -606,18 +567,14 @@ class _CommitGraphPanelState extends ConsumerState<CommitGraphPanel> {
         }
 
       case 'cherry_pick':
-        await write.cherryPick(repo, sha);
-        ref.invalidate(gitReadOperationsProvider);
+        await ref
+            .read(gitActionsControllerProvider)
+            .cherryPick(context, repo, sha);
 
       case 'revert':
-        final res = await write.revert(repo, sha);
-        if (res case GitFailure(:final message) when context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Revert failed: $message')),
-          );
-        }
-        ref.invalidate(_commitGraphDataProvider(repo));
-        ref.invalidate(repoStateProvider(repo));
+        await ref
+            .read(gitActionsControllerProvider)
+            .revert(context, repo, sha);
 
       case 'branch_here':
         await BranchCreateDialog.show(context, repo, at: sha);
@@ -666,8 +623,10 @@ class _CommitGraphPanelState extends ConsumerState<CommitGraphPanel> {
       );
       if (!confirmed) return;
     }
-    await ref.read(gitWriteOperationsProvider).reset(widget.repo, sha, mode);
-    ref.invalidate(gitReadOperationsProvider);
+    if (!context.mounted) return;
+    await ref
+        .read(gitActionsControllerProvider)
+        .reset(context, widget.repo, sha, mode);
   }
 
   Future<String?> _promptText(BuildContext context, String title,

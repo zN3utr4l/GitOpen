@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:gitopen/application/git/auth_failure_classifier.dart';
 import 'package:gitopen/application/git/auth_spec.dart';
 import 'package:gitopen/application/git/commit_request.dart';
 import 'package:gitopen/application/git/git_progress.dart';
@@ -100,9 +101,11 @@ final class GitCliWriteOperations implements GitWriteOperations {
 
   GitErrorKind _classify(GitProcessException e) {
     final s = e.stderr.toLowerCase();
-    if (s.contains('auth') ||
-        s.contains('401') ||
-        s.contains('permission denied')) {
+    // Auth detection reuses the shared classifier's specific phrases, so the
+    // old `contains('auth')` no longer matches the word "author" in commit
+    // errors. Bare `401` is kept as an extra signal.
+    if (const AuthFailureClassifier().classify(e.stderr) != null ||
+        s.contains('401')) {
       return GitErrorKind.auth;
     }
     if (s.contains('network') ||

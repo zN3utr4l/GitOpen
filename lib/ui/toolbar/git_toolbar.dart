@@ -4,22 +4,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:gitopen/application/active_workspace_provider.dart';
-import 'package:gitopen/application/auth/auth_profile.dart';
 import 'package:gitopen/application/git/auth_spec.dart';
-import 'package:gitopen/application/git/git_write_operations.dart';
 import 'package:gitopen/application/launcher/repo_launcher.dart';
-import 'package:gitopen/application/operations/running_operation.dart';
 import 'package:gitopen/application/providers.dart';
-import 'package:gitopen/application/settings/app_settings.dart';
 import 'package:gitopen/application/workspaces/workspace.dart';
 import 'package:gitopen/domain/repositories/repo_location.dart';
-import 'package:gitopen/infrastructure/git/git_process_runner.dart';
 import 'package:gitopen/ui/common/app_context_menu.dart';
-import 'package:gitopen/ui/dialogs/account_switcher_dialog.dart';
 import 'package:gitopen/ui/dialogs/app_dialog.dart';
 import 'package:gitopen/ui/dialogs/auth_dialog.dart';
 import 'package:gitopen/ui/dialogs/branch_create_dialog.dart';
 import 'package:gitopen/ui/dialogs/confirm_dialog.dart';
+import 'package:gitopen/ui/git/git_actions_controller.dart';
 import 'package:gitopen/ui/theme/app_palette.dart';
 
 /// Three-button toolbar for Fetch / Pull / Push, plus Branch and Stash
@@ -79,150 +74,14 @@ class _GitToolbarState extends ConsumerState<GitToolbar> {
     );
   }
 
-  Future<void> _fetch(RepoLocation repo) => _runStream(
-        OpKind.fetch,
-        'Fetching origin',
-        repo,
-        (auth) => ref.read(gitWriteOperationsProvider).fetch(repo, auth: auth),
-      );
+  void _fetch(RepoLocation repo) =>
+      unawaited(ref.read(gitActionsControllerProvider).fetch(context, repo));
 
-  Future<void> _pull(RepoLocation repo) {
-    final strategy =
-        switch (ref.read(appSettingsProvider).defaultPullStrategy) {
-      DefaultPullStrategy.ffOnly => PullStrategy.ffOnly,
-      DefaultPullStrategy.merge => PullStrategy.merge,
-      DefaultPullStrategy.rebase => PullStrategy.rebase,
-    };
-    return _runStream(
-      OpKind.pull,
-      'Pulling',
-      repo,
-      (auth) =>
-          ref.read(gitWriteOperationsProvider).pull(repo, strategy, auth: auth),
-    );
-  }
+  void _pull(RepoLocation repo) =>
+      unawaited(ref.read(gitActionsControllerProvider).pull(context, repo));
 
-  Future<void> _push(RepoLocation repo) => _runStream(
-        OpKind.push,
-        'Pushing',
-        repo,
-        (auth) => ref.read(gitWriteOperationsProvider).push(repo, auth: auth),
-      );
-
-  /// Runs a streaming git operation, tracking it in [operationsProvider].
-  ///
-  /// On an auth-style failure (bad credential) or wrong-account failure
-  /// (HTTP 404 "repository not found" — typical when two GitHub accounts
-  /// share the same host and the wrong one is being used) the user is
-  /// prompted with [AccountSwitcherDialog].  The chosen profile is bound
-  /// to this repo so subsequent operations pick it up automatically; the
-  /// operation is then retried once.
-  Future<void> _runStream(
-    OpKind kind,
-    String label,
-    RepoLocation repo,
-    Stream<dynamic> Function(AuthSpec? auth) streamFactory, {
-    AuthProfile? profile,
-  }) async {
-    final ops = ref.read(operationsProvider.notifier);
-    final id = ops.start(kind, label, repo: repo);
-    profile ??= await ref.read(authResolverProvider).resolveForRepo(repo);
-    try {
-      await for (final ev in streamFactory(profile?.spec)) {
-        ops.updateProgress(
-          id,
-          (ev as dynamic).fraction as double?,
-          (ev as dynamic).phase as String,
-        );
-      }
-      ops.finishSuccess(id);
-      ref.invalidate(gitReadOperationsProvider);
-    } on Object catch (e) {
-      // Inspect ONLY the git stderr — never `e.toString()`, which embeds the
-      // git argv. With the credential helper active those args contain the
-      // literal word `Authorization` (from `http.extraheader=Authorization:`),
-      // which would otherwise falsely match the auth-error heuristic.
-      final stderr = e is GitProcessException ? e.stderr : e.toString();
-      final auth = _isAuthError(stderr);
-      final wrongAccount = !auth && _isWrongAccountError(stderr);
-      if (auth || wrongAccount) {
-        ops.finishFailure(
-          id,
-          wrongAccount
-              ? 'Repository not visible to current account'
-              : 'Authentication required',
-        );
-        await _promptAccountAndRetry(
-          kind,
-          label,
-          repo,
-          streamFactory,
-          currentProfile: profile,
-          contextMessage: wrongAccount
-              ? 'Git returned "repository not found" — '
-                  'the active account likely cannot see this repo.'
-              : 'The active credential was rejected.',
-        );
-      } else {
-        ops.finishFailure(id, e.toString());
-      }
-    }
-  }
-
-  /// Detects auth-failure signals from git stderr.  Patterns are scoped to
-  /// phrases git actually emits — avoid loose substrings like `'auth'`.
-  bool _isAuthError(String stderr) {
-    final lower = stderr.toLowerCase();
-    return lower.contains('authentication failed') ||
-        lower.contains('invalid username or password') ||
-        lower.contains('could not read username') ||
-        lower.contains('could not read password') ||
-        lower.contains('terminal prompts disabled') ||
-        lower.contains('http basic: access denied') ||
-        lower.contains('remote: invalid credentials') ||
-        lower.contains('remote: denied') ||
-        lower.contains('permission denied') ||
-        lower.contains('error: 401') ||
-        lower.contains('error: 403');
-  }
-
-  /// "Repository not found" is GitHub's response when the authenticated user
-  /// lacks access to a private repo — common when multiple accounts share
-  /// the host and the wrong one is being used.
-  bool _isWrongAccountError(String stderr) {
-    final lower = stderr.toLowerCase();
-    return lower.contains('repository not found') ||
-        lower.contains('remote: not found') ||
-        lower.contains('error: 404');
-  }
-
-  /// Shows [AccountSwitcherDialog]; on selection binds the chosen profile to
-  /// this repo and re-runs the operation once with the new credential.
-  Future<void> _promptAccountAndRetry(
-    OpKind kind,
-    String label,
-    RepoLocation repo,
-    Stream<dynamic> Function(AuthSpec? auth) streamFactory, {
-    required AuthProfile? currentProfile,
-    required String contextMessage,
-  }) async {
-    if (!mounted) return;
-    final host =
-        await ref.read(authResolverProvider).hostFromRepo(repo, 'origin') ??
-            'github.com';
-    if (!mounted) return;
-    final chosen = await AccountSwitcherDialog.show(
-      context,
-      host: host,
-      contextMessage: contextMessage,
-      currentProfileId: currentProfile?.id,
-    );
-    if (chosen == null) return;
-    await ref
-        .read(appSettingsProvider.notifier)
-        .setAuthBinding(repo.id.value, chosen.id);
-    await _runStream(kind, label, repo, streamFactory, profile: chosen);
-  }
+  void _push(RepoLocation repo) =>
+      unawaited(ref.read(gitActionsControllerProvider).push(context, repo));
 }
 
 // ---------------------------------------------------------------------------

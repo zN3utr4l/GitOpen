@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gitopen/application/active_workspace_provider.dart';
 import 'package:gitopen/application/branch_visibility_provider.dart';
 import 'package:gitopen/application/git/git_result.dart';
-import 'package:gitopen/application/git/merge_outcome.dart';
 import 'package:gitopen/application/main_view_provider.dart';
 import 'package:gitopen/application/operations/running_operation.dart';
 import 'package:gitopen/application/providers.dart';
@@ -15,13 +14,13 @@ import 'package:gitopen/domain/refs/stash.dart';
 import 'package:gitopen/domain/refs/submodule.dart';
 import 'package:gitopen/domain/refs/tag.dart';
 import 'package:gitopen/domain/repositories/repo_location.dart';
-import 'package:gitopen/infrastructure/logging/app_logger.dart';
 import 'package:gitopen/ui/checkout/safe_checkout.dart';
 import 'package:gitopen/ui/common/app_context_menu.dart';
 import 'package:gitopen/ui/dialogs/app_dialog.dart';
 import 'package:gitopen/ui/dialogs/confirm_dialog.dart';
 import 'package:gitopen/ui/dialogs/merge_dialog.dart';
 import 'package:gitopen/ui/dialogs/remote_dialog.dart';
+import 'package:gitopen/ui/git/git_actions_controller.dart';
 import 'package:gitopen/ui/sidebar/branch_tree.dart';
 import 'package:gitopen/ui/theme/app_palette.dart';
 
@@ -51,18 +50,19 @@ class _SidebarData {
 
 final FutureProviderFamily<_SidebarData, RepoLocation> _sidebarDataProvider =
     FutureProvider.family<_SidebarData, RepoLocation>((ref, repo) async {
+  final logger = ref.read(loggerProvider);
   final git = ref.watch(gitReadOperationsProvider);
-  appLog.i('sidebar: awaiting shared branches for ${repo.displayName}');
+  logger.i('sidebar: awaiting shared branches for ${repo.displayName}');
   final branches = await ref.watch(branchesProvider(repo).future);
-  appLog.i('sidebar: ${branches.length} branches — loading tags');
+  logger.i('sidebar: ${branches.length} branches — loading tags');
   final tags = await git.getTags(repo);
-  appLog.i('sidebar: ${tags.length} tags — loading remotes');
+  logger.i('sidebar: ${tags.length} tags — loading remotes');
   final remotes = await git.getRemotes(repo);
-  appLog.i('sidebar: ${remotes.length} remotes — loading stashes');
+  logger.i('sidebar: ${remotes.length} remotes — loading stashes');
   final stashes = await git.getStashes(repo);
-  appLog.i('sidebar: ${stashes.length} stashes — loading submodules');
+  logger.i('sidebar: ${stashes.length} stashes — loading submodules');
   final submodules = await git.getSubmodules(repo);
-  appLog.i('sidebar: ${submodules.length} submodules — done');
+  logger.i('sidebar: ${submodules.length} submodules — done');
   return _SidebarData(branches, tags, remotes, stashes, submodules);
 });
 
@@ -920,7 +920,6 @@ class _BranchTreeViewState extends ConsumerState<BranchTreeView> {
 
     if (selected == null || !context.mounted) return;
     final write = ref.read(gitWriteOperationsProvider);
-    final palette = AppPalette.of(context);
 
     switch (selected) {
       case 'checkout':
@@ -936,30 +935,11 @@ class _BranchTreeViewState extends ConsumerState<BranchTreeView> {
           sourceRef: branchName,
           targetRef: current ?? 'HEAD',
         );
-        if (strategy == null) return;
-        final result = await write.merge(
-          widget.repo,
-          branchName,
-          strategy: strategy,
-        );
+        if (strategy == null || !context.mounted) return;
+        await ref
+            .read(gitActionsControllerProvider)
+            .merge(context, widget.repo, branchName, strategy);
         _refresh();
-        if (!context.mounted) return;
-        if (result case GitSuccess(value: final MergeConflict outcome)) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Merge conflict in ${outcome.conflictedPaths.length} '
-                'file(s). Resolve in the conflicts panel below.',
-              ),
-              backgroundColor: palette.accentErr,
-            ),
-          );
-        } else if (result case GitFailure(:final message)) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Merge failed: $message'),
-            backgroundColor: palette.accentErr,
-          ));
-        }
 
       case 'rebase':
         if (!context.mounted) return;
@@ -970,28 +950,11 @@ class _BranchTreeViewState extends ConsumerState<BranchTreeView> {
               'This rewrites commits on the current branch.',
           confirmLabel: 'Rebase',
         );
-        if (!confirmed) return;
-        final result = await write.rebase(widget.repo, branchName);
+        if (!confirmed || !context.mounted) return;
+        await ref
+            .read(gitActionsControllerProvider)
+            .rebase(context, widget.repo, branchName);
         _refresh();
-        if (!context.mounted) return;
-        if (result case GitSuccess(value: final RebaseConflict outcome)) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Rebase conflict in ${outcome.conflictedPaths.length} '
-                'file(s). Resolve in the conflicts panel below.',
-              ),
-              backgroundColor: palette.accentErr,
-            ),
-          );
-        } else if (result case GitFailure(:final message)) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Rebase failed: $message'),
-              backgroundColor: palette.accentErr,
-            ),
-          );
-        }
 
       case 'rename':
         final newName = await _promptText(context, 'Rename branch',
