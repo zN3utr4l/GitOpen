@@ -65,9 +65,16 @@ final class GitCliStatusReader {
         continue;
       }
 
+      // Each record kind has a fixed minimum field count (path is the last
+      // field). A short or malformed record — corrupt output, future format
+      // drift — is skipped rather than crashing status for the whole repo.
       if (tok.startsWith('1 ')) {
         // 1 XY sub mH mI mW hH hI path  (space-separated; path is field 8)
         final parts = tok.split(' ');
+        if (parts.length < 9 || parts[1].length < 2) {
+          i++;
+          continue;
+        }
         final xy = parts[1];
         final path = parts.sublist(8).join(' ');
         entries.add(WorkingFileEntry(
@@ -82,6 +89,12 @@ final class GitCliStatusReader {
         // 2 XY sub mH mI mW hH hI Xscore newPath
         // followed by origPath as the next NUL-separated token
         final parts = tok.split(' ');
+        if (parts.length < 10 || parts[1].length < 2) {
+          // Don't consume the next token: a malformed rename record can't be
+          // trusted to carry its origPath companion.
+          i++;
+          continue;
+        }
         final xy = parts[1];
         final newPath = parts.sublist(9).join(' ');
         final origPath = i + 1 < tokens.length ? tokens[i + 1] : null;
@@ -97,6 +110,10 @@ final class GitCliStatusReader {
       if (tok.startsWith('u ')) {
         // unmerged: u XY sub m1 m2 m3 mW h1 h2 h3 path
         final parts = tok.split(' ');
+        if (parts.length < 11 || parts[1].isEmpty) {
+          i++;
+          continue;
+        }
         final xy = parts[1];
         final path = parts.sublist(10).join(' ');
         entries.add(WorkingFileEntry(

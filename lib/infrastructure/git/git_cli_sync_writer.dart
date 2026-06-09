@@ -116,8 +116,9 @@ final class GitCliSyncWriter {
         workingDirectory: cwd,
         environment: buildGitEnvironment(helper.env),
       );
-      // Drain stdout so the process never blocks on a full pipe.
-      unawaited(proc.stdout.drain<void>());
+      // Drain stdout so the process never blocks on a full pipe; awaited
+      // before exitCode below so no output is lost to a race on exit.
+      final stdoutDrained = proc.stdout.drain<void>();
       await for (final line in proc.stderr
           .transform(utf8.decoder)
           .transform(const LineSplitter())) {
@@ -130,6 +131,7 @@ final class GitCliSyncWriter {
           stderrBuf.writeln(line);
         }
       }
+      await stdoutDrained;
       final exit = await proc.exitCode;
       if (exit != 0) {
         final stderr = stderrBuf.toString().trim();

@@ -19,6 +19,11 @@ final class GitCliFileReader {
   final GitProcessRunner _runner;
 
   Future<DiffResult> getDiff(RepoLocation repo, DiffSpec spec) async {
+    // `core.quotepath=false` makes git print non-ASCII paths raw (UTF-8)
+    // instead of C-quote-escaping them ("caf\303\250.txt") — the quoted form
+    // doesn't match the parser's `diff --git a/<path> b/<path>` regex and the
+    // file would silently vanish from the diff.
+    const unquoted = ['-c', 'core.quotepath=false'];
     final args = switch (spec) {
       DiffSpecCommitVsParent(:final commitSha) => [
           // `--first-parent -m` makes merge commits emit a normal 2-way diff
@@ -26,16 +31,20 @@ final class GitCliFileReader {
           // combined diff (diff --cc / @@@) the unified parser can't read.
           // It is a no-op on normal and root commits, so it is safe for all
           // single-commit diffs.
+          ...unquoted,
           'show', commitSha.value, '--first-parent', '-m',
           '--format=', '--raw', '-p', '--no-color',
         ],
       DiffSpecCommitVsCommit(:final from, :final to) => [
+          ...unquoted,
           'diff', '${from.value}..${to.value}', '--raw', '-p', '--no-color',
         ],
       DiffSpecIndexVsHead() => [
+          ...unquoted,
           'diff', '--cached', '--raw', '-p', '--no-color',
         ],
       DiffSpecWorkingTreeVsIndex() => [
+          ...unquoted,
           'diff', '--raw', '-p', '--no-color',
         ],
     };
