@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gitopen/application/auth/auth_profile.dart';
 import 'package:gitopen/application/auth/auth_profile_store.dart';
 import 'package:gitopen/application/auth/auth_resolver.dart';
+import 'package:gitopen/application/git/git_actions_service.dart';
 import 'package:gitopen/application/git/git_read_operations.dart';
 import 'package:gitopen/application/git/git_write_operations.dart';
 import 'package:gitopen/application/launcher/repo_launcher.dart';
@@ -63,6 +64,19 @@ final folderPickerProvider = Provider<FolderPicker>((ref) => FolderPicker());
 
 final gitWriteOperationsProvider = Provider<GitWriteOperations>((ref) {
   return GitCliWriteOperations(runner: ref.watch(gitProcessRunnerProvider));
+});
+
+/// Pure orchestrator for git actions (progress + auth-retry + declarative
+/// invalidation). The UI's `GitActionsController` drives it with concrete
+/// ports. `errorText` is wired here — the composition root is the one place
+/// allowed to know how to read git's stderr off a `GitProcessException`.
+final gitActionsServiceProvider = Provider<GitActionsService>((ref) {
+  return GitActionsService(
+    write: ref.watch(gitWriteOperationsProvider),
+    resolveProfile: (repo) =>
+        ref.read(authResolverProvider).resolveForRepo(repo),
+    errorText: (e) => e is GitProcessException ? e.stderr : e.toString(),
+  );
 });
 
 final activityLogRepositoryProvider = Provider<ActivityLogRepository>((ref) {
