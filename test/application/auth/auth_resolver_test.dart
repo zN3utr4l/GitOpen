@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gitopen/application/auth/auth_profile.dart';
 import 'package:gitopen/application/auth/auth_profile_store.dart';
 import 'package:gitopen/application/auth/auth_resolver.dart';
-import 'package:gitopen/application/git/auth_spec.dart';
+import 'package:gitopen/application/auth/auth_spec.dart';
 import 'package:gitopen/domain/repositories/repo_id.dart';
 import 'package:gitopen/domain/repositories/repo_location.dart';
 import '../../_helpers/repo_fixture.dart';
