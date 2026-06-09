@@ -22,8 +22,10 @@ import 'package:http/http.dart' as http;
 /// `client_id` and pass it to the constructor.
 class GitHubDeviceFlow {
 
-  GitHubDeviceFlow({required this.clientId});
+  GitHubDeviceFlow({required this.clientId, http.Client? client})
+      : _client = client ?? http.Client();
   final String clientId;
+  final http.Client _client;
 
   /// Requests a device + user code from GitHub.
   ///
@@ -34,7 +36,7 @@ class GitHubDeviceFlow {
     if (clientId.isEmpty) {
       throw StateError('GitHub Client ID not configured. Settings → GitHub.');
     }
-    final r = await http.post(
+    final r = await _client.post(
       Uri.parse('https://github.com/login/device/code'),
       headers: {'Accept': 'application/json'},
       body: {'client_id': clientId, 'scope': scope},
@@ -60,22 +62,32 @@ class GitHubDeviceFlow {
   /// Returns the access token string on success.
   /// Throws [TimeoutException] if the device code expires before authorisation.
   /// Throws [StateError] for unexpected error responses from GitHub.
+  ///
+  /// Transient transport failures (a dropped connection, a proxy hiccup, an
+  /// unparsable body) do NOT abort the poll — the user is mid-authorisation
+  /// in the browser; the loop keeps retrying until the code expires. Only an
+  /// explicit error response from GitHub is fatal.
   Future<String> pollForToken(DeviceCodeResponse resp) async {
     final deadline = DateTime.now().add(resp.expiresIn);
     var pollInterval = resp.interval;
 
     while (DateTime.now().isBefore(deadline)) {
       await Future<void>.delayed(pollInterval);
-      final response = await http.post(
-        Uri.parse('https://github.com/login/oauth/access_token'),
-        headers: {'Accept': 'application/json'},
-        body: {
-          'client_id': clientId,
-          'device_code': resp.deviceCode,
-          'grant_type': 'urn:ietf:params:oauth:grant-type:device_code',
-        },
-      );
-      final m = jsonDecode(response.body) as Map<String, dynamic>;
+      final Map<String, dynamic> m;
+      try {
+        final response = await _client.post(
+          Uri.parse('https://github.com/login/oauth/access_token'),
+          headers: {'Accept': 'application/json'},
+          body: {
+            'client_id': clientId,
+            'device_code': resp.deviceCode,
+            'grant_type': 'urn:ietf:params:oauth:grant-type:device_code',
+          },
+        );
+        m = jsonDecode(response.body) as Map<String, dynamic>;
+      } on Object {
+        continue; // transient — retry on the next tick
+      }
       final error = m['error'] as String?;
       if (error == 'authorization_pending') continue;
       if (error == 'slow_down') {
