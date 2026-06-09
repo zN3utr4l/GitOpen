@@ -24,6 +24,7 @@ import 'package:gitopen/domain/status/repo_status.dart';
 import 'package:gitopen/domain/status/working_file_entry.dart';
 import 'package:gitopen/infrastructure/git/git_process_runner.dart';
 import 'package:gitopen/infrastructure/logging/app_logger.dart';
+import 'package:path/path.dart' as p;
 
 final class GitCliReadOperations implements GitReadOperations {
   GitCliReadOperations({GitProcessRunner? runner})
@@ -892,6 +893,21 @@ final class GitCliReadOperations implements GitReadOperations {
 
     final stdout = await _runner.run(repo.path, args);
     return _BlameParser(stdout).parse();
+  }
+
+  @override
+  Future<String> readWorkingFile(
+    RepoLocation repo,
+    String relativePath,
+  ) async {
+    // Reads straight from disk (not via git) so we get the exact working-tree
+    // bytes including any conflict markers git wrote during a failed merge.
+    // Decode lenient: a stray non-UTF-8 byte must not crash the editor — the
+    // parser simply won't find markers and the UI falls back to the external
+    // editor.
+    final file = File(p.join(repo.path, relativePath));
+    final bytes = await file.readAsBytes();
+    return utf8.decode(bytes, allowMalformed: true);
   }
 
   FileTreeKind _mapTreeKind(String type, String mode) {

@@ -25,6 +25,16 @@ final class RebaseTodoEntry {
 }
 
 abstract interface class GitWriteOperations {
+  /// Overwrites the working-tree file at [relativePath] (relative to `r.path`)
+  /// with [content], creating it if absent.  Used by the in-app merge editor
+  /// to write a resolved file back before staging it.  Writes the string's
+  /// bytes verbatim (UTF-8) so the caller controls line endings.
+  Future<GitResult<void>> writeWorkingFile(
+    RepoLocation r,
+    String relativePath,
+    String content,
+  );
+
   Future<GitResult<void>> stageFiles(RepoLocation r, List<String> paths);
   Future<GitResult<void>> unstageFiles(RepoLocation r, List<String> paths);
   Future<GitResult<void>> stagePatch(RepoLocation r, String unifiedDiff);

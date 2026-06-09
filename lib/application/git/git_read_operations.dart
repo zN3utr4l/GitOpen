@@ -91,4 +91,11 @@ abstract interface class GitReadOperations {
     String path, {
     CommitSha? at,
   });
+
+  /// Reads the raw working-tree contents of [relativePath] (relative to
+  /// `repo.path`).  Unlike [getFileTree]/[getDiff] this returns the bytes
+  /// currently on disk — for a conflicted file that is the text WITH git's
+  /// conflict markers, which the in-app merge editor parses.  Decoded as UTF-8
+  /// with malformed bytes replaced so a binary/odd-encoding file never throws.
+  Future<String> readWorkingFile(RepoLocation repo, String relativePath);
 }
