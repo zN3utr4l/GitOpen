@@ -6,6 +6,7 @@ import 'package:gitopen/application/git/repo_state_provider.dart';
 import 'package:gitopen/application/providers.dart';
 import 'package:gitopen/domain/repositories/repo_location.dart';
 import 'package:gitopen/domain/status/working_file_entry.dart';
+import 'package:gitopen/ui/conflicts/merge_editor_dialog.dart';
 import 'package:gitopen/ui/theme/app_palette.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -82,6 +83,11 @@ class ConflictResolutionPanel extends ConsumerWidget {
                               Row(mainAxisSize: MainAxisSize.min, children: [
                             TextButton(
                               onPressed: () =>
+                                  _resolveInApp(context, ref, path),
+                              child: const Text('Resolve'),
+                            ),
+                            TextButton(
+                              onPressed: () =>
                                   _openInEditor(ref, repo.path, path),
                               child: const Text('Open'),
                             ),
@@ -120,6 +126,31 @@ class ConflictResolutionPanel extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  /// Opens the in-app 3-way merge editor for [path]. On a successful save the
+  /// editor stages the file, so we just refresh the conflicts list. If the
+  /// file has no parseable markers the editor returns
+  /// [MergeEditorResult.openExternal] and we fall back to the existing
+  /// external-editor action.
+  Future<void> _resolveInApp(
+    BuildContext context,
+    WidgetRef ref,
+    String path,
+  ) async {
+    final result = await MergeEditorDialog.show(
+      context,
+      repo: repo,
+      relativePath: path,
+    );
+    switch (result) {
+      case MergeEditorResult.resolved:
+        ref.invalidate(_conflictsProvider(repo));
+      case MergeEditorResult.openExternal:
+        await _openInEditor(ref, repo.path, path);
+      case null:
+        break;
+    }
   }
 
   Future<void> _openInEditor(

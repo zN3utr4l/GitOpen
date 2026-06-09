@@ -22,6 +22,24 @@ final class GitCliWriteOperations implements GitWriteOperations {
   final GitProcessRunner _runner;
 
   @override
+  Future<GitResult<void>> writeWorkingFile(
+    RepoLocation r,
+    String relativePath,
+    String content,
+  ) async {
+    try {
+      final file = File(p.join(r.path, relativePath));
+      // Write the bytes verbatim (UTF-8) so the caller's chosen line endings
+      // survive — the merge editor assembles CRLF/LF exactly as the original
+      // file had them. `flush: true` so a subsequent `git add` sees the data.
+      await file.writeAsString(content, flush: true);
+      return const GitSuccess(null);
+    } on FileSystemException catch (e) {
+      return GitFailure(GitErrorKind.other, e.message, '$e');
+    }
+  }
+
+  @override
   Future<GitResult<void>> stageFiles(
     RepoLocation r,
     List<String> paths,
