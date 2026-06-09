@@ -5,11 +5,13 @@ import 'package:gitopen/application/git/auth_failure_classifier.dart';
 import 'package:gitopen/application/git/git_action_ports.dart';
 import 'package:gitopen/application/git/git_actions_service.dart';
 import 'package:gitopen/application/git/git_write_operations.dart';
+import 'package:gitopen/application/git/merge_outcome.dart';
 import 'package:gitopen/application/git/repo_state_provider.dart';
 import 'package:gitopen/application/operations/operations_notifier.dart';
 import 'package:gitopen/application/operations/running_operation.dart';
 import 'package:gitopen/application/providers.dart';
 import 'package:gitopen/application/settings/app_settings.dart';
+import 'package:gitopen/domain/commits/commit_sha.dart';
 import 'package:gitopen/domain/repositories/repo_location.dart';
 import 'package:gitopen/ui/dialogs/account_switcher_dialog.dart';
 import 'package:gitopen/ui/theme/app_palette.dart';
@@ -70,6 +72,68 @@ class GitActionsController {
     );
   }
 
+  /// `git merge <ref>` into the current branch.
+  Future<ActionResult> merge(
+    BuildContext context,
+    RepoLocation repo,
+    String ref,
+    MergeStrategy strategy,
+  ) =>
+      _runLocal(
+        context,
+        repo,
+        () => _ref.read(gitActionsServiceProvider).merge(repo, ref, strategy),
+      );
+
+  /// `git rebase <upstream>`.
+  Future<ActionResult> rebase(
+    BuildContext context,
+    RepoLocation repo,
+    String upstream,
+  ) =>
+      _runLocal(
+        context,
+        repo,
+        () => _ref.read(gitActionsServiceProvider).rebase(repo, upstream),
+      );
+
+  /// `git cherry-pick <sha>` onto the current branch.
+  Future<ActionResult> cherryPick(
+    BuildContext context,
+    RepoLocation repo,
+    CommitSha sha,
+  ) =>
+      _runLocal(
+        context,
+        repo,
+        () => _ref.read(gitActionsServiceProvider).cherryPick(repo, sha),
+      );
+
+  /// `git revert <sha>`.
+  Future<ActionResult> revert(
+    BuildContext context,
+    RepoLocation repo,
+    CommitSha sha,
+  ) =>
+      _runLocal(
+        context,
+        repo,
+        () => _ref.read(gitActionsServiceProvider).revert(repo, sha),
+      );
+
+  /// `git reset --<mode>` to [to].
+  Future<ActionResult> reset(
+    BuildContext context,
+    RepoLocation repo,
+    CommitSha to,
+    ResetMode mode,
+  ) =>
+      _runLocal(
+        context,
+        repo,
+        () => _ref.read(gitActionsServiceProvider).reset(repo, to, mode),
+      );
+
   Future<ActionResult> _run(
     BuildContext context,
     RepoLocation repo,
@@ -79,9 +143,31 @@ class GitActionsController {
       _DialogAuthPrompt(context, _ref),
       _OperationsProgressSink(_ref),
     );
-    // Invalidation needs no context and must run whether or not the caller is
-    // still mounted.
-    for (final scope in result.invalidate) {
+    _invalidate(repo, result.invalidate);
+    final message = result.message;
+    if (message != null && context.mounted) {
+      _showSnack(context, message, result.severity);
+    }
+    return result;
+  }
+
+  Future<ActionResult> _runLocal(
+    BuildContext context,
+    RepoLocation repo,
+    Future<ActionResult> Function() op,
+  ) async {
+    final result = await op();
+    _invalidate(repo, result.invalidate);
+    final message = result.message;
+    if (message != null && context.mounted) {
+      _showSnack(context, message, result.severity);
+    }
+    return result;
+  }
+
+  void _invalidate(RepoLocation repo, Set<RepoDataScope> scopes) {
+    // Needs no context; runs whether or not the caller is still mounted.
+    for (final scope in scopes) {
       switch (scope) {
         case RepoDataScope.reads:
           _ref.invalidate(gitReadOperationsProvider);
@@ -89,11 +175,6 @@ class GitActionsController {
           _ref.invalidate(repoStateProvider(repo));
       }
     }
-    final message = result.message;
-    if (message != null && context.mounted) {
-      _showSnack(context, message, result.severity);
-    }
-    return result;
   }
 
   void _showSnack(

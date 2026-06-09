@@ -3,14 +3,20 @@ import 'package:gitopen/application/git/auth_failure_classifier.dart';
 import 'package:gitopen/application/git/auth_spec.dart';
 import 'package:gitopen/application/git/git_action_ports.dart';
 import 'package:gitopen/application/git/git_progress.dart';
+import 'package:gitopen/application/git/git_result.dart';
 import 'package:gitopen/application/git/git_write_operations.dart';
+import 'package:gitopen/application/git/merge_outcome.dart';
 import 'package:gitopen/application/operations/running_operation.dart';
+import 'package:gitopen/domain/commits/commit_sha.dart';
 import 'package:gitopen/domain/repositories/repo_location.dart';
 
 /// How an action finished, from the caller's point of view.
 enum ActionOutcome {
   /// The operation completed cleanly.
   success,
+
+  /// The operation paused on a conflict the user must resolve.
+  conflict,
 
   /// The operation could not complete (already surfaced to the user via the
   /// progress sink / a message).
@@ -144,6 +150,106 @@ final class GitActionsService {
       prompt: prompt,
       progress: progress,
     );
+  }
+
+  // ---- Local (non-streaming) actions ------------------------------------
+  // No auth / progress streaming; each maps the write op's GitResult to a
+  // declarative ActionResult. Conflict-bearing ops report
+  // ActionOutcome.conflict so the UI surfaces the conflicts panel.
+
+  /// Invalidation set for local actions: refresh reads + in-progress state.
+  static const Set<RepoDataScope> _localScope = {
+    RepoDataScope.reads,
+    RepoDataScope.repoState,
+  };
+
+  /// `git merge <ref>` with the given [strategy].
+  Future<ActionResult> merge(
+    RepoLocation repo,
+    String ref,
+    MergeStrategy strategy,
+  ) async =>
+      _conflictable(
+        await _write.merge(repo, ref, strategy: strategy),
+        'Merge',
+        (o) => o is MergeConflict ? o.conflictedPaths : null,
+      );
+
+  /// `git rebase <upstream>`.
+  Future<ActionResult> rebase(RepoLocation repo, String upstream) async =>
+      _conflictable(
+        await _write.rebase(repo, upstream),
+        'Rebase',
+        (o) => o is RebaseConflict ? o.conflictedPaths : null,
+      );
+
+  /// `git cherry-pick <sha>`.
+  Future<ActionResult> cherryPick(RepoLocation repo, CommitSha sha) async =>
+      _conflictable(
+        await _write.cherryPick(repo, sha),
+        'Cherry-pick',
+        (o) => o is CherryPickConflict ? o.conflictedPaths : null,
+      );
+
+  /// `git revert <sha>`.
+  Future<ActionResult> revert(RepoLocation repo, CommitSha sha) async =>
+      _conflictable(
+        await _write.revert(repo, sha),
+        'Revert',
+        (o) => o is RevertConflict ? o.conflictedPaths : null,
+      );
+
+  /// `git reset --<mode>` to [to].
+  Future<ActionResult> reset(
+    RepoLocation repo,
+    CommitSha to,
+    ResetMode mode,
+  ) async {
+    final result = await _write.reset(repo, to, mode);
+    return switch (result) {
+      GitSuccess() =>
+        const ActionResult(ActionOutcome.success, invalidate: _localScope),
+      GitFailure(:final message) => ActionResult(
+          ActionOutcome.failed,
+          invalidate: _localScope,
+          message: 'Reset failed: $message',
+          severity: MessageSeverity.error,
+        ),
+    };
+  }
+
+  /// Maps a conflict-bearing write result to an [ActionResult]: success,
+  /// conflict (with a count message), or failure. [conflictPaths] returns the
+  /// conflicted paths when the success-outcome is a conflict, else null.
+  ActionResult _conflictable<T>(
+    GitResult<T> result,
+    String label,
+    List<String>? Function(T outcome) conflictPaths,
+  ) {
+    switch (result) {
+      case GitSuccess(:final value):
+        final paths = conflictPaths(value);
+        if (paths == null) {
+          return const ActionResult(
+            ActionOutcome.success,
+            invalidate: _localScope,
+          );
+        }
+        return ActionResult(
+          ActionOutcome.conflict,
+          invalidate: _localScope,
+          message: '$label conflict in ${paths.length} file(s). '
+              'Resolve in the conflicts panel below.',
+          severity: MessageSeverity.error,
+        );
+      case GitFailure(:final message):
+        return ActionResult(
+          ActionOutcome.failed,
+          invalidate: _localScope,
+          message: '$label failed: $message',
+          severity: MessageSeverity.error,
+        );
+    }
   }
 
   /// Drives a streaming git op through [progress], and on an auth-style failure
