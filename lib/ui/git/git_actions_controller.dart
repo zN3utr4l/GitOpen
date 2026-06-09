@@ -1,0 +1,169 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gitopen/application/auth/auth_profile.dart';
+import 'package:gitopen/application/git/auth_failure_classifier.dart';
+import 'package:gitopen/application/git/git_action_ports.dart';
+import 'package:gitopen/application/git/git_actions_service.dart';
+import 'package:gitopen/application/git/git_write_operations.dart';
+import 'package:gitopen/application/git/repo_state_provider.dart';
+import 'package:gitopen/application/operations/operations_notifier.dart';
+import 'package:gitopen/application/operations/running_operation.dart';
+import 'package:gitopen/application/providers.dart';
+import 'package:gitopen/application/settings/app_settings.dart';
+import 'package:gitopen/domain/repositories/repo_location.dart';
+import 'package:gitopen/ui/dialogs/account_switcher_dialog.dart';
+import 'package:gitopen/ui/theme/app_palette.dart';
+
+/// Exposes [GitActionsController] — the single UI entry point for git actions.
+final gitActionsControllerProvider = Provider<GitActionsController>(
+  GitActionsController.new,
+);
+
+/// Thin UI adapter over the pure [GitActionsService].
+///
+/// It is the one place that turns a git action into UI effects: it supplies
+/// the [AuthPrompt] (account-switcher dialog + repo binding) and [ProgressSink]
+/// (operations notifier → toast/activity panel) the service needs, then applies
+/// the returned [ActionResult] — invalidating the mapped providers and showing
+/// a snackbar for any message. Every widget *and* the F5 shortcut funnel
+/// through here, so behaviour (incl. auth-retry) is identical everywhere.
+class GitActionsController {
+  GitActionsController(this._ref);
+  final Ref _ref;
+
+  /// `git fetch` with progress + auth-retry.
+  Future<ActionResult> fetch(BuildContext context, RepoLocation repo) {
+    return _run(
+      context,
+      repo,
+      (prompt, progress) => _ref
+          .read(gitActionsServiceProvider)
+          .fetch(repo, prompt: prompt, progress: progress),
+    );
+  }
+
+  /// `git pull` using the user's configured default strategy.
+  Future<ActionResult> pull(BuildContext context, RepoLocation repo) {
+    final settings = _ref.read(appSettingsProvider);
+    final strategy = switch (settings.defaultPullStrategy) {
+      DefaultPullStrategy.ffOnly => PullStrategy.ffOnly,
+      DefaultPullStrategy.merge => PullStrategy.merge,
+      DefaultPullStrategy.rebase => PullStrategy.rebase,
+    };
+    return _run(
+      context,
+      repo,
+      (prompt, progress) => _ref
+          .read(gitActionsServiceProvider)
+          .pull(repo, strategy, prompt: prompt, progress: progress),
+    );
+  }
+
+  /// `git push` with progress + auth-retry.
+  Future<ActionResult> push(BuildContext context, RepoLocation repo) {
+    return _run(
+      context,
+      repo,
+      (prompt, progress) => _ref
+          .read(gitActionsServiceProvider)
+          .push(repo, prompt: prompt, progress: progress),
+    );
+  }
+
+  Future<ActionResult> _run(
+    BuildContext context,
+    RepoLocation repo,
+    Future<ActionResult> Function(AuthPrompt prompt, ProgressSink progress) op,
+  ) async {
+    final result = await op(
+      _DialogAuthPrompt(context, _ref),
+      _OperationsProgressSink(_ref),
+    );
+    // Invalidation needs no context and must run whether or not the caller is
+    // still mounted.
+    for (final scope in result.invalidate) {
+      switch (scope) {
+        case RepoDataScope.reads:
+          _ref.invalidate(gitReadOperationsProvider);
+        case RepoDataScope.repoState:
+          _ref.invalidate(repoStateProvider(repo));
+      }
+    }
+    final message = result.message;
+    if (message != null && context.mounted) {
+      _showSnack(context, message, result.severity);
+    }
+    return result;
+  }
+
+  void _showSnack(
+    BuildContext context,
+    String message,
+    MessageSeverity? severity,
+  ) {
+    final palette = AppPalette.of(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor:
+            severity == MessageSeverity.error ? palette.accentErr : null,
+      ),
+    );
+  }
+}
+
+/// Bridges the pure [AuthPrompt] to the account-switcher dialog. Captures the
+/// [BuildContext] for the duration of one action.
+class _DialogAuthPrompt implements AuthPrompt {
+  _DialogAuthPrompt(this._context, this._ref);
+  final BuildContext _context;
+  final Ref _ref;
+
+  @override
+  Future<AuthProfile?> forAccount(
+    RepoLocation repo,
+    AuthFailureReason reason,
+  ) async {
+    final host =
+        await _ref.read(authResolverProvider).hostFromRepo(repo, 'origin') ??
+            'github.com';
+    if (!_context.mounted) return null;
+    final chosen = await AccountSwitcherDialog.show(
+      _context,
+      host: host,
+      contextMessage: switch (reason) {
+        AuthFailureReason.wrongAccount =>
+          'Git returned "repository not found" — the active account likely '
+              'cannot see this repo.',
+        AuthFailureReason.authRequired => 'The active credential was rejected.',
+      },
+    );
+    if (chosen == null) return null;
+    await _ref
+        .read(appSettingsProvider.notifier)
+        .setAuthBinding(repo.id.value, chosen.id);
+    return chosen;
+  }
+}
+
+/// Bridges the pure [ProgressSink] to the operations notifier.
+class _OperationsProgressSink implements ProgressSink {
+  _OperationsProgressSink(this._ref);
+  final Ref _ref;
+
+  OperationsNotifier get _ops => _ref.read(operationsProvider.notifier);
+
+  @override
+  String start(OpKind kind, String label, {RepoLocation? repo}) =>
+      _ops.start(kind, label, repo: repo);
+
+  @override
+  void progress(String id, double? fraction, String phase) =>
+      _ops.updateProgress(id, fraction, phase);
+
+  @override
+  void success(String id) => _ops.finishSuccess(id);
+
+  @override
+  void failure(String id, String message) => _ops.finishFailure(id, message);
+}
