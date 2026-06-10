@@ -10,6 +10,7 @@ import 'package:gitopen/domain/repositories/repo_location.dart';
 import 'package:gitopen/ui/bottom_panel/diff_syntax.dart';
 import 'package:gitopen/ui/common/diff_line_row.dart';
 import 'package:gitopen/ui/common/diff_prefs.dart';
+import 'package:gitopen/ui/common/truncated_diff_banner.dart';
 import 'package:gitopen/ui/theme/app_palette.dart';
 
 final AutoDisposeFutureProviderFamily<DiffResult,
@@ -18,6 +19,18 @@ final AutoDisposeFutureProviderFamily<DiffResult,
         ({RepoLocation repo, CommitSha sha})>((ref, key) async {
   final git = ref.watch(gitReadOperationsProvider);
   return git.getDiff(key.repo, DiffSpecCommitVsParent(key.sha));
+});
+
+/// Uncapped single-file diff, fetched when the user asks for the full
+/// content of a truncated file.
+final AutoDisposeFutureProviderFamily<FileDiff?,
+        ({RepoLocation repo, CommitSha sha, String path})> _fullFileProvider =
+    FutureProvider.family.autoDispose<FileDiff?,
+        ({RepoLocation repo, CommitSha sha, String path})>((ref, key) async {
+  final git = ref.watch(gitReadOperationsProvider);
+  final result = await git.getDiffForFile(
+      key.repo, DiffSpecCommitVsParent(key.sha), key.path);
+  return result.files.isEmpty ? null : result.files.first;
 });
 
 class DiffView extends ConsumerWidget {
@@ -47,7 +60,8 @@ class DiffView extends ConsumerWidget {
             child: ListView.builder(
               padding: const EdgeInsets.all(12),
               itemCount: d.files.length,
-              itemBuilder: (_, i) => _FileDiffBlock(file: d.files[i]),
+              itemBuilder: (_, i) =>
+                  _FileDiffBlock(file: d.files[i], repo: repo, sha: sha),
             ),
           ),
         ],
@@ -56,14 +70,35 @@ class DiffView extends ConsumerWidget {
   }
 }
 
-class _FileDiffBlock extends StatelessWidget {
-  const _FileDiffBlock({required this.file});
+class _FileDiffBlock extends ConsumerStatefulWidget {
+  const _FileDiffBlock({
+    required this.file,
+    required this.repo,
+    required this.sha,
+  });
   final FileDiff file;
+  final RepoLocation repo;
+  final CommitSha sha;
+
+  @override
+  ConsumerState<_FileDiffBlock> createState() => _FileDiffBlockState();
+}
+
+class _FileDiffBlockState extends ConsumerState<_FileDiffBlock> {
+  /// User asked for the uncapped version of this (truncated) file.
+  bool _full = false;
+
+  FileDiff get file => widget.file;
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final language = languageForPath(file.path);
+    final full = _full
+        ? ref.watch(_fullFileProvider(
+            (repo: widget.repo, sha: widget.sha, path: file.path)))
+        : null;
+    final shown = full?.valueOrNull ?? file;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -86,8 +121,24 @@ class _FileDiffBlock extends StatelessWidget {
                 ),
               ),
             )
-          else
-            for (final h in file.hunks) _hunk(context, h, language),
+          else ...[
+            for (final h in shown.hunks) _hunk(context, h, language),
+            if (full != null && full.isLoading)
+              const Padding(
+                padding: EdgeInsets.all(12),
+                child: Center(
+                  child: SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+              ),
+            if (shown.truncated && !_full)
+              TruncatedDiffBanner(
+                onLoadFull: () => setState(() => _full = true),
+              ),
+          ],
         ],
       ),
     );

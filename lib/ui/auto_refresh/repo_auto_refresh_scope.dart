@@ -30,14 +30,13 @@ class _RepoAutoRefreshScopeState extends ConsumerState<RepoAutoRefreshScope> {
   StreamSubscription<void>? _sub;
   late final Debouncer _debouncer =
       Debouncer(const Duration(milliseconds: 400), _refresh);
-  late final AppLifecycleListener _lifecycle =
-      AppLifecycleListener(onResume: _onResume);
+  late final AppLifecycleListener _lifecycle;
 
   @override
   void initState() {
     super.initState();
     // Created eagerly so focus events are observed from the first frame.
-    _lifecycle;
+    _lifecycle = AppLifecycleListener(onResume: _onResume);
   }
 
   @override
@@ -76,8 +75,9 @@ class _RepoAutoRefreshScopeState extends ConsumerState<RepoAutoRefreshScope> {
 
   void _refresh() {
     if (!mounted) return;
-    ref.invalidate(gitReadOperationsProvider);
-    ref.invalidate(repoStateProvider(widget.repo));
+    ref
+      ..invalidate(gitReadOperationsProvider)
+      ..invalidate(repoStateProvider(widget.repo));
   }
 
   @override

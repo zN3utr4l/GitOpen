@@ -21,9 +21,9 @@ class _FakeWatcher implements RepoWatcher {
   @override
   Stream<void> changes(RepoLocation repo) {
     subscriptions++;
-    final single = StreamController<void>();
-    single.onListen = () => active++;
-    single.onCancel = () async => active--;
+    final single = StreamController<void>()
+      ..onListen = (() => active++)
+      ..onCancel = (() async => active--);
     controller.stream.listen(single.add, onDone: single.close);
     return single.stream;
   }

@@ -100,6 +100,8 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
     await _repo.put('commit_signoff_default', v);
   }
 
+  // Positional bool retained so the method can be used as a void Function(bool)
+  // tear-off for a Switch's onChanged callback in the settings UI.
   // ignore: avoid_positional_boolean_parameters
   Future<void> setAutoRefresh(bool v) async {
     state = state.copyWith(autoRefresh: v);

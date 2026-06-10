@@ -21,7 +21,13 @@ class IoRepoWatcher implements RepoWatcher {
     final controller = StreamController<void>();
     final subs = <StreamSubscription<FileSystemEvent>>[];
 
-    controller.onListen = () {
+    controller
+      ..onCancel = () async {
+        for (final s in subs) {
+          await s.cancel();
+        }
+      }
+      ..onListen = () {
       final gitDir = _resolveGitDir(repo.path);
       if (gitDir == null) {
         unawaited(controller.close());
@@ -52,12 +58,7 @@ class IoRepoWatcher implements RepoWatcher {
           },
         ));
       }
-    };
-    controller.onCancel = () async {
-      for (final s in subs) {
-        await s.cancel();
-      }
-    };
+      };
     return controller.stream;
   }
 

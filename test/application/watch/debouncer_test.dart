@@ -6,8 +6,8 @@ void main() {
   test('fires once after the window, coalescing bursts', () {
     fakeAsync((async) {
       var fired = 0;
-      final d = Debouncer(const Duration(milliseconds: 400), () => fired++);
-      d.trigger();
+      final d = Debouncer(const Duration(milliseconds: 400), () => fired++)
+        ..trigger();
       async.elapse(const Duration(milliseconds: 200));
       d.trigger(); // restarts the window
       async.elapse(const Duration(milliseconds: 399));
