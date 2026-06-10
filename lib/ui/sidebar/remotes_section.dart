@@ -240,4 +240,3 @@ Future<void> _addRemote(
   await write.addRemote(repo, result.name, result.url);
   onChanged();
 }
-

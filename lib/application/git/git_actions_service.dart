@@ -157,9 +157,9 @@ final class GitActionsService {
   Future<ActionResult> pushTag(
     RepoLocation repo,
     String tagName, {
-    String remote = 'origin',
     required AuthPrompt prompt,
     required ProgressSink progress,
+    String remote = 'origin',
   }) {
     return _runStream(
       OpKind.push,
