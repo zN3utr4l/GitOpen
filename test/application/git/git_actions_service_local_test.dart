@@ -52,7 +52,10 @@ class _FakeWrite implements GitWriteOperations {
       voidResult;
 
   @override
-  Future<GitResult<void>> checkoutTrack(RepoLocation r, String remoteRef) async =>
+  Future<GitResult<void>> checkoutTrack(
+    RepoLocation r,
+    String remoteRef,
+  ) async =>
       voidResult;
 
   @override

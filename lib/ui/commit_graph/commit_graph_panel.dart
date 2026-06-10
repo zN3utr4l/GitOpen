@@ -358,11 +358,12 @@ class _CommitGraphPanelState extends ConsumerState<CommitGraphPanel> {
                                   .state = node.commit.sha;
                             },
                             onRefDoubleTap: (r) async {
-                              final ok = await safeCheckout(
+                              final ok = await checkoutRef(
                                 context: context,
                                 ref: ref,
                                 repo: widget.repo,
-                                targetRef: r.name,
+                                name: r.name,
+                                isRemote: r.isRemote,
                               );
                               if (ok) {
                                 ref.invalidate(_commitGraphDataProvider(repo));

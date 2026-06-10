@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gitopen/application/providers.dart';
 import 'package:gitopen/domain/repositories/repo_location.dart';
+import 'package:gitopen/ui/checkout/safe_checkout.dart';
 import 'package:gitopen/ui/common/app_context_menu.dart';
 import 'package:gitopen/ui/dialogs/branch_create_dialog.dart';
 import 'package:gitopen/ui/dialogs/confirm_dialog.dart';
@@ -107,11 +108,12 @@ class _BranchDropdownState extends ConsumerState<BranchDropdown> {
       branches: locals.map((b) => b.name).toList(),
     );
     if (selected == null || !mounted) return;
-    await ref.read(gitActionsControllerProvider).checkout(
-          context,
-          repo,
-          selected,
-        );
+    await safeCheckout(
+      context: context,
+      ref: ref,
+      repo: repo,
+      targetRef: selected,
+    );
   }
 
   Future<void> _renameBranch(RepoLocation repo) async {

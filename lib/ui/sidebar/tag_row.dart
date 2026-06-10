@@ -87,10 +87,13 @@ class TagRow extends ConsumerWidget {
 
     switch (selected) {
       case 'checkout':
-        await ref
-            .read(gitActionsControllerProvider)
-            .checkout(context, repo, tag.name);
-        onRefresh();
+        final ok = await safeCheckout(
+          context: context,
+          ref: ref,
+          repo: repo,
+          targetRef: tag.name,
+        );
+        if (ok) onRefresh();
 
       case 'push_tag':
         // Push the specific tag to origin using the push stream;
