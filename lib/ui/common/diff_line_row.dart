@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gitopen/application/diff/intraline_diff.dart';
+import 'package:gitopen/application/diff/split_diff.dart';
 import 'package:gitopen/domain/diff/diff_line.dart';
 import 'package:gitopen/ui/bottom_panel/diff_syntax.dart';
 import 'package:gitopen/ui/common/diff_prefs.dart';
@@ -147,6 +148,15 @@ class HunkLines extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final mode = ref.watch(diffViewModeProvider);
+    if (mode == DiffViewMode.sideBySide) {
+      return SplitHunkLines(
+        lines: lines,
+        language: language,
+        gutterWidth: gutterWidth,
+      );
+    }
+
     final wordDiff = ref.watch(wordDiffEnabledProvider);
     final ranges = <int, (int, int)>{};
     if (wordDiff) {
@@ -181,6 +191,118 @@ class HunkLines extends ConsumerWidget {
             changedRange: ranges[i],
           ),
       ],
+    );
+  }
+}
+
+/// Side-by-side rendering of a hunk: old file on the left, new file on the
+/// right, with blanks where one side has no counterpart.
+class SplitHunkLines extends StatelessWidget {
+  const SplitHunkLines({
+    required this.lines,
+    super.key,
+    this.language,
+    this.gutterWidth = 40,
+  });
+  final List<DiffLine> lines;
+  final String? language;
+  final double gutterWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = buildSplitRows(lines);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final row in rows)
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: _SplitCell(
+                    line: row.left,
+                    old: true,
+                    language: language,
+                    gutterWidth: gutterWidth,
+                  ),
+                ),
+                Container(width: 1, color: AppPalette.of(context).border),
+                Expanded(
+                  child: _SplitCell(
+                    line: row.right,
+                    old: false,
+                    language: language,
+                    gutterWidth: gutterWidth,
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _SplitCell extends StatelessWidget {
+  const _SplitCell({
+    required this.line,
+    required this.old,
+    required this.language,
+    required this.gutterWidth,
+  });
+  final DiffLine? line;
+  final bool old;
+  final String? language;
+  final double gutterWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final l = line;
+    if (l == null) {
+      return ColoredBox(color: palette.bg2.withValues(alpha: 0.4));
+    }
+    final bg = switch (l.kind) {
+      DiffLineKind.addition => palette.accentCurrent.withValues(alpha: 0.10),
+      DiffLineKind.deletion => palette.accentErr.withValues(alpha: 0.12),
+      DiffLineKind.context => Colors.transparent,
+    };
+    return Container(
+      color: bg,
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: gutterWidth,
+            child: Text(
+              (old ? l.oldLine : l.newLine)?.toString() ?? '',
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: palette.fg3,
+                fontSize: 11,
+                fontFamily: 'monospace',
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text.rich(
+              TextSpan(
+                children: buildHighlightedSpans(
+                  l.content,
+                  language,
+                  baseColor: palette.fg0,
+                ),
+              ),
+              style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+              softWrap: false,
+              overflow: TextOverflow.clip,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

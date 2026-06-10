@@ -53,7 +53,11 @@ class DiffView extends ConsumerWidget {
             padding: EdgeInsets.fromLTRB(12, 6, 12, 0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.end,
-              children: [WordDiffToggle()],
+              children: [
+                WordDiffToggle(),
+                SizedBox(width: 4),
+                SplitDiffToggle(),
+              ],
             ),
           ),
           Expanded(

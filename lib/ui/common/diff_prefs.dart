@@ -6,6 +6,12 @@ import 'package:gitopen/ui/theme/app_palette.dart';
 /// removed/added lines (intraline "word diff"). Session-scoped.
 final wordDiffEnabledProvider = StateProvider<bool>((_) => false);
 
+/// How diff hunks are laid out. Session-scoped.
+enum DiffViewMode { unified, sideBySide }
+
+final diffViewModeProvider =
+    StateProvider<DiffViewMode>((_) => DiffViewMode.unified);
+
 /// Small toggle for [wordDiffEnabledProvider], shown in diff headers.
 class WordDiffToggle extends ConsumerWidget {
   const WordDiffToggle({super.key});
@@ -29,6 +35,37 @@ class WordDiffToggle extends ConsumerWidget {
             Icons.text_fields,
             size: 14,
             color: enabled ? palette.accentCurrent : palette.fg3,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Toggle for [diffViewModeProvider], shown in diff headers.
+class SplitDiffToggle extends ConsumerWidget {
+  const SplitDiffToggle({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = AppPalette.of(context);
+    final mode = ref.watch(diffViewModeProvider);
+    final split = mode == DiffViewMode.sideBySide;
+    return Tooltip(
+      message: split
+          ? 'Side-by-side - click for unified'
+          : 'Unified - click for side-by-side',
+      waitDuration: const Duration(milliseconds: 500),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(3),
+        onTap: () => ref.read(diffViewModeProvider.notifier).state =
+            split ? DiffViewMode.unified : DiffViewMode.sideBySide,
+        child: Padding(
+          padding: const EdgeInsets.all(3),
+          child: Icon(
+            Icons.vertical_split,
+            size: 14,
+            color: split ? palette.accentCurrent : palette.fg3,
           ),
         ),
       ),
