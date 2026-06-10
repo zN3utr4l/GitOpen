@@ -49,24 +49,21 @@ final class GitCliWriteOperations implements GitWriteOperations {
     String path, {
     String? newBranch,
     String? ref,
-  }) =>
-      _worktree.addWorktree(r, path, newBranch: newBranch, ref: ref);
+  }) => _worktree.addWorktree(r, path, newBranch: newBranch, ref: ref);
 
   @override
   Future<GitResult<void>> removeWorktree(
     RepoLocation r,
     String path, {
     bool force = false,
-  }) =>
-      _worktree.removeWorktree(r, path, force: force);
+  }) => _worktree.removeWorktree(r, path, force: force);
 
   @override
   Future<GitResult<void>> writeWorkingFile(
     RepoLocation r,
     String relativePath,
     String content,
-  ) =>
-      _worktree.writeWorkingFile(r, relativePath, content);
+  ) => _worktree.writeWorkingFile(r, relativePath, content);
 
   @override
   Future<GitResult<void>> stageFiles(RepoLocation r, List<String> paths) =>
@@ -97,15 +94,13 @@ final class GitCliWriteOperations implements GitWriteOperations {
     RepoLocation r,
     String path, {
     required bool ours,
-  }) =>
-      _worktree.takeConflictSide(r, path, ours: ours);
+  }) => _worktree.takeConflictSide(r, path, ours: ours);
 
   @override
   Future<GitResult<void>> discardPatch(
     RepoLocation r,
     String unifiedDiff,
-  ) =>
-      _worktree.discardPatch(r, unifiedDiff);
+  ) => _worktree.discardPatch(r, unifiedDiff);
 
   @override
   Future<GitResult<CommitSha>> commit(RepoLocation r, CommitRequest req) =>
@@ -119,16 +114,14 @@ final class GitCliWriteOperations implements GitWriteOperations {
     String name, {
     CommitSha? at,
     bool checkout = false,
-  }) =>
-      _refs.createBranch(r, name, at: at, checkout: checkout);
+  }) => _refs.createBranch(r, name, at: at, checkout: checkout);
 
   @override
   Future<GitResult<void>> checkout(
     RepoLocation r,
     String ref, {
     bool force = false,
-  }) =>
-      _refs.checkout(r, ref, force: force);
+  }) => _refs.checkout(r, ref, force: force);
 
   @override
   Future<GitResult<void>> checkoutTrack(RepoLocation r, String remoteRef) =>
@@ -140,24 +133,21 @@ final class GitCliWriteOperations implements GitWriteOperations {
     String name, {
     bool force = false,
     bool remote = false,
-  }) =>
-      _refs.deleteBranch(r, name, force: force, remote: remote);
+  }) => _refs.deleteBranch(r, name, force: force, remote: remote);
 
   @override
   Future<GitResult<void>> renameBranch(
     RepoLocation r,
     String oldName,
     String newName,
-  ) =>
-      _refs.renameBranch(r, oldName, newName);
+  ) => _refs.renameBranch(r, oldName, newName);
 
   @override
   Future<GitResult<void>> setUpstream(
     RepoLocation r,
     String branch,
     String upstream,
-  ) =>
-      _refs.setUpstream(r, branch, upstream);
+  ) => _refs.setUpstream(r, branch, upstream);
 
   @override
   Future<GitResult<void>> addRemote(RepoLocation r, String name, String url) =>
@@ -172,16 +162,14 @@ final class GitCliWriteOperations implements GitWriteOperations {
     RepoLocation r,
     String oldName,
     String newName,
-  ) =>
-      _refs.renameRemote(r, oldName, newName);
+  ) => _refs.renameRemote(r, oldName, newName);
 
   @override
   Future<GitResult<void>> setRemoteUrl(
     RepoLocation r,
     String name,
     String url,
-  ) =>
-      _refs.setRemoteUrl(r, name, url);
+  ) => _refs.setRemoteUrl(r, name, url);
 
   @override
   Future<GitResult<void>> createTag(
@@ -189,8 +177,7 @@ final class GitCliWriteOperations implements GitWriteOperations {
     String name, {
     CommitSha? at,
     String? message,
-  }) =>
-      _refs.createTag(r, name, at: at, message: message);
+  }) => _refs.createTag(r, name, at: at, message: message);
 
   @override
   Future<GitResult<void>> deleteTag(RepoLocation r, String name) =>
@@ -201,8 +188,13 @@ final class GitCliWriteOperations implements GitWriteOperations {
     RepoLocation r,
     String message, {
     bool includeUntracked = false,
-  }) =>
-      _refs.stashSave(r, message, includeUntracked: includeUntracked);
+    List<String> paths = const [],
+  }) => _refs.stashSave(
+    r,
+    message,
+    includeUntracked: includeUntracked,
+    paths: paths,
+  );
 
   @override
   Future<GitResult<void>> stashPop(RepoLocation r, int index) =>
@@ -225,22 +217,22 @@ final class GitCliWriteOperations implements GitWriteOperations {
     RepoLocation r,
     String path, {
     bool init = true,
-  }) =>
-      _refs.updateSubmodule(r, path, init: init);
+  }) => _refs.updateSubmodule(r, path, init: init);
 
   @override
   Future<GitResult<void>> updateAllSubmodules(
     RepoLocation r, {
     bool init = true,
-  }) =>
-      _refs.updateAllSubmodules(r, init: init);
+  }) => _refs.updateAllSubmodules(r, init: init);
 
   // ---- Sequencing (merge/rebase/cherry-pick/revert) -----------------------
 
   @override
-  Future<GitResult<MergeOutcome>> merge(RepoLocation r, String ref,
-          {MergeStrategy strategy = MergeStrategy.defaultStrategy}) =>
-      _sequencer.merge(r, ref, strategy: strategy);
+  Future<GitResult<MergeOutcome>> merge(
+    RepoLocation r,
+    String ref, {
+    MergeStrategy strategy = MergeStrategy.defaultStrategy,
+  }) => _sequencer.merge(r, ref, strategy: strategy);
 
   @override
   Future<GitResult<void>> mergeAbort(RepoLocation r) =>
@@ -263,8 +255,7 @@ final class GitCliWriteOperations implements GitWriteOperations {
     RepoLocation r,
     CommitSha onto,
     List<RebaseTodoEntry> plan,
-  ) =>
-      _sequencer.interactiveRebase(r, onto, plan);
+  ) => _sequencer.interactiveRebase(r, onto, plan);
 
   @override
   Future<GitResult<void>> rebaseAbort(RepoLocation r) =>
@@ -283,22 +274,19 @@ final class GitCliWriteOperations implements GitWriteOperations {
     RepoLocation r,
     CommitSha sha,
     String message,
-  ) =>
-      _sequencer.rewordCommit(r, sha, message);
+  ) => _sequencer.rewordCommit(r, sha, message);
 
   @override
   Future<GitResult<RebaseOutcome>> editAtCommit(
     RepoLocation r,
     CommitSha sha,
-  ) =>
-      _sequencer.editAtCommit(r, sha);
+  ) => _sequencer.editAtCommit(r, sha);
 
   @override
   Future<GitResult<CherryPickOutcome>> cherryPick(
     RepoLocation r,
     CommitSha sha,
-  ) =>
-      _sequencer.cherryPick(r, sha);
+  ) => _sequencer.cherryPick(r, sha);
 
   @override
   Future<GitResult<void>> cherryPickAbort(RepoLocation r) =>
@@ -328,16 +316,14 @@ final class GitCliWriteOperations implements GitWriteOperations {
     String? remote,
     bool all = false,
     AuthSpec? auth,
-  }) =>
-      _sync.fetch(r, remote: remote, all: all, auth: auth);
+  }) => _sync.fetch(r, remote: remote, all: all, auth: auth);
 
   @override
   Stream<GitProgress> pull(
     RepoLocation r,
     PullStrategy strategy, {
     AuthSpec? auth,
-  }) =>
-      _sync.pull(r, strategy, auth: auth);
+  }) => _sync.pull(r, strategy, auth: auth);
 
   @override
   Stream<GitProgress> push(
@@ -347,15 +333,14 @@ final class GitCliWriteOperations implements GitWriteOperations {
     bool forceWithLease = false,
     bool pushTags = false,
     AuthSpec? auth,
-  }) =>
-      _sync.push(
-        r,
-        remote: remote,
-        branch: branch,
-        forceWithLease: forceWithLease,
-        pushTags: pushTags,
-        auth: auth,
-      );
+  }) => _sync.push(
+    r,
+    remote: remote,
+    branch: branch,
+    forceWithLease: forceWithLease,
+    pushTags: pushTags,
+    auth: auth,
+  );
 
   @override
   Stream<GitProgress> clone(String url, String destination, {AuthSpec? auth}) =>

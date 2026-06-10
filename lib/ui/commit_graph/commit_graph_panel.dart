@@ -11,6 +11,7 @@ import 'package:gitopen/application/commit_graph/commit_node.dart';
 import 'package:gitopen/application/commit_search_provider.dart';
 import 'package:gitopen/application/git/git_read_operations.dart';
 import 'package:gitopen/application/git/git_write_operations.dart';
+import 'package:gitopen/application/git/repo_state_provider.dart';
 import 'package:gitopen/application/providers.dart';
 import 'package:gitopen/application/scroll_request_provider.dart';
 import 'package:gitopen/domain/commits/commit_info.dart';
@@ -52,8 +53,11 @@ class _GraphData {
   final int maxLane;
 }
 
-final FutureProviderFamily<_GraphData, RepoLocation> _commitGraphDataProvider =
-    FutureProvider.family<_GraphData, RepoLocation>((ref, repo) async {
+final FutureProviderFamily<_GraphData, RepoLocation>
+_commitGraphDataProvider = FutureProvider.family<_GraphData, RepoLocation>((
+  ref,
+  repo,
+) async {
   final git = ref.watch(gitReadOperationsProvider);
 
   // Watch hidden refs so the provider re-runs when visibility changes.
@@ -72,8 +76,9 @@ final FutureProviderFamily<_GraphData, RepoLocation> _commitGraphDataProvider =
   logger.i('graph: branches=${branches.length}');
 
   // Compute the set of visible branch fullNames to pass to git log.
-  final visibleBranches =
-      branches.where((b) => !hidden.contains(b.fullName)).toList();
+  final visibleBranches = branches
+      .where((b) => !hidden.contains(b.fullName))
+      .toList();
   final refsForLog = visibleBranches.map((b) => b.fullName).toList();
 
   // Fall back to HEAD (via --all) when every branch is hidden so the panel
@@ -98,13 +103,17 @@ final FutureProviderFamily<_GraphData, RepoLocation> _commitGraphDataProvider =
   );
   final List<CommitInfo> commits;
   try {
-    commits = await git.getCommits(repo, query).toList().timeout(
+    commits = await git
+        .getCommits(repo, query)
+        .toList()
+        .timeout(
           _gitLogTimeout,
           onTimeout: () => throw TimeoutException(
-              'git log did not return within ${_gitLogTimeout.inSeconds}s '
-              'on ${repo.displayName}.  Repo is likely very large; try '
-              'hiding some branches or check that .git is on local disk.',
-              _gitLogTimeout),
+            'git log did not return within ${_gitLogTimeout.inSeconds}s '
+            'on ${repo.displayName}.  Repo is likely very large; try '
+            'hiding some branches or check that .git is on local disk.',
+            _gitLogTimeout,
+          ),
         );
   } on TimeoutException catch (e) {
     logger.w('graph: git log timeout — ${e.message}');
@@ -160,13 +169,15 @@ final FutureProviderFamily<_GraphData, RepoLocation> _commitGraphDataProvider =
         }
       }
 
-      (refsBySha[sha] ??= []).add(RefDecoration(
-        name: b.name,
-        isRemote: false,
-        isTag: false,
-        isCurrent: b.isCurrent,
-        syncedRemotes: merged,
-      ));
+      (refsBySha[sha] ??= []).add(
+        RefDecoration(
+          name: b.name,
+          isRemote: false,
+          isTag: false,
+          isCurrent: b.isCurrent,
+          syncedRemotes: merged,
+        ),
+      );
     }
   }
 
@@ -175,24 +186,28 @@ final FutureProviderFamily<_GraphData, RepoLocation> _commitGraphDataProvider =
     final sha = entry.key;
     for (final r in entry.value) {
       if (consumedRemotes.contains(r.fullName)) continue;
-      (refsBySha[sha] ??= []).add(RefDecoration(
-        name: r.name,
-        isRemote: true,
-        isTag: false,
-        isCurrent: false,
-      ));
+      (refsBySha[sha] ??= []).add(
+        RefDecoration(
+          name: r.name,
+          isRemote: true,
+          isTag: false,
+          isCurrent: false,
+        ),
+      );
     }
   }
 
   // Tags (never merged with branches).
   final tags = await git.getTags(repo);
   for (final t in tags) {
-    (refsBySha[t.targetSha.value] ??= []).add(RefDecoration(
-      name: t.name,
-      isRemote: false,
-      isTag: true,
-      isCurrent: false,
-    ));
+    (refsBySha[t.targetSha.value] ??= []).add(
+      RefDecoration(
+        name: t.name,
+        isRemote: false,
+        isTag: true,
+        isCurrent: false,
+      ),
+    );
   }
 
   // Sort within each sha: current first, then locals, then tags, then remotes.
@@ -204,6 +219,7 @@ final FutureProviderFamily<_GraphData, RepoLocation> _commitGraphDataProvider =
         if (r.isTag) return 2;
         return 3;
       }
+
       final cmp = rank(a).compareTo(rank(b));
       if (cmp != 0) return cmp;
       return a.name.compareTo(b.name);
@@ -343,20 +359,22 @@ class _CommitGraphPanelState extends ConsumerState<CommitGraphPanel> {
                             isSelected: selected == node.commit.sha,
                             onTap: () {
                               ref
-                                  .read(selectedCommitShaProvider.notifier)
-                                  .state = node.commit.sha;
+                                      .read(selectedCommitShaProvider.notifier)
+                                      .state =
+                                  node.commit.sha;
                             },
                             onSecondaryTap: (globalPos) =>
                                 _showCommitContextMenu(
-                              context,
-                              ref,
-                              node.commit.sha,
-                              globalPos,
-                            ),
+                                  context,
+                                  ref,
+                                  node.commit,
+                                  globalPos,
+                                ),
                             onRefTap: (r) {
                               ref
-                                  .read(selectedCommitShaProvider.notifier)
-                                  .state = node.commit.sha;
+                                      .read(selectedCommitShaProvider.notifier)
+                                      .state =
+                                  node.commit.sha;
                             },
                             onRefDoubleTap: (r) async {
                               final ok = await checkoutRef(
@@ -377,13 +395,14 @@ class _CommitGraphPanelState extends ConsumerState<CommitGraphPanel> {
                   ],
                 );
               },
-              loading: () =>
-                  const Center(child: CircularProgressIndicator()),
+              loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(
                 child: Padding(
                   padding: const EdgeInsets.all(24),
-                  child: Text('Failed to load graph: $e',
-                      style: TextStyle(color: palette.accentErr)),
+                  child: Text(
+                    'Failed to load graph: $e',
+                    style: TextStyle(color: palette.accentErr),
+                  ),
                 ),
               ),
             ),
@@ -403,29 +422,32 @@ class _CommitGraphPanelState extends ConsumerState<CommitGraphPanel> {
           controller: _searchController,
           style: TextStyle(color: palette.fg0, fontSize: 12),
           onChanged: _onSearchChanged,
-          decoration: appInputDecoration(
-            context,
-            label: 'Search commits',
-            hint: 'message · author:name · touches:text',
-          ).copyWith(
-            prefixIcon: Icon(Icons.search, size: 16, color: palette.fg2),
-            prefixIconConstraints:
-                const BoxConstraints(minWidth: 32, minHeight: 30),
-            suffixIcon: hasText
-                ? IconButton(
-                    icon: Icon(Icons.close, size: 16, color: palette.fg2),
-                    splashRadius: 14,
-                    tooltip: 'Clear search',
-                    onPressed: () {
-                      _searchDebounce?.cancel();
-                      _searchController.clear();
-                      ref.read(commitSearchProvider.notifier).state =
-                          CommitSearch.none;
-                      setState(() {});
-                    },
-                  )
-                : null,
-          ),
+          decoration:
+              appInputDecoration(
+                context,
+                label: 'Search commits',
+                hint: 'message · author:name · touches:text',
+              ).copyWith(
+                prefixIcon: Icon(Icons.search, size: 16, color: palette.fg2),
+                prefixIconConstraints: const BoxConstraints(
+                  minWidth: 32,
+                  minHeight: 30,
+                ),
+                suffixIcon: hasText
+                    ? IconButton(
+                        icon: Icon(Icons.close, size: 16, color: palette.fg2),
+                        splashRadius: 14,
+                        tooltip: 'Clear search',
+                        onPressed: () {
+                          _searchDebounce?.cancel();
+                          _searchController.clear();
+                          ref.read(commitSearchProvider.notifier).state =
+                              CommitSearch.none;
+                          setState(() {});
+                        },
+                      )
+                    : null,
+              ),
         ),
       ),
     );
@@ -434,79 +456,95 @@ class _CommitGraphPanelState extends ConsumerState<CommitGraphPanel> {
   Future<void> _showCommitContextMenu(
     BuildContext context,
     WidgetRef ref,
-    CommitSha sha,
+    CommitInfo commit,
     Offset globalPos,
   ) async {
+    final repo = widget.repo;
+    final sha = commit.sha;
+    final canUndoLastCommit = await _canUndoLastCommit(ref, repo, commit);
+    if (!context.mounted) return;
     final selected = await AppContextMenu.show<String>(
       context,
       globalPosition: globalPos,
-      entries: const [
-        AppMenuItem(
+      entries: [
+        const AppMenuItem(
           value: 'merge',
           label: 'Merge into current',
           icon: Icons.call_merge,
         ),
-        AppMenuItem(
+        const AppMenuItem(
           value: 'rebase',
           label: 'Rebase current onto this',
           icon: Icons.compare_arrows,
         ),
-        AppMenuItem(
+        const AppMenuItem(
           value: 'interactive_rebase',
           label: 'Interactive rebase from here…',
           icon: Icons.format_list_numbered,
         ),
-        AppMenuItem(
+        const AppMenuItem(
           value: 'reword',
           label: 'Reword message…',
           icon: Icons.edit_note,
         ),
-        AppMenuItem(
+        const AppMenuItem(
           value: 'edit_commit',
           label: 'Edit (amend) here…',
           icon: Icons.build_outlined,
         ),
-        AppMenuDivider(),
-        AppMenuItem(
+        const AppMenuDivider(),
+        const AppMenuItem(
           value: 'cherry_pick',
           label: 'Cherry-pick into current',
           icon: Icons.add_card_outlined,
         ),
-        AppMenuItem(
+        const AppMenuItem(
           value: 'revert',
           label: 'Revert this commit',
           icon: Icons.undo,
         ),
-        AppMenuDivider(),
-        AppMenuItem(
+        const AppMenuDivider(),
+        const AppMenuItem(
           value: 'branch_here',
           label: 'Create branch here…',
           icon: Icons.alt_route,
         ),
-        AppMenuItem(
+        const AppMenuItem(
           value: 'tag_here',
           label: 'Tag here…',
           icon: Icons.local_offer_outlined,
         ),
-        AppMenuDivider(),
-        AppMenuItem(value: 'copy_sha', label: 'Copy SHA', icon: Icons.copy),
-        AppMenuItem(
+        const AppMenuDivider(),
+        const AppMenuItem(
+          value: 'copy_sha',
+          label: 'Copy SHA',
+          icon: Icons.copy,
+        ),
+        const AppMenuItem(
           value: 'copy_short_sha',
           label: 'Copy short SHA',
           icon: Icons.copy_outlined,
         ),
-        AppMenuDivider(),
-        AppMenuItem(
+        const AppMenuDivider(),
+        if (canUndoLastCommit) ...const [
+          AppMenuItem(
+            value: 'undo_last_commit',
+            label: 'Undo last commit (soft reset)…',
+            icon: Icons.undo_outlined,
+          ),
+          AppMenuDivider(),
+        ],
+        const AppMenuItem(
           value: 'reset_soft',
           label: 'Reset (soft)',
           icon: Icons.restore,
         ),
-        AppMenuItem(
+        const AppMenuItem(
           value: 'reset_mixed',
           label: 'Reset (mixed)',
           icon: Icons.restore,
         ),
-        AppMenuItem(
+        const AppMenuItem(
           value: 'reset_hard',
           label: 'Reset (hard)…',
           icon: Icons.restore,
@@ -517,7 +555,6 @@ class _CommitGraphPanelState extends ConsumerState<CommitGraphPanel> {
 
     if (selected == null || !context.mounted) return;
 
-    final repo = widget.repo;
     switch (selected) {
       case 'merge':
         final current = await currentBranchName(ref, repo);
@@ -538,7 +575,8 @@ class _CommitGraphPanelState extends ConsumerState<CommitGraphPanel> {
         final confirmed = await ConfirmDialog.show(
           context,
           title: 'Rebase current branch',
-          body: 'Rebase the current branch onto ${sha.short()}? '
+          body:
+              'Rebase the current branch onto ${sha.short()}? '
               'This rewrites commits on the current branch.',
           confirmLabel: 'Rebase',
         );
@@ -583,7 +621,8 @@ class _CommitGraphPanelState extends ConsumerState<CommitGraphPanel> {
         final confirmed = await ConfirmDialog.show(
           context,
           title: 'Edit commit',
-          body: 'Pause a rebase at ${sha.short()} so you can amend it? '
+          body:
+              'Pause a rebase at ${sha.short()} so you can amend it? '
               'Commits after it will be replayed when you continue. '
               'This rewrites history.',
           confirmLabel: 'Pause here',
@@ -599,9 +638,7 @@ class _CommitGraphPanelState extends ConsumerState<CommitGraphPanel> {
             .cherryPick(context, repo, sha);
 
       case 'revert':
-        await ref
-            .read(gitActionsControllerProvider)
-            .revert(context, repo, sha);
+        await ref.read(gitActionsControllerProvider).revert(context, repo, sha);
 
       case 'branch_here':
         await BranchCreateDialog.show(context, repo, at: sha);
@@ -621,6 +658,9 @@ class _CommitGraphPanelState extends ConsumerState<CommitGraphPanel> {
       case 'copy_short_sha':
         await Clipboard.setData(ClipboardData(text: sha.short()));
 
+      case 'undo_last_commit':
+        await _undoLastCommit(context, ref, commit);
+
       case 'reset_soft':
         await _doReset(context, ref, sha, ResetMode.soft);
 
@@ -630,6 +670,42 @@ class _CommitGraphPanelState extends ConsumerState<CommitGraphPanel> {
       case 'reset_hard':
         await _doReset(context, ref, sha, ResetMode.hard);
     }
+  }
+
+  Future<bool> _canUndoLastCommit(
+    WidgetRef ref,
+    RepoLocation repo,
+    CommitInfo commit,
+  ) async {
+    if (commit.parentShas.isEmpty) return false;
+    final state = await ref.read(repoStateProvider(repo).future);
+    if (state != InProgressOp.none) return false;
+    final locals = await ref.read(localBranchesProvider(repo).future);
+    return locals.any(
+      (b) => b.isCurrent && b.tipSha == commit.sha,
+    );
+  }
+
+  Future<void> _undoLastCommit(
+    BuildContext context,
+    WidgetRef ref,
+    CommitInfo commit,
+  ) async {
+    if (commit.parentShas.isEmpty) return;
+    final parent = commit.parentShas.first;
+    final confirmed = await ConfirmDialog.show(
+      context,
+      title: 'Undo last commit',
+      body:
+          'Soft reset HEAD from ${commit.sha.short()} to ${parent.short()}? '
+          'The commit will be removed from the current branch, with its '
+          'changes kept staged.',
+      confirmLabel: 'Undo commit',
+    );
+    if (!confirmed || !context.mounted) return;
+    await ref
+        .read(gitActionsControllerProvider)
+        .reset(context, widget.repo, parent, ResetMode.soft);
   }
 
   Future<void> _doReset(
@@ -643,7 +719,8 @@ class _CommitGraphPanelState extends ConsumerState<CommitGraphPanel> {
       final confirmed = await ConfirmDialog.show(
         context,
         title: 'Hard reset',
-        body: 'This will discard all uncommitted changes and rewrite '
+        body:
+            'This will discard all uncommitted changes and rewrite '
             'history. Are you sure?',
         confirmLabel: 'Reset',
         dangerous: true,
@@ -657,8 +734,12 @@ class _CommitGraphPanelState extends ConsumerState<CommitGraphPanel> {
   }
 
   /// Single-field multiline prompt — used for commit messages.
-  Future<String?> _promptMultiline(BuildContext context, String title,
-      {required String label, String? initial}) async {
+  Future<String?> _promptMultiline(
+    BuildContext context,
+    String title, {
+    required String label,
+    String? initial,
+  }) async {
     final ctl = TextEditingController(text: initial);
     final result = await showDialog<String>(
       context: context,

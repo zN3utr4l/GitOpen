@@ -57,9 +57,9 @@ final class ActionResult {
 
   /// Convenience for a clean success that invalidated the read cache.
   const ActionResult.reads(this.outcome)
-      : invalidate = const {RepoDataScope.reads},
-        message = null,
-        severity = null;
+    : invalidate = const {RepoDataScope.reads},
+      message = null,
+      severity = null;
 
   /// What happened.
   final ActionOutcome outcome;
@@ -91,11 +91,11 @@ final class GitActionsService {
     required String Function(Object error) errorText,
     AuthFailureClassifier classifier = const AuthFailureClassifier(),
     LoggerPort? log,
-  })  : _write = write,
-        _resolveProfile = resolveProfile,
-        _errorText = errorText,
-        _classifier = classifier,
-        _log = log;
+  }) : _write = write,
+       _resolveProfile = resolveProfile,
+       _errorText = errorText,
+       _classifier = classifier,
+       _log = log;
 
   final GitWriteOperations _write;
   final Future<AuthProfile?> Function(RepoLocation repo) _resolveProfile;
@@ -151,10 +151,10 @@ final class GitActionsService {
     final label = forceWithLease
         ? 'Force-pushing'
         : pushTags
-            ? 'Pushing tags'
-            : branch != null
-                ? 'Pushing $branch'
-                : 'Pushing';
+        ? 'Pushing tags'
+        : branch != null
+        ? 'Pushing $branch'
+        : 'Pushing';
     return _runStream(
       OpKind.push,
       label,
@@ -224,12 +224,11 @@ final class GitActionsService {
     RepoLocation repo,
     String ref,
     MergeStrategy strategy,
-  ) async =>
-      _conflictable(
-        await _write.merge(repo, ref, strategy: strategy),
-        'Merge',
-        (o) => o is MergeConflict ? o.conflictedPaths : null,
-      );
+  ) async => _conflictable(
+    await _write.merge(repo, ref, strategy: strategy),
+    'Merge',
+    (o) => o is MergeConflict ? o.conflictedPaths : null,
+  );
 
   /// `git rebase <upstream>`.
   Future<ActionResult> rebase(RepoLocation repo, String upstream) async =>
@@ -260,8 +259,7 @@ final class GitActionsService {
     RepoLocation repo,
     CommitSha to,
     ResetMode mode,
-  ) =>
-      _simple('Reset', _write.reset(repo, to, mode), invalidate: _localScope);
+  ) => _simple('Reset', _write.reset(repo, to, mode), invalidate: _localScope);
 
   /// `git rebase -i` driven by a scripted [plan] (no editor). Conflict-bearing,
   /// like [rebase].
@@ -269,12 +267,11 @@ final class GitActionsService {
     RepoLocation repo,
     CommitSha onto,
     List<RebaseTodoEntry> plan,
-  ) async =>
-      _conflictable(
-        await _write.interactiveRebase(repo, onto, plan),
-        'Rebase',
-        (o) => o is RebaseConflict ? o.conflictedPaths : null,
-      );
+  ) async => _conflictable(
+    await _write.interactiveRebase(repo, onto, plan),
+    'Rebase',
+    (o) => o is RebaseConflict ? o.conflictedPaths : null,
+  );
 
   /// Rewrites [sha]'s commit message via a scripted `rebase -i` (reword).
   /// Conflict-bearing like [rebase].
@@ -282,12 +279,11 @@ final class GitActionsService {
     RepoLocation repo,
     CommitSha sha,
     String message,
-  ) async =>
-      _conflictable(
-        await _write.rewordCommit(repo, sha, message),
-        'Reword',
-        (o) => o is RebaseConflict ? o.conflictedPaths : null,
-      );
+  ) async => _conflictable(
+    await _write.rewordCommit(repo, sha, message),
+    'Reword',
+    (o) => o is RebaseConflict ? o.conflictedPaths : null,
+  );
 
   /// Starts a rebase paused at [sha] so the user can amend it; the in-progress
   /// panel then offers Continue/Abort.
@@ -295,27 +291,31 @@ final class GitActionsService {
     final result = await _write.editAtCommit(repo, sha);
     return switch (result) {
       GitSuccess(value: RebaseStoppedForEdit()) => const ActionResult(
-          ActionOutcome.success,
-          invalidate: _localScope,
-          message: 'Rebase paused at the commit — amend it, then Continue '
-              'in the panel below.',
-          severity: MessageSeverity.info,
-        ),
+        ActionOutcome.success,
+        invalidate: _localScope,
+        message:
+            'Rebase paused at the commit — amend it, then Continue '
+            'in the panel below.',
+        severity: MessageSeverity.info,
+      ),
       GitSuccess(value: final RebaseConflict c) => ActionResult(
-          ActionOutcome.conflict,
-          invalidate: _localScope,
-          message: 'Edit conflict in ${c.conflictedPaths.length} file(s). '
-              'Resolve in the conflicts panel below.',
-          severity: MessageSeverity.error,
-        ),
-      GitSuccess() =>
-        const ActionResult(ActionOutcome.success, invalidate: _localScope),
+        ActionOutcome.conflict,
+        invalidate: _localScope,
+        message:
+            'Edit conflict in ${c.conflictedPaths.length} file(s). '
+            'Resolve in the conflicts panel below.',
+        severity: MessageSeverity.error,
+      ),
+      GitSuccess() => const ActionResult(
+        ActionOutcome.success,
+        invalidate: _localScope,
+      ),
       GitFailure(:final message) => ActionResult(
-          ActionOutcome.failed,
-          invalidate: _localScope,
-          message: 'Edit failed: $message',
-          severity: MessageSeverity.error,
-        ),
+        ActionOutcome.failed,
+        invalidate: _localScope,
+        message: 'Edit failed: $message',
+        severity: MessageSeverity.error,
+      ),
     };
   }
 
@@ -338,35 +338,31 @@ final class GitActionsService {
     String name, {
     CommitSha? at,
     bool checkout = false,
-  }) =>
-      _simple(
-        'Create branch',
-        _write.createBranch(repo, name, at: at, checkout: checkout),
-      );
+  }) => _simple(
+    'Create branch',
+    _write.createBranch(repo, name, at: at, checkout: checkout),
+  );
 
   /// `git branch -m <old> <new>`.
   Future<ActionResult> renameBranch(
     RepoLocation repo,
     String oldName,
     String newName,
-  ) =>
-      _simple('Rename branch', _write.renameBranch(repo, oldName, newName));
+  ) => _simple('Rename branch', _write.renameBranch(repo, oldName, newName));
 
   /// `git branch -d/-D <name>`.
   Future<ActionResult> deleteBranch(
     RepoLocation repo,
     String name, {
     bool force = false,
-  }) =>
-      _simple('Delete branch', _write.deleteBranch(repo, name, force: force));
+  }) => _simple('Delete branch', _write.deleteBranch(repo, name, force: force));
 
   /// `git branch --set-upstream-to=<upstream> <branch>`.
   Future<ActionResult> setUpstream(
     RepoLocation repo,
     String branch,
     String upstream,
-  ) =>
-      _simple('Set upstream', _write.setUpstream(repo, branch, upstream));
+  ) => _simple('Set upstream', _write.setUpstream(repo, branch, upstream));
 
   /// `git tag <name>` (optionally annotated, optionally at [at]).
   Future<ActionResult> createTag(
@@ -374,11 +370,10 @@ final class GitActionsService {
     String name, {
     CommitSha? at,
     String? message,
-  }) =>
-      _simple(
-        'Create tag',
-        _write.createTag(repo, name, at: at, message: message),
-      );
+  }) => _simple(
+    'Create tag',
+    _write.createTag(repo, name, at: at, message: message),
+  );
 
   /// `git tag -d <name>`.
   Future<ActionResult> deleteTag(RepoLocation repo, String name) =>
@@ -389,11 +384,16 @@ final class GitActionsService {
     RepoLocation repo,
     String message, {
     bool includeUntracked = false,
-  }) =>
-      _simple(
-        'Stash',
-        _write.stashSave(repo, message, includeUntracked: includeUntracked),
-      );
+    List<String> paths = const [],
+  }) => _simple(
+    'Stash',
+    _write.stashSave(
+      repo,
+      message,
+      includeUntracked: includeUntracked,
+      paths: paths,
+    ),
+  );
 
   /// `git stash apply stash@{index}`.
   Future<ActionResult> stashApply(RepoLocation repo, int index) =>
@@ -412,12 +412,11 @@ final class GitActionsService {
     RepoLocation repo,
     String path, {
     required bool ours,
-  }) =>
-      _simple(
-        'Resolve',
-        _write.takeConflictSide(repo, path, ours: ours),
-        invalidate: _localScope,
-      );
+  }) => _simple(
+    'Resolve',
+    _write.takeConflictSide(repo, path, ours: ours),
+    invalidate: _localScope,
+  );
 
   /// Discards the hunks in [patch] from the working tree.
   Future<ActionResult> discardHunk(RepoLocation repo, String patch) =>
@@ -429,38 +428,57 @@ final class GitActionsService {
   // the reads cache, since a continue creates a commit.
 
   /// `git merge --abort`.
-  Future<ActionResult> mergeAbort(RepoLocation repo) => _simple(
-      'Abort merge', _write.mergeAbort(repo), invalidate: _localScope);
+  Future<ActionResult> mergeAbort(RepoLocation repo) =>
+      _simple('Abort merge', _write.mergeAbort(repo), invalidate: _localScope);
 
   /// `git merge --continue`.
   Future<ActionResult> mergeContinue(RepoLocation repo) => _simple(
-      'Continue merge', _write.mergeContinue(repo), invalidate: _localScope);
+    'Continue merge',
+    _write.mergeContinue(repo),
+    invalidate: _localScope,
+  );
 
   /// `git cherry-pick --abort`.
   Future<ActionResult> cherryPickAbort(RepoLocation repo) => _simple(
-      'Abort cherry-pick', _write.cherryPickAbort(repo),
-      invalidate: _localScope);
+    'Abort cherry-pick',
+    _write.cherryPickAbort(repo),
+    invalidate: _localScope,
+  );
 
   /// `git cherry-pick --continue`.
   Future<ActionResult> cherryPickContinue(RepoLocation repo) => _simple(
-      'Continue cherry-pick', _write.cherryPickContinue(repo),
-      invalidate: _localScope);
+    'Continue cherry-pick',
+    _write.cherryPickContinue(repo),
+    invalidate: _localScope,
+  );
 
   /// `git revert --abort`.
   Future<ActionResult> revertAbort(RepoLocation repo) => _simple(
-      'Abort revert', _write.revertAbort(repo), invalidate: _localScope);
+    'Abort revert',
+    _write.revertAbort(repo),
+    invalidate: _localScope,
+  );
 
   /// `git revert --continue`.
   Future<ActionResult> revertContinue(RepoLocation repo) => _simple(
-      'Continue revert', _write.revertContinue(repo), invalidate: _localScope);
+    'Continue revert',
+    _write.revertContinue(repo),
+    invalidate: _localScope,
+  );
 
   /// `git rebase --abort`.
   Future<ActionResult> rebaseAbort(RepoLocation repo) => _simple(
-      'Abort rebase', _write.rebaseAbort(repo), invalidate: _localScope);
+    'Abort rebase',
+    _write.rebaseAbort(repo),
+    invalidate: _localScope,
+  );
 
   /// `git rebase --continue`.
   Future<ActionResult> rebaseContinue(RepoLocation repo) => _simple(
-      'Continue rebase', _write.rebaseContinue(repo), invalidate: _localScope);
+    'Continue rebase',
+    _write.rebaseContinue(repo),
+    invalidate: _localScope,
+  );
 
   /// Maps a plain write result to an [ActionResult]: success invalidates
   /// [invalidate]; failure adds a '`label` failed: …' error message (so call
@@ -472,14 +490,16 @@ final class GitActionsService {
   }) async {
     final result = await op;
     return switch (result) {
-      GitSuccess() =>
-        ActionResult(ActionOutcome.success, invalidate: invalidate),
+      GitSuccess() => ActionResult(
+        ActionOutcome.success,
+        invalidate: invalidate,
+      ),
       GitFailure(:final message) => ActionResult(
-          ActionOutcome.failed,
-          invalidate: invalidate,
-          message: '$label failed: $message',
-          severity: MessageSeverity.error,
-        ),
+        ActionOutcome.failed,
+        invalidate: invalidate,
+        message: '$label failed: $message',
+        severity: MessageSeverity.error,
+      ),
     };
   }
 
@@ -503,7 +523,8 @@ final class GitActionsService {
         return ActionResult(
           ActionOutcome.conflict,
           invalidate: _localScope,
-          message: '$label conflict in ${paths.length} file(s). '
+          message:
+              '$label conflict in ${paths.length} file(s). '
               'Resolve in the conflicts panel below.',
           severity: MessageSeverity.error,
         );
@@ -531,8 +552,7 @@ final class GitActionsService {
     bool profileResolved = false,
   }) async {
     final id = progress.start(kind, label, repo: repo);
-    final resolved =
-        profileResolved ? profile : await _resolveProfile(repo);
+    final resolved = profileResolved ? profile : await _resolveProfile(repo);
     try {
       await for (final ev in streamFactory(resolved?.spec)) {
         progress.progress(id, ev.fraction, ev.phase);

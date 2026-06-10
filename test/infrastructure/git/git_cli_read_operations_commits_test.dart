@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gitopen/application/git/git_read_operations.dart';
+import 'package:gitopen/domain/commits/gpg_signature_status.dart';
 import 'package:gitopen/domain/repositories/repo_id.dart';
 import 'package:gitopen/domain/repositories/repo_location.dart';
 import 'package:gitopen/infrastructure/git/git_cli_read_operations.dart';
@@ -15,8 +16,9 @@ void main() {
       final f = await RepoFixture.withLinearHistory(5);
       try {
         final sut = GitCliReadOperations();
-        final commits =
-            await sut.getCommits(loc(f), const CommitQuery()).toList();
+        final commits = await sut
+            .getCommits(loc(f), const CommitQuery())
+            .toList();
         expect(commits, hasLength(5));
         expect(commits.first.sha.value, f.headSha);
       } finally {
@@ -53,8 +55,9 @@ void main() {
       final f = await RepoFixture.empty();
       try {
         final sut = GitCliReadOperations();
-        final commits =
-            await sut.getCommits(loc(f), const CommitQuery()).toList();
+        final commits = await sut
+            .getCommits(loc(f), const CommitQuery())
+            .toList();
         expect(commits, isEmpty);
       } finally {
         await f.dispose();
@@ -65,13 +68,15 @@ void main() {
       final f = await RepoFixture.withLinearHistory(1);
       try {
         final sut = GitCliReadOperations();
-        final commits =
-            await sut.getCommits(loc(f), const CommitQuery()).toList();
+        final commits = await sut
+            .getCommits(loc(f), const CommitQuery())
+            .toList();
         expect(commits, hasLength(1));
         final c = commits.first;
         expect(c.author.name, 'Test');
         expect(c.author.email, 'test@example.com');
         expect(c.committer.name, 'Test');
+        expect(c.signatureStatus, GpgSignatureStatus.unsigned);
       } finally {
         await f.dispose();
       }
@@ -83,8 +88,9 @@ void main() {
       final f = await RepoFixture.withSearchableHistory();
       try {
         final sut = GitCliReadOperations();
-        final commits =
-            await sut.getCommits(loc(f), const CommitQuery()).toList();
+        final commits = await sut
+            .getCommits(loc(f), const CommitQuery())
+            .toList();
         expect(commits, hasLength(3));
       } finally {
         await f.dispose();

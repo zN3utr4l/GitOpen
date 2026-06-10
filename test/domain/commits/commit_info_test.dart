@@ -2,12 +2,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gitopen/domain/commits/commit_info.dart';
 import 'package:gitopen/domain/commits/commit_sha.dart';
 import 'package:gitopen/domain/commits/commit_signature.dart';
+import 'package:gitopen/domain/commits/gpg_signature_status.dart';
 
 void main() {
   group('CommitInfo', () {
     final author = CommitSignature('Ada', 'ada@x.com', DateTime.utc(2026));
-    final committer =
-        CommitSignature('Grace', 'grace@x.com', DateTime.utc(2026, 6));
+    final committer = CommitSignature(
+      'Grace',
+      'grace@x.com',
+      DateTime.utc(2026, 6),
+    );
 
     CommitInfo build({
       String sha = 'abcdef1',
@@ -16,6 +20,7 @@ void main() {
       CommitSignature? committerValue,
       String summary = 'Fix bug',
       String message = 'Fix bug\n\nDetails.',
+      GpgSignatureStatus signatureStatus = GpgSignatureStatus.unsigned,
     }) {
       return CommitInfo(
         sha: CommitSha(sha),
@@ -24,6 +29,7 @@ void main() {
         committer: committerValue ?? committer,
         summary: summary,
         message: message,
+        signatureStatus: signatureStatus,
       );
     }
 
@@ -35,6 +41,7 @@ void main() {
       expect(info.committer, committer);
       expect(info.summary, 'Fix bug');
       expect(info.message, 'Fix bug\n\nDetails.');
+      expect(info.signatureStatus, GpgSignatureStatus.unsigned);
     });
 
     test('is equal when all fields match', () {
@@ -65,9 +72,11 @@ void main() {
     test('differs by committer', () {
       expect(
         build(committerValue: CommitSignature('A', 'a@x', DateTime.utc(2026))),
-        isNot(build(
-          committerValue: CommitSignature('B', 'b@x', DateTime.utc(2026)),
-        )),
+        isNot(
+          build(
+            committerValue: CommitSignature('B', 'b@x', DateTime.utc(2026)),
+          ),
+        ),
       );
     });
 
@@ -77,6 +86,13 @@ void main() {
 
     test('differs by message', () {
       expect(build(message: 'a'), isNot(build(message: 'b')));
+    });
+
+    test('differs by signature status', () {
+      expect(
+        build(signatureStatus: GpgSignatureStatus.good),
+        isNot(build()),
+      );
     });
   });
 }

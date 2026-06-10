@@ -11,12 +11,26 @@ import 'package:gitopen/ui/common/app_context_menu.dart';
 import 'package:gitopen/ui/dialogs/confirm_dialog.dart';
 import 'package:gitopen/ui/git/git_actions_controller.dart';
 import 'package:gitopen/ui/theme/app_palette.dart';
+import 'package:gitopen/ui/toolbar/toolbar_prompt.dart';
 import 'package:gitopen/ui/working_copy/discard_changes.dart';
 import 'package:gitopen/ui/working_copy/working_copy_providers.dart';
 
 bool _canExpandHunks(WorkingFileEntry entry) {
   return entry.workingTreeState != WorkingFileState.untracked &&
       entry.workingTreeState != WorkingFileState.ignored;
+}
+
+String _workingStateLabel(WorkingFileState state) {
+  return switch (state) {
+    WorkingFileState.added => 'added',
+    WorkingFileState.modified => 'modified',
+    WorkingFileState.deleted => 'deleted',
+    WorkingFileState.renamed => 'renamed',
+    WorkingFileState.untracked => 'untracked',
+    WorkingFileState.conflicted => 'conflicted',
+    WorkingFileState.ignored => 'ignored',
+    WorkingFileState.unmodified => 'unmodified',
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -66,9 +80,9 @@ class _FileRowState extends ConsumerState<FileRow> {
       title: isUntracked ? 'Delete untracked file' : 'Discard changes',
       body: isUntracked
           ? 'Delete "${entry.path}"? The file is untracked and will be '
-              'removed from disk. This cannot be undone.'
+                'removed from disk. This cannot be undone.'
           : 'Discard all changes to "${entry.path}"? Local edits will be '
-              'lost and the file will be restored to its committed state.',
+                'lost and the file will be restored to its committed state.',
       confirmLabel: isUntracked ? 'Delete' : 'Discard',
       dangerous: true,
     );
@@ -91,6 +105,12 @@ class _FileRowState extends ConsumerState<FileRow> {
               ? Icons.remove_circle_outline
               : Icons.add_circle_outline,
         ),
+        const AppMenuDivider<String>(),
+        const AppMenuItem(
+          value: 'stash_file',
+          label: 'Stash file…',
+          icon: Icons.inventory_outlined,
+        ),
         if (!isStaged) ...[
           const AppMenuDivider<String>(),
           AppMenuItem(
@@ -106,6 +126,8 @@ class _FileRowState extends ConsumerState<FileRow> {
     switch (selected) {
       case 'toggle':
         await _toggleStage();
+      case 'stash_file':
+        await _stashFile();
       case 'discard':
         await _discard();
     }
@@ -141,6 +163,29 @@ class _FileRowState extends ConsumerState<FileRow> {
       await write.stageFiles(widget.repo, [widget.entry.path]);
     }
     ref.invalidate(workingCopyStatusProvider(widget.repo));
+  }
+
+  Future<void> _stashFile() async {
+    final msg = await appPromptText(
+      context,
+      'Stash file',
+      label: 'Message (optional)',
+    );
+    if (!mounted) return;
+    await ref
+        .read(gitActionsControllerProvider)
+        .stashSave(
+          context,
+          widget.repo,
+          msg?.trim() ?? '',
+          includeUntracked:
+              widget.entry.workingTreeState == WorkingFileState.untracked,
+          paths: [widget.entry.path],
+        );
+    ref
+      ..invalidate(workingCopyStatusProvider(widget.repo))
+      ..invalidate(unstagedFileDiffProvider((widget.repo, widget.entry.path)))
+      ..invalidate(stagedFileDiffProvider((widget.repo, widget.entry.path)));
   }
 
   Future<void> _stageSelectedHunks(List<DiffHunk> allHunks) async {
@@ -182,7 +227,8 @@ class _FileRowState extends ConsumerState<FileRow> {
     final confirmed = await ConfirmDialog.show(
       context,
       title: 'Discard hunk',
-      body: 'Discard this hunk from "${widget.entry.path}"? Local edits in '
+      body:
+          'Discard this hunk from "${widget.entry.path}"? Local edits in '
           'the hunk will be lost.',
       confirmLabel: 'Discard hunk',
       dangerous: true,
@@ -202,8 +248,7 @@ class _FileRowState extends ConsumerState<FileRow> {
       ..invalidate(unstagedFileDiffProvider((widget.repo, widget.entry.path)));
   }
 
-  bool get _canExpand =>
-      !widget.isStaged && _canExpandHunks(widget.entry);
+  bool get _canExpand => !widget.isStaged && _canExpandHunks(widget.entry);
 
   @override
   Widget build(BuildContext context) {
@@ -219,80 +264,120 @@ class _FileRowState extends ConsumerState<FileRow> {
   Widget _buildFileRowHeader() {
     final palette = AppPalette.of(context);
     final sel = ref.watch(selectedFileProvider);
-    final isSelected = sel != null &&
+    final isSelected =
+        sel != null &&
         sel.path == widget.entry.path &&
         sel.staged == widget.isStaged;
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hover = true),
-      onExit: (_) => setState(() => _hover = false),
-      child: Material(
-      color: isSelected ? palette.bgAccent : Colors.transparent,
-      child: GestureDetector(
-        onSecondaryTapDown: (d) => _showContextMenu(d.globalPosition),
-        child: InkWell(
-        onTap: () {
-          ref.read(selectedFileProvider.notifier).state =
-              (path: widget.entry.path, staged: widget.isStaged);
-        },
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          child: Row(children: [
-            if (_canExpand)
-              GestureDetector(
-                onTap: _toggleExpanded,
-                behavior: HitTestBehavior.opaque,
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 4),
-                  child: Icon(
-                    _expanded ? Icons.expand_more : Icons.chevron_right,
-                    size: 14,
-                    color: isSelected ? Colors.white70 : palette.fg2,
-                  ),
-                ),
-              )
-            else
-              const SizedBox(width: 18),
-            GestureDetector(
-              onTap: _toggleStage,
-              behavior: HitTestBehavior.opaque,
+    final state = widget.isStaged
+        ? widget.entry.indexState
+        : widget.entry.workingTreeState;
+    return Semantics(
+      button: true,
+      selected: isSelected,
+      label:
+          '${widget.isStaged ? 'Staged' : 'Unstaged'} '
+          '${_workingStateLabel(state)} file ${widget.entry.path}',
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _hover = true),
+        onExit: (_) => setState(() => _hover = false),
+        child: Material(
+          color: isSelected ? palette.bgAccent : Colors.transparent,
+          child: GestureDetector(
+            onSecondaryTapDown: (d) => _showContextMenu(d.globalPosition),
+            child: InkWell(
+              onTap: () {
+                ref.read(selectedFileProvider.notifier).state = (
+                  path: widget.entry.path,
+                  staged: widget.isStaged,
+                );
+              },
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
-                child: Icon(
-                  widget.isStaged
-                      ? Icons.check_box
-                      : Icons.check_box_outline_blank,
-                  size: 14,
-                  color: isSelected ? Colors.white : palette.fg1,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 4,
+                ),
+                child: Row(
+                  children: [
+                    if (_canExpand)
+                      GestureDetector(
+                        onTap: _toggleExpanded,
+                        behavior: HitTestBehavior.opaque,
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 4),
+                          child: Semantics(
+                            button: true,
+                            label: _expanded
+                                ? 'Collapse hunks'
+                                : 'Expand hunks',
+                            child: Icon(
+                              _expanded
+                                  ? Icons.expand_more
+                                  : Icons.chevron_right,
+                              size: 14,
+                              color: isSelected ? Colors.white70 : palette.fg2,
+                            ),
+                          ),
+                        ),
+                      )
+                    else
+                      const SizedBox(width: 18),
+                    GestureDetector(
+                      onTap: _toggleStage,
+                      behavior: HitTestBehavior.opaque,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 2,
+                          vertical: 2,
+                        ),
+                        child: Semantics(
+                          button: true,
+                          label: widget.isStaged
+                              ? 'Unstage file'
+                              : 'Stage file',
+                          child: Icon(
+                            widget.isStaged
+                                ? Icons.check_box
+                                : Icons.check_box_outline_blank,
+                            size: 14,
+                            color: isSelected ? Colors.white : palette.fg1,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    StateBadge(
+                      state: widget.isStaged
+                          ? widget.entry.indexState
+                          : widget.entry.workingTreeState,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        widget.entry.path,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: isSelected ? Colors.white : palette.fg0,
+                          fontSize: 12.5,
+                        ),
+                      ),
+                    ),
+                    if (_checkedHunks.isNotEmpty || _hasCheckedLines)
+                      _buildStageSelectedButton(),
+                    if (!widget.isStaged &&
+                        _hover &&
+                        _checkedHunks.isEmpty &&
+                        !_hasCheckedLines)
+                      DiscardIconButton(
+                        isSelected: isSelected,
+                        onPressed: _discard,
+                      ),
+                  ],
                 ),
               ),
             ),
-            const SizedBox(width: 6),
-            StateBadge(
-              state: widget.isStaged
-                  ? widget.entry.indexState
-                  : widget.entry.workingTreeState,
-            ),
-            const SizedBox(width: 8),
-            Expanded(child: Text(widget.entry.path,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                    color: isSelected ? Colors.white : palette.fg0,
-                    fontSize: 12.5))),
-            if (_checkedHunks.isNotEmpty || _hasCheckedLines)
-              _buildStageSelectedButton(),
-            if (!widget.isStaged &&
-                _hover &&
-                _checkedHunks.isEmpty &&
-                !_hasCheckedLines)
-              DiscardIconButton(
-                isSelected: isSelected,
-                onPressed: _discard,
-              ),
-          ]),
+          ),
         ),
       ),
-    ),
-    ),
     );
   }
 
@@ -439,50 +524,65 @@ class HunkRow extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          InkWell(
-            onTap: onToggle,
-            child: Padding(
-              padding: const EdgeInsets.only(
-                left: 32,
-                right: 8,
-                top: 3,
-                bottom: 3,
-              ),
-              child: Row(children: [
-                Icon(
-                  isChecked ? Icons.check_box : Icons.check_box_outline_blank,
-                  size: 13,
-                  color: palette.fg2,
+          Semantics(
+            button: true,
+            selected: isChecked,
+            label:
+                '${isChecked ? 'Selected' : 'Unselected'} '
+                'hunk ${index + 1}, ${hunk.header}',
+            child: InkWell(
+              onTap: onToggle,
+              child: Padding(
+                padding: const EdgeInsets.only(
+                  left: 32,
+                  right: 8,
+                  top: 3,
+                  bottom: 3,
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    hunk.header,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: palette.accentRemote,
-                      fontSize: 11,
-                      fontFamily: 'monospace',
+                child: Row(
+                  children: [
+                    Icon(
+                      isChecked
+                          ? Icons.check_box
+                          : Icons.check_box_outline_blank,
+                      size: 13,
+                      color: palette.fg2,
                     ),
-                  ),
-                ),
-                Tooltip(
-                  message: 'Discard hunk',
-                  waitDuration: const Duration(milliseconds: 400),
-                  child: InkWell(
-                    onTap: onDiscard,
-                    borderRadius: BorderRadius.circular(3),
-                    child: Padding(
-                      padding: const EdgeInsets.all(2),
-                      child: Icon(
-                        Icons.undo,
-                        size: 13,
-                        color: palette.accentErr,
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        hunk.header,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: palette.accentRemote,
+                          fontSize: 11,
+                          fontFamily: 'monospace',
+                        ),
                       ),
                     ),
-                  ),
+                    Tooltip(
+                      message: 'Discard hunk',
+                      waitDuration: const Duration(milliseconds: 400),
+                      child: Semantics(
+                        button: true,
+                        label: 'Discard hunk ${index + 1}',
+                        child: InkWell(
+                          onTap: onDiscard,
+                          borderRadius: BorderRadius.circular(3),
+                          child: Padding(
+                            padding: const EdgeInsets.all(2),
+                            child: Icon(
+                              Icons.undo,
+                              size: 13,
+                              color: palette.accentErr,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ]),
+              ),
             ),
           ),
           for (final (lineIndex, line) in hunk.lines.indexed)
@@ -513,55 +613,71 @@ class _HunkLineRow extends StatelessWidget {
     final selectable = line.kind != DiffLineKind.context;
     final (prefix, bg) = switch (line.kind) {
       DiffLineKind.addition => (
-          '+',
-          palette.accentCurrent.withValues(alpha: 0.08),
-        ),
+        '+',
+        palette.accentCurrent.withValues(alpha: 0.08),
+      ),
       DiffLineKind.deletion => ('-', palette.accentErr.withValues(alpha: 0.10)),
       DiffLineKind.context => (' ', Colors.transparent),
     };
+    final changeLabel = line.kind == DiffLineKind.addition
+        ? 'addition'
+        : 'deletion';
     return InkWell(
       onTap: selectable ? onToggle : null,
-      child: Container(
-        color: bg,
-        padding: const EdgeInsets.only(left: 50, right: 12, top: 1, bottom: 1),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 14,
-              child: selectable
-                  ? Icon(
-                      isChecked
-                          ? Icons.check_box
-                          : Icons.check_box_outline_blank,
-                      size: 12,
-                      color: palette.fg2,
-                    )
-                  : null,
-            ),
-            const SizedBox(width: 6),
-            SizedBox(
-              width: 12,
-              child: Text(
-                prefix,
-                style: TextStyle(
-                  color: palette.fg3,
-                  fontSize: 11,
-                  fontFamily: 'monospace',
+      child: Semantics(
+        button: selectable,
+        selected: selectable ? isChecked : null,
+        label: selectable
+            ? '${isChecked ? 'Selected' : 'Unselected'} $changeLabel '
+                  'line ${line.content}'
+            : 'Context line ${line.content}',
+        child: Container(
+          color: bg,
+          padding: const EdgeInsets.only(
+            left: 50,
+            right: 12,
+            top: 1,
+            bottom: 1,
+          ),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 14,
+                child: selectable
+                    ? Icon(
+                        isChecked
+                            ? Icons.check_box
+                            : Icons.check_box_outline_blank,
+                        size: 12,
+                        color: palette.fg2,
+                      )
+                    : null,
+              ),
+              const SizedBox(width: 6),
+              SizedBox(
+                width: 12,
+                child: Text(
+                  prefix,
+                  style: TextStyle(
+                    color: palette.fg3,
+                    fontSize: 11,
+                    fontFamily: 'monospace',
+                  ),
                 ),
               ),
-            ),
-            Expanded(
-              child: Text(
-                line.content,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: palette.fg1,
-                  fontSize: 11,
-                  fontFamily: 'monospace',
+              Expanded(
+                child: Text(
+                  line.content,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: palette.fg1,
+                    fontSize: 11,
+                    fontFamily: 'monospace',
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -595,16 +711,25 @@ class StateBadge extends StatelessWidget {
       ),
     );
   }
+
   (String, Color) _info(WorkingFileState s, AppPalette p) {
     switch (s) {
-      case WorkingFileState.added: return ('A', p.accentCurrent);
-      case WorkingFileState.modified: return ('M', p.accentTag);
-      case WorkingFileState.deleted: return ('D', p.accentErr);
-      case WorkingFileState.renamed: return ('R', p.accentRemote);
-      case WorkingFileState.untracked: return ('?', p.fg2);
-      case WorkingFileState.conflicted: return ('U', p.accentWarn);
-      case WorkingFileState.ignored: return ('I', p.fg3);
-      case WorkingFileState.unmodified: return ('', Colors.transparent);
+      case WorkingFileState.added:
+        return ('A', p.accentCurrent);
+      case WorkingFileState.modified:
+        return ('M', p.accentTag);
+      case WorkingFileState.deleted:
+        return ('D', p.accentErr);
+      case WorkingFileState.renamed:
+        return ('R', p.accentRemote);
+      case WorkingFileState.untracked:
+        return ('?', p.fg2);
+      case WorkingFileState.conflicted:
+        return ('U', p.accentWarn);
+      case WorkingFileState.ignored:
+        return ('I', p.fg3);
+      case WorkingFileState.unmodified:
+        return ('', Colors.transparent);
     }
   }
 }

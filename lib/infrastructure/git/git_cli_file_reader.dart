@@ -31,27 +31,38 @@ final class GitCliFileReader {
     const unquoted = ['-c', 'core.quotepath=false'];
     final args = switch (spec) {
       DiffSpecCommitVsParent(:final commitSha) => [
-          // `--first-parent -m` makes merge commits emit a normal 2-way diff
-          // against their first parent (Fork/GitKraken default) instead of a
-          // combined diff (diff --cc / @@@) the unified parser can't read.
-          // It is a no-op on normal and root commits, so it is safe for all
-          // single-commit diffs.
-          ...unquoted,
-          'show', commitSha.value, '--first-parent', '-m',
-          '--format=', '--raw', '-p', '--no-color',
-        ],
+        // `--first-parent -m` makes merge commits emit a normal 2-way diff
+        // against their first parent (Fork/GitKraken default) instead of a
+        // combined diff (diff --cc / @@@) the unified parser can't read.
+        // It is a no-op on normal and root commits, so it is safe for all
+        // single-commit diffs.
+        ...unquoted,
+        'show', commitSha.value, '--first-parent', '-m',
+        '--format=', '--raw', '-p', '--no-color',
+      ],
       DiffSpecCommitVsCommit(:final from, :final to) => [
-          ...unquoted,
-          'diff', '${from.value}..${to.value}', '--raw', '-p', '--no-color',
-        ],
+        ...unquoted,
+        'diff',
+        '${from.value}..${to.value}',
+        '--raw',
+        '-p',
+        '--no-color',
+      ],
       DiffSpecIndexVsHead() => [
-          ...unquoted,
-          'diff', '--cached', '--raw', '-p', '--no-color',
-        ],
+        ...unquoted,
+        'diff',
+        '--cached',
+        '--raw',
+        '-p',
+        '--no-color',
+      ],
       DiffSpecWorkingTreeVsIndex() => [
-          ...unquoted,
-          'diff', '--raw', '-p', '--no-color',
-        ],
+        ...unquoted,
+        'diff',
+        '--raw',
+        '-p',
+        '--no-color',
+      ],
     };
     final stdout = await _runner.run(repo.path, [
       ...args,
@@ -61,8 +72,25 @@ final class GitCliFileReader {
     return DiffParser(stdout).parse();
   }
 
+  Future<DiffResult> getStashDiff(RepoLocation repo, int index) async {
+    const unquoted = ['-c', 'core.quotepath=false'];
+    final stdout = await _runner.run(repo.path, [
+      ...unquoted,
+      'stash',
+      'show',
+      '--raw',
+      '-p',
+      '--no-color',
+      'stash@{$index}',
+    ]);
+    return DiffParser(stdout).parse();
+  }
+
   Future<List<FileTreeEntry>> getFileTree(
-      RepoLocation repo, CommitSha sha, String path) async {
+    RepoLocation repo,
+    CommitSha sha,
+    String path,
+  ) async {
     final ref = path.isEmpty ? sha.value : '${sha.value}:$path';
     final stdout = await _runner.run(repo.path, ['ls-tree', '-l', ref]);
     final entries = <FileTreeEntry>[];
@@ -82,13 +110,15 @@ final class GitCliFileReader {
           : filePath;
       final kind = _mapTreeKind(type, mode);
       final size = sizeStr == '-' ? null : int.tryParse(sizeStr);
-      entries.add(FileTreeEntry(
-        name: name,
-        fullPath: path.isEmpty ? filePath : '$path/$filePath',
-        kind: kind,
-        sizeBytes: size,
-        containingCommit: sha,
-      ));
+      entries.add(
+        FileTreeEntry(
+          name: name,
+          fullPath: path.isEmpty ? filePath : '$path/$filePath',
+          kind: kind,
+          sizeBytes: size,
+          containingCommit: sha,
+        ),
+      );
     }
     return entries;
   }

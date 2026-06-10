@@ -71,13 +71,15 @@ final class GitCliReadOperations implements GitReadOperations {
   Stream<CommitInfo> getCommits(RepoLocation repo, CommitQuery query) {
     // `yield*` would forward the inner stream's errors straight to the
     // subscriber, bypassing a try/catch — map them at the stream level.
-    return _log.getCommits(repo, query).handleError(
-      (Object e) => throw GitReadException(
-        _classifier.classify(e as GitProcessException),
-        e.stderr.trim(),
-      ),
-      test: (e) => e is GitProcessException,
-    );
+    return _log
+        .getCommits(repo, query)
+        .handleError(
+          (Object e) => throw GitReadException(
+            _classifier.classify(e as GitProcessException),
+            e.stderr.trim(),
+          ),
+          test: (e) => e is GitProcessException,
+        );
   }
 
   @override
@@ -89,8 +91,7 @@ final class GitCliReadOperations implements GitReadOperations {
     RepoLocation repo,
     String path, {
     int? take,
-  }) =>
-      _guard(() => _log.getFileHistory(repo, path, take: take));
+  }) => _guard(() => _log.getFileHistory(repo, path, take: take));
 
   @override
   Future<List<Branch>> getLocalBranches(RepoLocation repo) =>
@@ -117,6 +118,10 @@ final class GitCliReadOperations implements GitReadOperations {
       _guard(() => _refs.getStashes(repo));
 
   @override
+  Future<DiffResult> getStashDiff(RepoLocation repo, int index) =>
+      _guard(() async => capDiffResult(await _files.getStashDiff(repo, index)));
+
+  @override
   Future<List<ReflogEntry>> getReflog(RepoLocation repo, {int limit = 100}) =>
       _guard(() => _refs.getReflog(repo, limit: limit));
 
@@ -133,12 +138,15 @@ final class GitCliReadOperations implements GitReadOperations {
     RepoLocation repo,
     DiffSpec spec, {
     bool ignoreWhitespace = false,
-  }) =>
-      _guard(() async => capDiffResult(await _files.getDiff(
-            repo,
-            spec,
-            ignoreWhitespace: ignoreWhitespace,
-          )));
+  }) => _guard(
+    () async => capDiffResult(
+      await _files.getDiff(
+        repo,
+        spec,
+        ignoreWhitespace: ignoreWhitespace,
+      ),
+    ),
+  );
 
   @override
   Future<DiffResult> getDiffForFile(
@@ -146,29 +154,28 @@ final class GitCliReadOperations implements GitReadOperations {
     DiffSpec spec,
     String path, {
     bool ignoreWhitespace = false,
-  }) =>
-      _guard(() => _files.getDiff(
-            repo,
-            spec,
-            path: path,
-            ignoreWhitespace: ignoreWhitespace,
-          ));
+  }) => _guard(
+    () => _files.getDiff(
+      repo,
+      spec,
+      path: path,
+      ignoreWhitespace: ignoreWhitespace,
+    ),
+  );
 
   @override
   Future<List<FileTreeEntry>> getFileTree(
     RepoLocation repo,
     CommitSha sha,
     String path,
-  ) =>
-      _guard(() => _files.getFileTree(repo, sha, path));
+  ) => _guard(() => _files.getFileTree(repo, sha, path));
 
   @override
   Future<List<BlameLine>> getBlame(
     RepoLocation repo,
     String path, {
     CommitSha? at,
-  }) =>
-      _guard(() => _files.getBlame(repo, path, at: at));
+  }) => _guard(() => _files.getBlame(repo, path, at: at));
 
   @override
   Future<String> readWorkingFile(RepoLocation repo, String relativePath) =>
