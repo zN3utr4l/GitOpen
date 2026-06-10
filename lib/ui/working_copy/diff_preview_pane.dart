@@ -160,6 +160,8 @@ class DiffHeader extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           const WordDiffToggle(),
+          const SizedBox(width: 4),
+          const SplitDiffToggle(),
         ],
       ),
     );
