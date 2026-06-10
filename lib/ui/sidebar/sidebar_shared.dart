@@ -44,18 +44,19 @@ final FutureProviderFamily<SidebarData, RepoLocation> sidebarDataProvider =
     FutureProvider.family<SidebarData, RepoLocation>((ref, repo) async {
   final logger = ref.read(loggerProvider);
   final git = ref.watch(gitReadOperationsProvider);
-  logger.i('sidebar: awaiting shared branches for ${repo.displayName}');
-  final branches = await ref.watch(branchesProvider(repo).future);
-  logger.i('sidebar: ${branches.length} branches — loading tags');
-  final tags = await git.getTags(repo);
-  logger.i('sidebar: ${tags.length} tags — loading remotes');
-  final remotes = await git.getRemotes(repo);
-  logger.i('sidebar: ${remotes.length} remotes — loading stashes');
-  final stashes = await git.getStashes(repo);
-  logger.i('sidebar: ${stashes.length} stashes — loading submodules');
-  final submodules = await git.getSubmodules(repo);
-  logger.i('sidebar: ${submodules.length} submodules — loading worktrees');
-  final worktrees = await git.getWorktrees(repo);
-  logger.i('sidebar: ${worktrees.length} worktrees — done');
+  logger.i('sidebar: loading all sections for ${repo.displayName}');
+  // All six loads are independent — run them concurrently; the panel still
+  // appears atomically once the slowest completes.
+  final (branches, tags, remotes, stashes, submodules, worktrees) = await (
+    ref.watch(branchesProvider(repo).future),
+    git.getTags(repo),
+    git.getRemotes(repo),
+    git.getStashes(repo),
+    git.getSubmodules(repo),
+    git.getWorktrees(repo),
+  ).wait;
+  logger.i('sidebar: ${branches.length} branches, ${tags.length} tags, '
+      '${remotes.length} remotes, ${stashes.length} stashes, '
+      '${submodules.length} submodules, ${worktrees.length} worktrees');
   return SidebarData(branches, tags, remotes, stashes, submodules, worktrees);
 });

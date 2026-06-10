@@ -164,12 +164,26 @@ class GeneralSection extends ConsumerWidget {
                   description:
                       'GPG-signs every commit (git commit -S). Requires a '
                       'configured signing key.',
-                  divider: false,
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: Switch(
                       value: s.gpgSignByDefault,
                       onChanged: notifier.setGpgSignByDefault,
+                    ),
+                  ),
+                ),
+                SettingsRow(
+                  label: 'Auto-refresh',
+                  description: 'Watch the repository for outside changes '
+                      '(commits, checkouts, fetches from a terminal) and '
+                      'refresh automatically. Also refreshes when the window '
+                      'regains focus.',
+                  divider: false,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Switch(
+                      value: s.autoRefresh,
+                      onChanged: notifier.setAutoRefresh,
                     ),
                   ),
                 ),

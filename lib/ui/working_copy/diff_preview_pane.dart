@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gitopen/application/providers.dart';
 import 'package:gitopen/domain/diff/diff_hunk.dart';
+import 'package:gitopen/domain/diff/diff_spec.dart';
 import 'package:gitopen/domain/diff/file_diff.dart';
 import 'package:gitopen/domain/repositories/repo_location.dart';
 import 'package:gitopen/ui/bottom_panel/diff_syntax.dart';
 import 'package:gitopen/ui/common/diff_line_row.dart';
 import 'package:gitopen/ui/common/diff_prefs.dart';
+import 'package:gitopen/ui/common/truncated_diff_banner.dart';
 import 'package:gitopen/ui/theme/app_palette.dart';
 import 'package:gitopen/ui/working_copy/working_copy_providers.dart';
 
@@ -13,13 +16,35 @@ import 'package:gitopen/ui/working_copy/working_copy_providers.dart';
 // Diff preview pane — renders the selected file's diff.
 // ---------------------------------------------------------------------------
 
-class DiffPreviewPane extends ConsumerWidget {
+/// Uncapped single-file working-copy diff for "Load full diff".
+final AutoDisposeFutureProviderFamily<FileDiff?,
+        ({RepoLocation repo, String path, bool staged})>
+    _fullWorkingFileProvider = FutureProvider.family.autoDispose<FileDiff?,
+        ({RepoLocation repo, String path, bool staged})>((ref, key) async {
+  final git = ref.watch(gitReadOperationsProvider);
+  final spec = key.staged
+      ? const DiffSpecIndexVsHead()
+      : const DiffSpecWorkingTreeVsIndex();
+  final result = await git.getDiffForFile(key.repo, spec, key.path);
+  return result.files.isEmpty ? null : result.files.first;
+});
+
+class DiffPreviewPane extends ConsumerStatefulWidget {
   const DiffPreviewPane({required this.repo, super.key});
   final RepoLocation repo;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DiffPreviewPane> createState() => _DiffPreviewPaneState();
+}
+
+class _DiffPreviewPaneState extends ConsumerState<DiffPreviewPane> {
+  /// Selection (path, staged) the user expanded past the truncation cap.
+  ({String path, bool staged})? _fullFor;
+
+  @override
+  Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final repo = widget.repo;
     final sel = ref.watch(selectedFileProvider);
     if (sel == null) {
       return Container(
@@ -67,13 +92,37 @@ class DiffPreviewPane extends ConsumerWidget {
               ),
             );
           }
+          final wantFull = _fullFor != null &&
+              _fullFor == (path: sel.path, staged: sel.staged);
+          final full = wantFull
+              ? ref.watch(_fullWorkingFileProvider(
+                  (repo: repo, path: sel.path, staged: sel.staged)))
+              : null;
+          final shown = full?.valueOrNull ?? fileDiff;
           final language = languageForPath(sel.path);
           return ListView(
             padding: const EdgeInsets.all(8),
             children: [
-              DiffHeader(path: sel.path, fileDiff: fileDiff),
-              for (final h in fileDiff.hunks)
+              DiffHeader(path: sel.path, fileDiff: shown),
+              for (final h in shown.hunks)
                 HunkBlock(hunk: h, language: language),
+              if (full != null && full.isLoading)
+                const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Center(
+                    child: SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                ),
+              if (shown.truncated && !wantFull)
+                TruncatedDiffBanner(
+                  onLoadFull: () => setState(
+                    () => _fullFor = (path: sel.path, staged: sel.staged),
+                  ),
+                ),
             ],
           );
         },
