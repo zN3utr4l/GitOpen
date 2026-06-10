@@ -9,34 +9,42 @@ import 'package:gitopen/application/scroll_request_provider.dart';
 import 'package:gitopen/domain/commits/commit_info.dart';
 import 'package:gitopen/domain/commits/commit_sha.dart';
 import 'package:gitopen/domain/commits/commit_signature.dart';
+import 'package:gitopen/domain/commits/gpg_signature_status.dart';
 import 'package:gitopen/domain/repositories/repo_location.dart';
 import 'package:gitopen/ui/common/author_avatar.dart';
 import 'package:gitopen/ui/theme/app_palette.dart';
 import 'package:intl/intl.dart';
 
 /// Headline metadata for the details panel — author/committer/parents.
-final AutoDisposeFutureProviderFamily<CommitInfo?,
-        ({RepoLocation repo, CommitSha sha})> _commitInfoProvider =
-    FutureProvider.family.autoDispose<CommitInfo?,
-        ({RepoLocation repo, CommitSha sha})>((ref, key) async {
-  final git = ref.watch(gitReadOperationsProvider);
-  final commits = await git
-      .getCommits(key.repo, CommitQuery(refSpec: key.sha.value, take: 1))
-      .toList();
-  return commits.isEmpty ? null : commits.first;
-});
+final AutoDisposeFutureProviderFamily<
+  CommitInfo?,
+  ({RepoLocation repo, CommitSha sha})
+>
+_commitInfoProvider = FutureProvider.family
+    .autoDispose<CommitInfo?, ({RepoLocation repo, CommitSha sha})>((
+      ref,
+      key,
+    ) async {
+      final git = ref.watch(gitReadOperationsProvider);
+      final commits = await git
+          .getCommits(key.repo, CommitQuery(refSpec: key.sha.value, take: 1))
+          .toList();
+      return commits.isEmpty ? null : commits.first;
+    });
 
 /// Full commit body, fetched separately so the bulk graph load doesn't pay
 /// for it.  Cached per (repo, sha) and disposed when the details view
 /// stops watching this commit.
-final AutoDisposeFutureProviderFamily<String?,
-        ({RepoLocation repo, CommitSha sha})> _commitFullMessageProvider =
-    FutureProvider.family.autoDispose<String?,
-        ({RepoLocation repo, CommitSha sha})>((ref, key) {
-  return ref
-      .watch(gitReadOperationsProvider)
-      .getCommitFullMessage(key.repo, key.sha);
-});
+final AutoDisposeFutureProviderFamily<
+  String?,
+  ({RepoLocation repo, CommitSha sha})
+>
+_commitFullMessageProvider = FutureProvider.family
+    .autoDispose<String?, ({RepoLocation repo, CommitSha sha})>((ref, key) {
+      return ref
+          .watch(gitReadOperationsProvider)
+          .getCommitFullMessage(key.repo, key.sha);
+    });
 
 class CommitDetailsView extends ConsumerWidget {
   const CommitDetailsView({required this.repo, required this.sha, super.key});
@@ -54,8 +62,7 @@ class CommitDetailsView extends ConsumerWidget {
     return async.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(
-        child: Text('Error: $e',
-            style: TextStyle(color: palette.accentErr)),
+        child: Text('Error: $e', style: TextStyle(color: palette.accentErr)),
       ),
       data: (c) {
         if (c == null) return const SizedBox.shrink();
@@ -67,7 +74,11 @@ class CommitDetailsView extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _Hero(summary: summary, sha: c.sha),
+              _Hero(
+                summary: summary,
+                sha: c.sha,
+                signatureStatus: c.signatureStatus,
+              ),
               const SizedBox(height: 16),
               _PersonRow(
                 role: 'authored',
@@ -107,9 +118,14 @@ bool _sameSignature(CommitSignature a, CommitSignature b) =>
 }
 
 class _Hero extends StatelessWidget {
-  const _Hero({required this.summary, required this.sha});
+  const _Hero({
+    required this.summary,
+    required this.sha,
+    required this.signatureStatus,
+  });
   final String summary;
   final CommitSha sha;
+  final GpgSignatureStatus signatureStatus;
 
   @override
   Widget build(BuildContext context) {
@@ -129,8 +145,67 @@ class _Hero extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 12),
+        _SignatureBadge(status: signatureStatus),
+        const SizedBox(width: 8),
         _ShaPill(sha: sha),
       ],
+    );
+  }
+}
+
+class _SignatureBadge extends StatelessWidget {
+  const _SignatureBadge({required this.status});
+  final GpgSignatureStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final (icon, color) = switch (status) {
+      GpgSignatureStatus.good => (
+        Icons.verified_user_outlined,
+        palette.accentCurrent,
+      ),
+      GpgSignatureStatus.unsigned => (
+        Icons.shield_outlined,
+        palette.fg3,
+      ),
+      GpgSignatureStatus.unknownValidity ||
+      GpgSignatureStatus.expiredSignature ||
+      GpgSignatureStatus.expiredKey ||
+      GpgSignatureStatus.missingKey => (
+        Icons.gpp_maybe_outlined,
+        palette.accentWarn,
+      ),
+      GpgSignatureStatus.bad || GpgSignatureStatus.revokedKey => (
+        Icons.gpp_bad_outlined,
+        palette.accentErr,
+      ),
+    };
+    return Tooltip(
+      message: 'GPG: ${status.label}',
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          border: Border.all(color: color.withValues(alpha: 0.45)),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 11, color: color),
+            const SizedBox(width: 4),
+            Text(
+              status.label,
+              style: TextStyle(
+                color: color,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -168,8 +243,7 @@ class _ShaPillState extends State<_ShaPill> {
         child: GestureDetector(
           onTap: _copy,
           child: Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: _hover ? palette.bg4 : palette.bg2,
               border: Border.all(color: palette.border),
@@ -181,9 +255,7 @@ class _ShaPillState extends State<_ShaPill> {
                 Icon(
                   _justCopied ? Icons.check : Icons.tag,
                   size: 11,
-                  color: _justCopied
-                      ? palette.accentCurrent
-                      : palette.fg2,
+                  color: _justCopied ? palette.accentCurrent : palette.fg2,
                 ),
                 const SizedBox(width: 4),
                 Text(
@@ -218,8 +290,7 @@ class _PersonRow extends StatelessWidget {
     final palette = AppPalette.of(context);
     return Row(
       children: [
-        AuthorAvatar(
-            name: signature.name, email: signature.email, size: 28),
+        AuthorAvatar(name: signature.name, email: signature.email, size: 28),
         const SizedBox(width: 10),
         Expanded(
           child: Column(
@@ -283,11 +354,14 @@ class _ParentsRow extends ConsumerWidget {
       return Row(
         children: [
           const _Label('Parents'),
-          Text('(root commit)',
-              style: TextStyle(
-                  color: palette.fg3,
-                  fontSize: 12,
-                  fontStyle: FontStyle.italic)),
+          Text(
+            '(root commit)',
+            style: TextStyle(
+              color: palette.fg3,
+              fontSize: 12,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
         ],
       );
     }
@@ -336,12 +410,12 @@ class _ParentPillState extends State<_ParentPill> {
       child: GestureDetector(
         onTap: _reveal,
         child: Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           decoration: BoxDecoration(
             color: _hover ? palette.bg4 : palette.bg2,
             border: Border.all(
-                color: _hover ? palette.borderStrong : palette.border),
+              color: _hover ? palette.borderStrong : palette.border,
+            ),
             borderRadius: BorderRadius.circular(4),
           ),
           child: Text(

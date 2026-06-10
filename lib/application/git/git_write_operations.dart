@@ -7,6 +7,7 @@ import 'package:gitopen/domain/commits/commit_sha.dart';
 import 'package:gitopen/domain/repositories/repo_location.dart';
 
 enum PullStrategy { ffOnly, merge, rebase }
+
 enum ResetMode { soft, mixed, hard }
 
 /// A single action in an interactive-rebase todo list. `reword`/`edit` are
@@ -62,6 +63,7 @@ abstract interface class GitWriteOperations {
   Future<GitResult<void>> stagePatch(RepoLocation r, String unifiedDiff);
   Future<GitResult<void>> unstagePatch(RepoLocation r, String unifiedDiff);
   Future<GitResult<void>> discardChanges(RepoLocation r, List<String> paths);
+
   /// Deletes untracked paths from the working tree. Untracked files cannot
   /// be restored via `checkout`, so the only way to "discard" them is to
   /// remove them. Mirrors `git clean -f -- <paths>` (no `-d`).
@@ -81,8 +83,12 @@ abstract interface class GitWriteOperations {
 
   Future<GitResult<CommitSha>> commit(RepoLocation r, CommitRequest req);
 
-  Future<GitResult<void>> createBranch(RepoLocation r, String name,
-      {CommitSha? at, bool checkout = false});
+  Future<GitResult<void>> createBranch(
+    RepoLocation r,
+    String name, {
+    CommitSha? at,
+    bool checkout = false,
+  });
   Future<GitResult<void>> checkout(
     RepoLocation r,
     String ref, {
@@ -93,8 +99,12 @@ abstract interface class GitWriteOperations {
   /// (`git checkout --track <remoteRef>`). Git derives the local name by
   /// stripping the remote prefix; fails if that local branch already exists.
   Future<GitResult<void>> checkoutTrack(RepoLocation r, String remoteRef);
-  Future<GitResult<void>> deleteBranch(RepoLocation r, String name,
-      {bool force = false, bool remote = false});
+  Future<GitResult<void>> deleteBranch(
+    RepoLocation r,
+    String name, {
+    bool force = false,
+    bool remote = false,
+  });
   Future<GitResult<void>> renameBranch(
     RepoLocation r,
     String oldName,
@@ -115,8 +125,12 @@ abstract interface class GitWriteOperations {
   );
   Future<GitResult<void>> setRemoteUrl(RepoLocation r, String name, String url);
 
-  Future<GitResult<void>> createTag(RepoLocation r, String name,
-      {CommitSha? at, String? message});
+  Future<GitResult<void>> createTag(
+    RepoLocation r,
+    String name, {
+    CommitSha? at,
+    String? message,
+  });
   Future<GitResult<void>> deleteTag(RepoLocation r, String name);
 
   Stream<GitProgress> fetch(
@@ -143,13 +157,17 @@ abstract interface class GitWriteOperations {
     RepoLocation r,
     String message, {
     bool includeUntracked = false,
+    List<String> paths = const [],
   });
   Future<GitResult<void>> stashPop(RepoLocation r, int index);
   Future<GitResult<void>> stashApply(RepoLocation r, int index);
   Future<GitResult<void>> stashDrop(RepoLocation r, int index);
 
-  Future<GitResult<MergeOutcome>> merge(RepoLocation r, String ref,
-      {MergeStrategy strategy = MergeStrategy.defaultStrategy});
+  Future<GitResult<MergeOutcome>> merge(
+    RepoLocation r,
+    String ref, {
+    MergeStrategy strategy = MergeStrategy.defaultStrategy,
+  });
   Future<GitResult<void>> mergeAbort(RepoLocation r);
   Future<GitResult<CommitSha>> mergeContinue(RepoLocation r);
 

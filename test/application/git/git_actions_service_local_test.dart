@@ -10,53 +10,52 @@ import 'package:gitopen/domain/repositories/repo_location.dart';
 /// Fake write op for the local (non-streaming) actions: returns canned
 /// GitResults so the mapping to [ActionResult] can be asserted without git.
 class _FakeWrite implements GitWriteOperations {
-  GitResult<MergeOutcome> mergeResult =
-      const GitSuccess<MergeOutcome>(MergeUpToDate());
+  GitResult<MergeOutcome> mergeResult = const GitSuccess<MergeOutcome>(
+    MergeUpToDate(),
+  );
   GitResult<CherryPickOutcome> cherryResult =
       const GitSuccess<CherryPickOutcome>(CherryPickConflict(['x.txt']));
   GitResult<void> resetResult = const GitSuccess<void>(null);
   GitResult<void> voidResult = const GitSuccess<void>(null);
   GitResult<CommitSha> shaResult = GitSuccess<CommitSha>(CommitSha('abcdef1'));
-  GitResult<RebaseOutcome> interactiveResult =
-      const GitSuccess<RebaseOutcome>(RebaseUpToDate());
+  GitResult<RebaseOutcome> interactiveResult = const GitSuccess<RebaseOutcome>(
+    RebaseUpToDate(),
+  );
+  List<String>? lastStashPaths;
+  bool? lastStashIncludeUntracked;
 
   @override
   Future<GitResult<MergeOutcome>> merge(
     RepoLocation r,
     String ref, {
     MergeStrategy strategy = MergeStrategy.defaultStrategy,
-  }) async =>
-      mergeResult;
+  }) async => mergeResult;
 
   @override
   Future<GitResult<CherryPickOutcome>> cherryPick(
     RepoLocation r,
     CommitSha sha,
-  ) async =>
-      cherryResult;
+  ) async => cherryResult;
 
   @override
   Future<GitResult<void>> reset(
     RepoLocation r,
     CommitSha to,
     ResetMode mode,
-  ) async =>
-      resetResult;
+  ) async => resetResult;
 
   @override
   Future<GitResult<void>> checkout(
     RepoLocation r,
     String ref, {
     bool force = false,
-  }) async =>
-      voidResult;
+  }) async => voidResult;
 
   @override
   Future<GitResult<void>> checkoutTrack(
     RepoLocation r,
     String remoteRef,
-  ) async =>
-      voidResult;
+  ) async => voidResult;
 
   @override
   Future<GitResult<void>> createBranch(
@@ -64,8 +63,19 @@ class _FakeWrite implements GitWriteOperations {
     String name, {
     CommitSha? at,
     bool checkout = false,
-  }) async =>
-      voidResult;
+  }) async => voidResult;
+
+  @override
+  Future<GitResult<void>> stashSave(
+    RepoLocation r,
+    String message, {
+    bool includeUntracked = false,
+    List<String> paths = const [],
+  }) async {
+    lastStashIncludeUntracked = includeUntracked;
+    lastStashPaths = List.of(paths);
+    return voidResult;
+  }
 
   @override
   Future<GitResult<void>> stashPop(RepoLocation r, int index) async =>
@@ -76,45 +86,39 @@ class _FakeWrite implements GitWriteOperations {
     RepoLocation r,
     String path, {
     required bool ours,
-  }) async =>
-      voidResult;
+  }) async => voidResult;
 
   @override
   Future<GitResult<void>> discardPatch(
     RepoLocation r,
     String unifiedDiff,
-  ) async =>
-      voidResult;
+  ) async => voidResult;
 
   @override
   Future<GitResult<void>> rebaseAbort(RepoLocation r) async => voidResult;
 
   @override
-  Future<GitResult<CommitSha>> mergeContinue(RepoLocation r) async =>
-      shaResult;
+  Future<GitResult<CommitSha>> mergeContinue(RepoLocation r) async => shaResult;
 
   @override
   Future<GitResult<RebaseOutcome>> interactiveRebase(
     RepoLocation r,
     CommitSha onto,
     List<RebaseTodoEntry> plan,
-  ) async =>
-      interactiveResult;
+  ) async => interactiveResult;
 
   @override
   Future<GitResult<RebaseOutcome>> rewordCommit(
     RepoLocation r,
     CommitSha sha,
     String message,
-  ) async =>
-      interactiveResult;
+  ) async => interactiveResult;
 
   @override
   Future<GitResult<RebaseOutcome>> editAtCommit(
     RepoLocation r,
     CommitSha sha,
-  ) async =>
-      interactiveResult;
+  ) async => interactiveResult;
 
   @override
   dynamic noSuchMethod(Invocation invocation) =>
@@ -127,28 +131,31 @@ void main() {
   const strategy = MergeStrategy.defaultStrategy;
 
   GitActionsService service(_FakeWrite write) => GitActionsService(
-        write: write,
-        resolveProfile: (_) async => null,
-        errorText: (e) => e.toString(),
-      );
+    write: write,
+    resolveProfile: (_) async => null,
+    errorText: (e) => e.toString(),
+  );
 
-  test('merge success → success, invalidates reads+repoState, no message',
-      () async {
-    final write = _FakeWrite()
-      ..mergeResult = const GitSuccess<MergeOutcome>(MergeUpToDate());
-    final r = await service(write).merge(repo, 'feature', strategy);
-    expect(r.outcome, ActionOutcome.success);
-    expect(
-      r.invalidate,
-      unorderedEquals({RepoDataScope.reads, RepoDataScope.repoState}),
-    );
-    expect(r.message, isNull);
-  });
+  test(
+    'merge success → success, invalidates reads+repoState, no message',
+    () async {
+      final write = _FakeWrite()
+        ..mergeResult = const GitSuccess<MergeOutcome>(MergeUpToDate());
+      final r = await service(write).merge(repo, 'feature', strategy);
+      expect(r.outcome, ActionOutcome.success);
+      expect(
+        r.invalidate,
+        unorderedEquals({RepoDataScope.reads, RepoDataScope.repoState}),
+      );
+      expect(r.message, isNull);
+    },
+  );
 
   test('merge conflict → conflict outcome + count message', () async {
     final write = _FakeWrite()
-      ..mergeResult =
-          const GitSuccess<MergeOutcome>(MergeConflict(['a.txt', 'b.txt']));
+      ..mergeResult = const GitSuccess<MergeOutcome>(
+        MergeConflict(['a.txt', 'b.txt']),
+      );
     final r = await service(write).merge(repo, 'feature', strategy);
     expect(r.outcome, ActionOutcome.conflict);
     expect(r.message, contains('2 file(s)'));
@@ -157,8 +164,11 @@ void main() {
 
   test('merge failure → failed + "Merge failed:" message', () async {
     final write = _FakeWrite()
-      ..mergeResult =
-          const GitFailure<MergeOutcome>(GitErrorKind.conflict, 'boom', 'boom');
+      ..mergeResult = const GitFailure<MergeOutcome>(
+        GitErrorKind.conflict,
+        'boom',
+        'boom',
+      );
     final r = await service(write).merge(repo, 'feature', strategy);
     expect(r.outcome, ActionOutcome.failed);
     expect(r.message, contains('Merge failed'));
@@ -166,8 +176,9 @@ void main() {
 
   test('cherryPick conflict → conflict + labelled message', () async {
     final write = _FakeWrite()
-      ..cherryResult =
-          const GitSuccess<CherryPickOutcome>(CherryPickConflict(['c.txt']));
+      ..cherryResult = const GitSuccess<CherryPickOutcome>(
+        CherryPickConflict(['c.txt']),
+      );
     final r = await service(write).cherryPick(repo, sha);
     expect(r.outcome, ActionOutcome.conflict);
     expect(r.message, contains('Cherry-pick conflict'));
@@ -181,32 +192,42 @@ void main() {
 
   test('reset failure → failed + "Reset failed:" message', () async {
     final write = _FakeWrite()
-      ..resetResult =
-          const GitFailure<void>(GitErrorKind.other, 'nope', 'nope');
+      ..resetResult = const GitFailure<void>(
+        GitErrorKind.other,
+        'nope',
+        'nope',
+      );
     final r = await service(write).reset(repo, sha, ResetMode.hard);
     expect(r.outcome, ActionOutcome.failed);
     expect(r.message, contains('Reset failed'));
   });
 
-  test('checkout success → success, invalidates reads only, no message',
-      () async {
-    final write = _FakeWrite()..voidResult = const GitSuccess<void>(null);
-    final r = await service(write).checkout(repo, 'feature');
-    expect(r.outcome, ActionOutcome.success);
-    expect(r.invalidate, {RepoDataScope.reads});
-    expect(r.message, isNull);
-  });
+  test(
+    'checkout success → success, invalidates reads only, no message',
+    () async {
+      final write = _FakeWrite()..voidResult = const GitSuccess<void>(null);
+      final r = await service(write).checkout(repo, 'feature');
+      expect(r.outcome, ActionOutcome.success);
+      expect(r.invalidate, {RepoDataScope.reads});
+      expect(r.message, isNull);
+    },
+  );
 
-  test('checkout failure → failed + "Checkout failed:" error message',
-      () async {
-    final write = _FakeWrite()
-      ..voidResult = const GitFailure<void>(
-          GitErrorKind.other, 'local changes', 'local changes');
-    final r = await service(write).checkout(repo, 'feature');
-    expect(r.outcome, ActionOutcome.failed);
-    expect(r.message, contains('Checkout failed'));
-    expect(r.severity, MessageSeverity.error);
-  });
+  test(
+    'checkout failure → failed + "Checkout failed:" error message',
+    () async {
+      final write = _FakeWrite()
+        ..voidResult = const GitFailure<void>(
+          GitErrorKind.other,
+          'local changes',
+          'local changes',
+        );
+      final r = await service(write).checkout(repo, 'feature');
+      expect(r.outcome, ActionOutcome.failed);
+      expect(r.message, contains('Checkout failed'));
+      expect(r.severity, MessageSeverity.error);
+    },
+  );
 
   test('checkoutTrack success → success, invalidates reads only', () async {
     final write = _FakeWrite()..voidResult = const GitSuccess<void>(null);
@@ -225,8 +246,11 @@ void main() {
 
   test('createBranch failure → labelled error message', () async {
     final write = _FakeWrite()
-      ..voidResult =
-          const GitFailure<void>(GitErrorKind.other, 'exists', 'exists');
+      ..voidResult = const GitFailure<void>(
+        GitErrorKind.other,
+        'exists',
+        'exists',
+      );
     final r = await service(write).createBranch(repo, 'feature');
     expect(r.outcome, ActionOutcome.failed);
     expect(r.message, contains('Create branch failed'));
@@ -234,12 +258,33 @@ void main() {
 
   test('stashPop failure → labelled error message', () async {
     final write = _FakeWrite()
-      ..voidResult =
-          const GitFailure<void>(GitErrorKind.conflict, 'clash', 'clash');
+      ..voidResult = const GitFailure<void>(
+        GitErrorKind.conflict,
+        'clash',
+        'clash',
+      );
     final r = await service(write).stashPop(repo, 0);
     expect(r.outcome, ActionOutcome.failed);
     expect(r.message, contains('Stash pop failed'));
   });
+
+  test(
+    'stashSave forwards selected paths and include-untracked flag',
+    () async {
+      final write = _FakeWrite()..voidResult = const GitSuccess<void>(null);
+
+      final r = await service(write).stashSave(
+        repo,
+        'partial',
+        includeUntracked: true,
+        paths: const ['lib/a.dart'],
+      );
+
+      expect(r.outcome, ActionOutcome.success);
+      expect(write.lastStashIncludeUntracked, isTrue);
+      expect(write.lastStashPaths, ['lib/a.dart']);
+    },
+  );
 
   test('mergeContinue success → invalidates reads+repoState', () async {
     final write = _FakeWrite()
@@ -254,53 +299,69 @@ void main() {
 
   test('rebaseAbort failure → labelled error message', () async {
     final write = _FakeWrite()
-      ..voidResult =
-          const GitFailure<void>(GitErrorKind.other, 'no rebase', 'no rebase');
+      ..voidResult = const GitFailure<void>(
+        GitErrorKind.other,
+        'no rebase',
+        'no rebase',
+      );
     final r = await service(write).rebaseAbort(repo);
     expect(r.outcome, ActionOutcome.failed);
     expect(r.message, contains('Abort rebase failed'));
   });
 
-  test('interactiveRebase conflict → conflict outcome + count message',
-      () async {
-    final write = _FakeWrite()
-      ..interactiveResult =
-          const GitSuccess<RebaseOutcome>(RebaseConflict(['a.txt', 'b.txt']));
-    final r = await service(write)
-        .interactiveRebase(repo, sha, const <RebaseTodoEntry>[]);
-    expect(r.outcome, ActionOutcome.conflict);
-    expect(r.message, contains('2 file(s)'));
-    expect(
-      r.invalidate,
-      unorderedEquals({RepoDataScope.reads, RepoDataScope.repoState}),
-    );
-  });
+  test(
+    'interactiveRebase conflict → conflict outcome + count message',
+    () async {
+      final write = _FakeWrite()
+        ..interactiveResult = const GitSuccess<RebaseOutcome>(
+          RebaseConflict(['a.txt', 'b.txt']),
+        );
+      final r = await service(
+        write,
+      ).interactiveRebase(repo, sha, const <RebaseTodoEntry>[]);
+      expect(r.outcome, ActionOutcome.conflict);
+      expect(r.message, contains('2 file(s)'));
+      expect(
+        r.invalidate,
+        unorderedEquals({RepoDataScope.reads, RepoDataScope.repoState}),
+      );
+    },
+  );
 
-  test('interactiveRebase failure → failed + "Rebase failed:" message',
-      () async {
-    final write = _FakeWrite()
-      ..interactiveResult = const GitFailure<RebaseOutcome>(
-          GitErrorKind.other, 'dirty tree', 'dirty tree');
-    final r = await service(write)
-        .interactiveRebase(repo, sha, const <RebaseTodoEntry>[]);
-    expect(r.outcome, ActionOutcome.failed);
-    expect(r.message, contains('Rebase failed'));
-  });
+  test(
+    'interactiveRebase failure → failed + "Rebase failed:" message',
+    () async {
+      final write = _FakeWrite()
+        ..interactiveResult = const GitFailure<RebaseOutcome>(
+          GitErrorKind.other,
+          'dirty tree',
+          'dirty tree',
+        );
+      final r = await service(
+        write,
+      ).interactiveRebase(repo, sha, const <RebaseTodoEntry>[]);
+      expect(r.outcome, ActionOutcome.failed);
+      expect(r.message, contains('Rebase failed'));
+    },
+  );
 
   test('rewordCommit failure → failed + "Reword failed:" message', () async {
     final write = _FakeWrite()
       ..interactiveResult = const GitFailure<RebaseOutcome>(
-          GitErrorKind.unknownRef, 'no parent', 'no parent');
+        GitErrorKind.unknownRef,
+        'no parent',
+        'no parent',
+      );
     final r = await service(write).rewordCommit(repo, sha, 'msg');
     expect(r.outcome, ActionOutcome.failed);
     expect(r.message, contains('Reword failed'));
   });
 
-  test('editAtCommit stopped-for-edit → success + guidance message',
-      () async {
+  test('editAtCommit stopped-for-edit → success + guidance message', () async {
     final write = _FakeWrite()
-      ..interactiveResult =
-          const GitSuccess<RebaseOutcome>(RebaseStoppedForEdit());
+      ..interactiveResult = const GitSuccess<RebaseOutcome>(
+        RebaseStoppedForEdit(),
+      );
     final r = await service(write).editAtCommit(repo, sha);
     expect(r.outcome, ActionOutcome.success);
     expect(r.message, contains('Continue'));
@@ -313,34 +374,40 @@ void main() {
 
   test('editAtCommit conflict → conflict outcome + count message', () async {
     final write = _FakeWrite()
-      ..interactiveResult =
-          const GitSuccess<RebaseOutcome>(RebaseConflict(['a.txt']));
+      ..interactiveResult = const GitSuccess<RebaseOutcome>(
+        RebaseConflict(['a.txt']),
+      );
     final r = await service(write).editAtCommit(repo, sha);
     expect(r.outcome, ActionOutcome.conflict);
     expect(r.message, contains('1 file(s)'));
   });
 
-  test('takeConflictSide success → success and invalidates local scope',
-      () async {
-    final write = _FakeWrite()..voidResult = const GitSuccess<void>(null);
+  test(
+    'takeConflictSide success → success and invalidates local scope',
+    () async {
+      final write = _FakeWrite()..voidResult = const GitSuccess<void>(null);
 
-    final r = await service(write).takeConflictSide(
-      repo,
-      'clash.txt',
-      ours: true,
-    );
+      final r = await service(write).takeConflictSide(
+        repo,
+        'clash.txt',
+        ours: true,
+      );
 
-    expect(r.outcome, ActionOutcome.success);
-    expect(
-      r.invalidate,
-      unorderedEquals({RepoDataScope.reads, RepoDataScope.repoState}),
-    );
-  });
+      expect(r.outcome, ActionOutcome.success);
+      expect(
+        r.invalidate,
+        unorderedEquals({RepoDataScope.reads, RepoDataScope.repoState}),
+      );
+    },
+  );
 
   test('takeConflictSide failure → labelled Resolve error', () async {
     final write = _FakeWrite()
-      ..voidResult =
-          const GitFailure<void>(GitErrorKind.other, 'no side', 'no side');
+      ..voidResult = const GitFailure<void>(
+        GitErrorKind.other,
+        'no side',
+        'no side',
+      );
 
     final r = await service(write).takeConflictSide(
       repo,

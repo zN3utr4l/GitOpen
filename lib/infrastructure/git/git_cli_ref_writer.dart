@@ -46,10 +46,12 @@ final class GitCliRefWriter {
       // Delete remote branch via push --delete
       final parts = name.split('/');
       if (parts.length < 2) {
-        return Future.value(const GitFailure(
-          GitErrorKind.invalidArgument,
-          'remote branch name must be <remote>/<branch>',
-        ));
+        return Future.value(
+          const GitFailure(
+            GitErrorKind.invalidArgument,
+            'remote branch name must be <remote>/<branch>',
+          ),
+        );
       }
       final remoteName = parts.first;
       final branchName = parts.sublist(1).join('/');
@@ -63,15 +65,13 @@ final class GitCliRefWriter {
     RepoLocation r,
     String oldName,
     String newName,
-  ) =>
-      _git.runVoid(r, ['branch', '-m', oldName, newName]);
+  ) => _git.runVoid(r, ['branch', '-m', oldName, newName]);
 
   Future<GitResult<void>> setUpstream(
     RepoLocation r,
     String branch,
     String upstream,
-  ) =>
-      _git.runVoid(r, ['branch', '--set-upstream-to=$upstream', branch]);
+  ) => _git.runVoid(r, ['branch', '--set-upstream-to=$upstream', branch]);
 
   Future<GitResult<void>> addRemote(RepoLocation r, String name, String url) =>
       _git.runVoid(r, ['remote', 'add', name, url]);
@@ -83,15 +83,13 @@ final class GitCliRefWriter {
     RepoLocation r,
     String oldName,
     String newName,
-  ) =>
-      _git.runVoid(r, ['remote', 'rename', oldName, newName]);
+  ) => _git.runVoid(r, ['remote', 'rename', oldName, newName]);
 
   Future<GitResult<void>> setRemoteUrl(
     RepoLocation r,
     String name,
     String url,
-  ) =>
-      _git.runVoid(r, ['remote', 'set-url', name, url]);
+  ) => _git.runVoid(r, ['remote', 'set-url', name, url]);
 
   Future<GitResult<void>> createTag(
     RepoLocation r,
@@ -113,9 +111,15 @@ final class GitCliRefWriter {
     RepoLocation r,
     String message, {
     bool includeUntracked = false,
+    List<String> paths = const [],
   }) {
     final args = <String>['stash', 'push', '-m', message];
     if (includeUntracked) args.add('-u');
+    if (paths.isNotEmpty) {
+      args
+        ..add('--')
+        ..addAll(paths);
+    }
     return _git.runVoid(r, args);
   }
 
@@ -141,14 +145,12 @@ final class GitCliRefWriter {
     RepoLocation r,
     String path, {
     bool init = true,
-  }) =>
-      _git.runVoid(r, _submoduleUpdateArgs(init: init, path: path));
+  }) => _git.runVoid(r, _submoduleUpdateArgs(init: init, path: path));
 
   Future<GitResult<void>> updateAllSubmodules(
     RepoLocation r, {
     bool init = true,
-  }) =>
-      _git.runVoid(r, _submoduleUpdateArgs(init: init));
+  }) => _git.runVoid(r, _submoduleUpdateArgs(init: init));
 
   /// Builds the argv for `git submodule update`, optionally `--init` and
   /// optionally scoped to a single [path] (after `--`).
@@ -161,7 +163,8 @@ final class GitCliRefWriter {
   /// for everyone.
   List<String> _submoduleUpdateArgs({required bool init, String? path}) {
     return <String>[
-      'submodule', 'update',
+      'submodule',
+      'update',
       if (init) '--init',
       if (path != null) ...['--', path],
     ];

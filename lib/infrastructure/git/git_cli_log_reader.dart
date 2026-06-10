@@ -7,6 +7,7 @@ import 'package:gitopen/application/git/git_read_operations.dart';
 import 'package:gitopen/domain/commits/commit_info.dart';
 import 'package:gitopen/domain/commits/commit_sha.dart';
 import 'package:gitopen/domain/commits/commit_signature.dart';
+import 'package:gitopen/domain/commits/gpg_signature_status.dart';
 import 'package:gitopen/domain/repositories/repo_location.dart';
 import 'package:gitopen/infrastructure/git/git_process_runner.dart';
 import 'package:gitopen/infrastructure/logging/app_logger.dart';
@@ -18,15 +19,16 @@ final class GitCliLogReader {
   GitCliLogReader(this._runner);
   final GitProcessRunner _runner;
 
-  /// The 9 NUL-separated commit fields shared by [getCommits] and
-  /// [getFileHistory].  Each record is exactly 9 fields, parsed by
+  /// The 10 NUL-separated commit fields shared by [getCommits] and
+  /// [getFileHistory].  Each record is exactly 10 fields, parsed by
   /// [_parseCommitFields]:
-  /// sha, parents, author name/email/date, committer name/email/date, subject.
+  /// sha, parents, author name/email/date, committer name/email/date, subject,
+  /// GPG status (%G?).
   /// The body (%b) is intentionally omitted — fetched on demand via
   /// [getCommitFullMessage].
   static const String _commitFormat =
-      '%H%x00%P%x00%an%x00%ae%x00%aI%x00%cn%x00%ce%x00%cI%x00%s';
-  static const int _commitFieldCount = 9;
+      '%H%x00%P%x00%an%x00%ae%x00%aI%x00%cn%x00%ce%x00%cI%x00%s%x00%G?';
+  static const int _commitFieldCount = 10;
 
   Stream<CommitInfo> getCommits(RepoLocation repo, CommitQuery query) async* {
     // NOTE: format intentionally omits the commit body (%b).  For very large
@@ -34,10 +36,12 @@ final class GitCliLogReader {
     // generated changelogs, etc.) and was causing the graph load to blow up
     // memory.  The graph only ever displays the subject line; full message
     // is fetched on demand via [getCommitFullMessage] when a commit row is
-    // selected.  Each commit produces exactly 9 NUL-separated fields.
+    // selected.  Each commit produces exactly 10 NUL-separated fields.
     final args = <String>[
-      'log', '-z',
-      '--topo-order', '--date-order',
+      'log',
+      '-z',
+      '--topo-order',
+      '--date-order',
       '--format=$_commitFormat',
     ];
     if (query.skip != null) args.add('--skip=${query.skip}');
@@ -111,12 +115,16 @@ final class GitCliLogReader {
 
         while (pending.length >= _commitFieldCount) {
           final f = List<String>.generate(
-              _commitFieldCount, (_) => pending.removeFirst());
+            _commitFieldCount,
+            (_) => pending.removeFirst(),
+          );
           yield _parseCommitFields(f);
           emitted++;
           if (emitted % 500 == 0) {
-            appLog.d('git[$tag] streamed $emitted commits '
-                '(${sw.elapsedMilliseconds}ms)');
+            appLog.d(
+              'git[$tag] streamed $emitted commits '
+              '(${sw.elapsedMilliseconds}ms)',
+            );
           }
         }
       }
@@ -127,14 +135,18 @@ final class GitCliLogReader {
       if (remainder.isNotEmpty) pending.add(remainder);
       while (pending.length >= _commitFieldCount) {
         final f = List<String>.generate(
-            _commitFieldCount, (_) => pending.removeFirst());
+          _commitFieldCount,
+          (_) => pending.removeFirst(),
+        );
         yield _parseCommitFields(f);
         emitted++;
       }
 
       final exit = await proc.exitCode;
-      appLog.d('git[$tag] done in ${sw.elapsedMilliseconds}ms '
-          '(exit=$exit, commits=$emitted)');
+      appLog.d(
+        'git[$tag] done in ${sw.elapsedMilliseconds}ms '
+        '(exit=$exit, commits=$emitted)',
+      );
       completedNormally = true;
 
       if (exit != 0) {
@@ -168,6 +180,7 @@ final class GitCliLogReader {
       committer: CommitSignature(f[5], f[6], DateTime.parse(f[7])),
       summary: summary,
       message: summary, // body fetched on demand via getCommitFullMessage
+      signatureStatus: GpgSignatureStatus.fromGitCode(f[9]),
     );
   }
 
@@ -191,7 +204,7 @@ final class GitCliLogReader {
     String path, {
     int? take,
   }) async {
-    // --follow tracks the file across renames; -z + the shared 9-field
+    // --follow tracks the file across renames; -z + the shared 10-field
     // format means each commit produces exactly [_commitFieldCount]
     // NUL-separated fields, parsed identically to [getCommits].  `--` keeps
     // git from treating the path as a revision.

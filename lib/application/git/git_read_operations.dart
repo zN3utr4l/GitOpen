@@ -81,6 +81,9 @@ abstract interface class GitReadOperations {
   Future<List<Remote>> getRemotes(RepoLocation repo);
   Future<List<Stash>> getStashes(RepoLocation repo);
 
+  /// Patch stored in `stash@{index}`, parsed through the normal diff model.
+  Future<DiffResult> getStashDiff(RepoLocation repo, int index);
+
   /// HEAD's reflog, newest first (`git reflog`), capped at [limit] entries.
   /// An empty/unborn repository yields an empty list.
   Future<List<ReflogEntry>> getReflog(RepoLocation repo, {int limit = 100});
@@ -111,7 +114,10 @@ abstract interface class GitReadOperations {
   });
 
   Future<List<FileTreeEntry>> getFileTree(
-      RepoLocation repo, CommitSha sha, String path);
+    RepoLocation repo,
+    CommitSha sha,
+    String path,
+  );
 
   /// Commits that touched [path], newest first, following renames
   /// (`git log --follow`).  [take] caps the number of commits returned
