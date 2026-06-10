@@ -52,6 +52,13 @@ class _FakeWrite implements GitWriteOperations {
       voidResult;
 
   @override
+  Future<GitResult<void>> checkoutTrack(
+    RepoLocation r,
+    String remoteRef,
+  ) async =>
+      voidResult;
+
+  @override
   Future<GitResult<void>> createBranch(
     RepoLocation r,
     String name, {
@@ -184,6 +191,21 @@ void main() {
     expect(r.outcome, ActionOutcome.failed);
     expect(r.message, contains('Checkout failed'));
     expect(r.severity, MessageSeverity.error);
+  });
+
+  test('checkoutTrack success → success, invalidates reads only', () async {
+    final write = _FakeWrite()..voidResult = const GitSuccess<void>(null);
+    final r = await service(write).checkoutTrack(repo, 'origin/feature');
+    expect(r.outcome, ActionOutcome.success);
+    expect(r.invalidate, {RepoDataScope.reads});
+  });
+
+  test('checkoutTrack failure → "Checkout failed:" error message', () async {
+    final write = _FakeWrite()
+      ..voidResult = const GitFailure<void>(GitErrorKind.other, 'boom', 'boom');
+    final r = await service(write).checkoutTrack(repo, 'origin/x');
+    expect(r.outcome, ActionOutcome.failed);
+    expect(r.message, contains('Checkout failed'));
   });
 
   test('createBranch failure → labelled error message', () async {

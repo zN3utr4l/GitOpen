@@ -116,6 +116,10 @@ final class GitCliWriteOperations implements GitWriteOperations {
       _refs.checkout(r, ref, force: force);
 
   @override
+  Future<GitResult<void>> checkoutTrack(RepoLocation r, String remoteRef) =>
+      _refs.checkoutTrack(r, remoteRef);
+
+  @override
   Future<GitResult<void>> deleteBranch(
     RepoLocation r,
     String name, {

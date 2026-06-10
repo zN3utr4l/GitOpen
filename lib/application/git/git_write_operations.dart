@@ -76,6 +76,11 @@ abstract interface class GitWriteOperations {
     String ref, {
     bool force = false,
   });
+
+  /// Creates and checks out a local branch tracking [remoteRef]
+  /// (`git checkout --track <remoteRef>`). Git derives the local name by
+  /// stripping the remote prefix; fails if that local branch already exists.
+  Future<GitResult<void>> checkoutTrack(RepoLocation r, String remoteRef);
   Future<GitResult<void>> deleteBranch(RepoLocation r, String name,
       {bool force = false, bool remote = false});
   Future<GitResult<void>> renameBranch(

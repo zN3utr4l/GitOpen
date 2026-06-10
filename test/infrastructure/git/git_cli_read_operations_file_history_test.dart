@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gitopen/domain/repositories/repo_id.dart';
 import 'package:gitopen/domain/repositories/repo_location.dart';
 import 'package:gitopen/infrastructure/git/git_cli_read_operations.dart';
+import '../../_helpers/flake_capture.dart';
 import '../../_helpers/repo_fixture.dart';
 
 void main() {
@@ -60,10 +61,18 @@ void main() {
     test('parses author signature for history commits', () async {
       final f = await RepoFixture.withFileHistory();
       try {
-        final sut = GitCliReadOperations();
-        final history = await sut.getFileHistory(loc(f), 'main.txt');
-        expect(history.first.author.name, 'Test');
-        expect(history.first.author.email, 'test@example.com');
+        await withFlakeCapture(
+          f.path,
+          extraCommands: const [
+            ['log', '--follow', '--pretty=%an <%ae>', '--', 'main.txt'],
+          ],
+          () async {
+            final sut = GitCliReadOperations();
+            final history = await sut.getFileHistory(loc(f), 'main.txt');
+            expect(history.first.author.name, 'Test');
+            expect(history.first.author.email, 'test@example.com');
+          },
+        );
       } finally {
         await f.dispose();
       }

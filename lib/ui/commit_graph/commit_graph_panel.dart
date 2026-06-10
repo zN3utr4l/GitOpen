@@ -27,6 +27,7 @@ import 'package:gitopen/ui/dialogs/branch_create_dialog.dart';
 import 'package:gitopen/ui/dialogs/confirm_dialog.dart';
 import 'package:gitopen/ui/dialogs/interactive_rebase_dialog.dart';
 import 'package:gitopen/ui/dialogs/merge_dialog.dart';
+import 'package:gitopen/ui/dialogs/tag_create_dialog.dart';
 import 'package:gitopen/ui/git/git_actions_controller.dart';
 import 'package:gitopen/ui/theme/app_palette.dart';
 
@@ -358,11 +359,12 @@ class _CommitGraphPanelState extends ConsumerState<CommitGraphPanel> {
                                   .state = node.commit.sha;
                             },
                             onRefDoubleTap: (r) async {
-                              final ok = await safeCheckout(
+                              final ok = await checkoutRef(
                                 context: context,
                                 ref: ref,
                                 repo: widget.repo,
-                                targetRef: r.name,
+                                name: r.name,
+                                isRemote: r.isRemote,
                               );
                               if (ok) {
                                 ref.invalidate(_commitGraphDataProvider(repo));
@@ -606,13 +608,12 @@ class _CommitGraphPanelState extends ConsumerState<CommitGraphPanel> {
 
       case 'tag_here':
         if (!context.mounted) return;
-        final tagName =
-            await _promptText(context, 'Tag here', label: 'Tag name');
-        if (tagName == null || tagName.trim().isEmpty) return;
+        final req = await TagCreateDialog.show(context);
+        if (req == null) return;
         if (!context.mounted) return;
         await ref
             .read(gitActionsControllerProvider)
-            .createTag(context, repo, tagName.trim(), at: sha);
+            .createTag(context, repo, req.name, at: sha, message: req.message);
 
       case 'copy_sha':
         await Clipboard.setData(ClipboardData(text: sha.value));
@@ -655,41 +656,7 @@ class _CommitGraphPanelState extends ConsumerState<CommitGraphPanel> {
         .reset(context, widget.repo, sha, mode);
   }
 
-  Future<String?> _promptText(BuildContext context, String title,
-      {required String label, String? initial}) async {
-    final ctl = TextEditingController(text: initial);
-    final result = await showDialog<String>(
-      context: context,
-      builder: (ctx) {
-        final palette = AppPalette.of(ctx);
-        return AppDialog(
-          title: title,
-          width: 420,
-          content: TextField(
-            controller: ctl,
-            autofocus: true,
-            style: TextStyle(color: palette.fg0, fontSize: 13),
-            decoration: appInputDecoration(ctx, label: label),
-            onSubmitted: (_) => Navigator.pop(ctx, ctl.text),
-          ),
-          actions: [
-            AppButton.secondary(
-              label: 'Cancel',
-              onPressed: () => Navigator.pop(ctx),
-            ),
-            AppButton.primary(
-              label: 'OK',
-              onPressed: () => Navigator.pop(ctx, ctl.text),
-            ),
-          ],
-        );
-      },
-    );
-    ctl.dispose();
-    return result;
-  }
-
-  /// Like [_promptText] but multiline — used for commit messages.
+  /// Single-field multiline prompt — used for commit messages.
   Future<String?> _promptMultiline(BuildContext context, String title,
       {required String label, String? initial}) async {
     final ctl = TextEditingController(text: initial);

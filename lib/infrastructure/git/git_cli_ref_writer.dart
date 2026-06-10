@@ -33,6 +33,9 @@ final class GitCliRefWriter {
     return _git.runVoid(r, args);
   }
 
+  Future<GitResult<void>> checkoutTrack(RepoLocation r, String remoteRef) =>
+      _git.runVoid(r, ['checkout', '--track', remoteRef]);
+
   Future<GitResult<void>> deleteBranch(
     RepoLocation r,
     String name, {

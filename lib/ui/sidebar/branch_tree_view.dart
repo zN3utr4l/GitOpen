@@ -64,9 +64,9 @@ class _BranchTreeViewState extends ConsumerState<BranchTreeView> {
 
     final entries = <AppContextMenuEntry<String>>[
       if (!isCurrent)
-        const AppMenuItem(
+        AppMenuItem(
           value: 'checkout',
-          label: 'Checkout',
+          label: isLocal ? 'Checkout' : 'Checkout as local branch',
           icon: Icons.swap_horiz,
         ),
       if (!isCurrent) ...const [
@@ -114,8 +114,14 @@ class _BranchTreeViewState extends ConsumerState<BranchTreeView> {
 
     switch (selected) {
       case 'checkout':
-        await actions.checkout(context, widget.repo, branchName);
-        _refresh();
+        final ok = await checkoutRef(
+          context: context,
+          ref: ref,
+          repo: widget.repo,
+          name: branchName,
+          isRemote: branch.isRemote,
+        );
+        if (ok) _refresh();
 
       case 'merge':
         final current = await currentBranchName(ref, widget.repo);
@@ -256,11 +262,12 @@ class _BranchTreeViewState extends ConsumerState<BranchTreeView> {
             onDoubleTap: branch == null || current
                 ? null
                 : () async {
-                    final ok = await safeCheckout(
+                    final ok = await checkoutRef(
                       context: context,
                       ref: ref,
                       repo: widget.repo,
-                      targetRef: branch.name,
+                      name: branch.name,
+                      isRemote: branch.isRemote,
                     );
                     if (ok) _refresh();
                   },

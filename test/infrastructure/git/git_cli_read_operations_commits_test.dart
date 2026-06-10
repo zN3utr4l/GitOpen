@@ -3,6 +3,7 @@ import 'package:gitopen/application/git/git_read_operations.dart';
 import 'package:gitopen/domain/repositories/repo_id.dart';
 import 'package:gitopen/domain/repositories/repo_location.dart';
 import 'package:gitopen/infrastructure/git/git_cli_read_operations.dart';
+import '../../_helpers/flake_capture.dart';
 import '../../_helpers/repo_fixture.dart';
 
 void main() {
@@ -26,11 +27,23 @@ void main() {
     test('respects skip and take', () async {
       final f = await RepoFixture.withLinearHistory(10);
       try {
-        final sut = GitCliReadOperations();
-        final commits = await sut
-            .getCommits(loc(f), const CommitQuery(skip: 2, take: 3))
-            .toList();
-        expect(commits, hasLength(3));
+        await withFlakeCapture(
+          f.path,
+          extraCommands: const [
+            ['log', '--skip=2', '--max-count=3', '--pretty=%H'],
+          ],
+          () async {
+            final sut = GitCliReadOperations();
+            final commits = await sut
+                .getCommits(loc(f), const CommitQuery(skip: 2, take: 3))
+                .toList();
+            expect(
+              commits,
+              hasLength(3),
+              reason: 'parsed: ${commits.map((c) => c.sha.value).toList()}',
+            );
+          },
+        );
       } finally {
         await f.dispose();
       }
