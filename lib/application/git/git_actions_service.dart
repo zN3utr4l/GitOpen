@@ -271,6 +271,11 @@ final class GitActionsService {
   Future<ActionResult> checkout(RepoLocation repo, String ref) =>
       _simple('Checkout', _write.checkout(repo, ref));
 
+  /// `git checkout --track <remoteRef>` — checks a remote branch out as a
+  /// new local tracking branch.
+  Future<ActionResult> checkoutTrack(RepoLocation repo, String remoteRef) =>
+      _simple('Checkout', _write.checkoutTrack(repo, remoteRef));
+
   /// `git branch <name>` (optionally at [at], optionally checked out).
   Future<ActionResult> createBranch(
     RepoLocation repo,

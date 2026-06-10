@@ -188,6 +188,20 @@ class GitActionsController {
         () => _ref.read(gitActionsServiceProvider).checkout(repo, ref),
       );
 
+  /// `git checkout --track <remoteRef>` (remote branch → local branch).
+  Future<ActionResult> checkoutTrack(
+    BuildContext context,
+    RepoLocation repo,
+    String remoteRef,
+  ) =>
+      _runLocal(
+        context,
+        repo,
+        () => _ref
+            .read(gitActionsServiceProvider)
+            .checkoutTrack(repo, remoteRef),
+      );
+
   /// `git branch <name>` (optionally at [at], optionally checked out).
   Future<ActionResult> createBranch(
     BuildContext context,
