@@ -15,6 +15,7 @@ import 'package:gitopen/application/settings/settings_open_provider.dart';
 import 'package:gitopen/application/workspaces/workspace.dart';
 import 'package:gitopen/domain/repositories/repo_location.dart';
 import 'package:gitopen/infrastructure/logging/app_logger.dart';
+import 'package:gitopen/ui/auto_refresh/repo_auto_refresh_scope.dart';
 import 'package:gitopen/ui/bottom_panel/bottom_panel.dart';
 import 'package:gitopen/ui/commit_graph/commit_graph_panel.dart';
 import 'package:gitopen/ui/commit_graph/detached_head_banner.dart';
@@ -296,22 +297,25 @@ class _RepoBody extends ConsumerWidget {
     // the user with no continue/abort UI at all.
     final hasConflict =
         inProgressOp != null && inProgressOp != InProgressOp.none;
-    return Column(
-      children: [
-        const ViewSelector(),
-        DetachedHeadBanner(repo: repo),
-        Expanded(
-          child: hasConflict
-              ? ConflictResolutionPanel(repo: repo)
-              : view == MainView.changes
-                  ? WorkingCopyPanel(repo: repo)
-                  : VerticalSplitter(
-                      top: CommitGraphPanel(repo: repo),
-                      bottom: BottomPanel(repo: repo),
-                    ),
-        ),
-        const StatusBar(),
-      ],
+    return RepoAutoRefreshScope(
+      repo: repo,
+      child: Column(
+        children: [
+          const ViewSelector(),
+          DetachedHeadBanner(repo: repo),
+          Expanded(
+            child: hasConflict
+                ? ConflictResolutionPanel(repo: repo)
+                : view == MainView.changes
+                    ? WorkingCopyPanel(repo: repo)
+                    : VerticalSplitter(
+                        top: CommitGraphPanel(repo: repo),
+                        bottom: BottomPanel(repo: repo),
+                      ),
+          ),
+          const StatusBar(),
+        ],
+      ),
     );
   }
 }

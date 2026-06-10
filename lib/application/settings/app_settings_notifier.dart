@@ -50,6 +50,7 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
       fontFamily: all['font_family'] as String?,
       githubClientId: all['github_client_id'] as String?,
       autoUpdateCheck: (all['auto_update_check'] as bool?) ?? true,
+      autoRefresh: (all['auto_refresh'] as bool?) ?? true,
       keybindings: _decodeBindings(all['keybindings']) ?? state.keybindings,
       gitIdentities: _decodeIdentities(all['git_identities']),
       authRepoBindings: _decodeStringMap(all['auth_repo_bindings']),
@@ -97,6 +98,12 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
   Future<void> setCommitSignoffDefault(bool v) async {
     state = state.copyWith(commitSignoffDefault: v);
     await _repo.put('commit_signoff_default', v);
+  }
+
+  // ignore: avoid_positional_boolean_parameters
+  Future<void> setAutoRefresh(bool v) async {
+    state = state.copyWith(autoRefresh: v);
+    await _repo.put('auto_refresh', v);
   }
 
   // Positional bool retained so the method can be used as a void Function(bool)

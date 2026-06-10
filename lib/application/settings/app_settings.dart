@@ -18,6 +18,7 @@ final class AppSettingsState extends Equatable {
     this.fontFamily,
     this.githubClientId,
     this.autoUpdateCheck = true,
+    this.autoRefresh = true,
     this.keybindings = const {},
     this.gitIdentities = const [],
     this.authRepoBindings = const {},
@@ -34,6 +35,11 @@ final class AppSettingsState extends Equatable {
   final String? fontFamily;
   final String? githubClientId;
   final bool autoUpdateCheck;
+
+  /// When true, the open repo is watched for outside changes (`.git`
+  /// bookkeeping) and refreshed automatically — plus a refresh whenever the
+  /// window regains focus.
+  final bool autoRefresh;
   final Map<String, LogicalKeySet> keybindings;
   final List<GitIdentity> gitIdentities;
 
@@ -53,6 +59,7 @@ final class AppSettingsState extends Equatable {
     String? fontFamily,
     String? githubClientId,
     bool? autoUpdateCheck,
+    bool? autoRefresh,
     Map<String, LogicalKeySet>? keybindings,
     List<GitIdentity>? gitIdentities,
     Map<String, String>? authRepoBindings,
@@ -67,6 +74,7 @@ final class AppSettingsState extends Equatable {
       fontFamily: fontFamily ?? this.fontFamily,
       githubClientId: githubClientId ?? this.githubClientId,
       autoUpdateCheck: autoUpdateCheck ?? this.autoUpdateCheck,
+      autoRefresh: autoRefresh ?? this.autoRefresh,
       keybindings: keybindings ?? this.keybindings,
       gitIdentities: gitIdentities ?? this.gitIdentities,
       authRepoBindings: authRepoBindings ?? this.authRepoBindings,
@@ -77,6 +85,6 @@ final class AppSettingsState extends Equatable {
   List<Object?> get props => [
     theme, externalEditorPath, defaultPullStrategy, commitSignoffDefault,
     gpgSignByDefault, fontSize, fontFamily, githubClientId, autoUpdateCheck,
-    keybindings, gitIdentities, authRepoBindings,
+    autoRefresh, keybindings, gitIdentities, authRepoBindings,
   ];
 }
