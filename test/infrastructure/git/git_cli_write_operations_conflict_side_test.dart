@@ -1,9 +1,12 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gitopen/application/diff/build_patch_for_lines.dart';
 import 'package:gitopen/application/git/git_result.dart';
+import 'package:gitopen/domain/diff/diff_spec.dart';
 import 'package:gitopen/domain/repositories/repo_id.dart';
 import 'package:gitopen/domain/repositories/repo_location.dart';
+import 'package:gitopen/infrastructure/git/git_cli_read_operations.dart';
 import 'package:gitopen/infrastructure/git/git_cli_write_operations.dart';
 import 'package:path/path.dart' as p;
 
@@ -93,6 +96,51 @@ void main() {
         final content =
             await File(p.join(f.path, 'file_0.txt')).readAsString();
         expect(content.replaceAll('\r\n', '\n'), 'content 0\n');
+      } finally {
+        await f.dispose();
+      }
+    });
+  });
+
+  group('line patch integration', () {
+    test('stagePatch applies only the selected line changes', () async {
+      final f = await RepoFixture.empty();
+      try {
+        final file = File(p.join(f.path, 'file.txt'));
+        await file.writeAsString('a\nb\n');
+        await Process.run('git', ['add', 'file.txt'], workingDirectory: f.path);
+        await Process.run(
+          'git',
+          ['commit', '-q', '-m', 'base'],
+          workingDirectory: f.path,
+        );
+
+        await file.writeAsString('A\nb\nc\n');
+        final read = GitCliReadOperations();
+        final diff = await read.getDiff(
+          loc(f),
+          const DiffSpecWorkingTreeVsIndex(),
+        );
+        final hunk = diff.files.single.hunks.single;
+        final selected = <int>{
+          for (final (i, line) in hunk.lines.indexed)
+            if (line.content == 'a' || line.content == 'A') i,
+        };
+        final patch = buildPatchForLines('file.txt', hunk, selected);
+
+        final write = GitCliWriteOperations();
+        final res = await write.stagePatch(loc(f), patch);
+
+        expect(res, isA<GitSuccess<void>>());
+        final cached = await Process.run(
+          'git',
+          ['diff', '--cached'],
+          workingDirectory: f.path,
+        );
+        final cachedDiff = cached.stdout.toString().replaceAll('\r\n', '\n');
+        expect(cachedDiff, contains('-a'));
+        expect(cachedDiff, contains('+A'));
+        expect(cachedDiff, isNot(contains('+c')));
       } finally {
         await f.dispose();
       }
