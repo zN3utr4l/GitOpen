@@ -18,8 +18,11 @@ final class GitCliSequencerWriter {
   GitCliSequencerWriter(this._git);
   final GitResultRunner _git;
 
-  Future<GitResult<MergeOutcome>> merge(RepoLocation r, String ref,
-      {MergeStrategy strategy = MergeStrategy.defaultStrategy}) async {
+  Future<GitResult<MergeOutcome>> merge(
+    RepoLocation r,
+    String ref, {
+    MergeStrategy strategy = MergeStrategy.defaultStrategy,
+  }) async {
     final args = <String>['merge'];
     switch (strategy) {
       case MergeStrategy.defaultStrategy:
@@ -141,6 +144,7 @@ final class GitCliSequencerWriter {
     for (final e in plan) {
       final verb = switch (e.action) {
         RebaseTodoAction.pick => 'pick',
+        RebaseTodoAction.reword => 'reword',
         RebaseTodoAction.squash => 'squash',
         RebaseTodoAction.fixup => 'fixup',
         RebaseTodoAction.drop => 'drop',
@@ -158,8 +162,11 @@ final class GitCliSequencerWriter {
     final List<String> later;
     try {
       // Commits after the target, oldest-first — they are replayed as picks.
-      final raw = await _git.runner
-          .run(r.path, ['rev-list', '--reverse', '${sha.value}..HEAD']);
+      final raw = await _git.runner.run(r.path, [
+        'rev-list',
+        '--reverse',
+        '${sha.value}..HEAD',
+      ]);
       // Probing `sha^` up front gives a clean failure for the root commit
       // instead of a half-started rebase.
       await _git.runner.run(r.path, ['rev-parse', '--verify', '${sha.value}^']);
@@ -185,8 +192,11 @@ final class GitCliSequencerWriter {
   ) async {
     final List<String> later;
     try {
-      final raw = await _git.runner
-          .run(r.path, ['rev-list', '--reverse', '${sha.value}..HEAD']);
+      final raw = await _git.runner.run(r.path, [
+        'rev-list',
+        '--reverse',
+        '${sha.value}..HEAD',
+      ]);
       await _git.runner.run(r.path, ['rev-parse', '--verify', '${sha.value}^']);
       later = raw.split('\n').where((l) => l.isNotEmpty).toList();
     } on GitProcessException catch (e) {
@@ -323,8 +333,11 @@ final class GitCliSequencerWriter {
     RepoLocation r,
     CommitSha sha,
   ) async {
-    final result =
-        await _git.capture(r.path, ['revert', '--no-edit', sha.value]);
+    final result = await _git.capture(r.path, [
+      'revert',
+      '--no-edit',
+      sha.value,
+    ]);
     final combined = '${result.stdout}\n${result.stderr}';
     if (result.exitCode == 0) {
       final head = await _git.head(r);

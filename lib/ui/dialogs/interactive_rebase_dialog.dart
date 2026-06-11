@@ -107,7 +107,8 @@ class _InteractiveRebaseDialogState
     final palette = AppPalette.of(context);
     return AppDialog(
       title: 'Interactive rebase',
-      subtitle: 'Reorder, squash, fixup or drop commits on top of '
+      subtitle:
+          'Reorder, squash, fixup or drop commits on top of '
           '${widget.onto.short()}',
       width: 600,
       content: FutureBuilder<List<CommitInfo>>(
@@ -234,10 +235,12 @@ class _PlanRowTile extends StatelessWidget {
                   style: TextStyle(color: palette.fg0, fontSize: 12.5),
                   iconEnabledColor: palette.fg2,
                   items: RebaseTodoAction.values
-                      .map((a) => DropdownMenuItem(
-                            value: a,
-                            child: Text(_actionLabel(a)),
-                          ))
+                      .map(
+                        (a) => DropdownMenuItem(
+                          value: a,
+                          child: Text(_actionLabel(a)),
+                        ),
+                      )
                       .toList(),
                   onChanged: (a) {
                     if (a != null) onActionChanged(a);
@@ -263,8 +266,9 @@ class _PlanRowTile extends StatelessWidget {
               style: TextStyle(
                 color: dropped ? palette.fg3 : palette.fg0,
                 fontSize: 12.5,
-                decoration:
-                    dropped ? TextDecoration.lineThrough : TextDecoration.none,
+                decoration: dropped
+                    ? TextDecoration.lineThrough
+                    : TextDecoration.none,
               ),
             ),
           ),
@@ -289,8 +293,9 @@ class _PlanRowTile extends StatelessWidget {
 }
 
 String _actionLabel(RebaseTodoAction a) => switch (a) {
-      RebaseTodoAction.pick => 'pick',
-      RebaseTodoAction.squash => 'squash',
-      RebaseTodoAction.fixup => 'fixup',
-      RebaseTodoAction.drop => 'drop',
-    };
+  RebaseTodoAction.pick => 'pick',
+  RebaseTodoAction.reword => 'reword',
+  RebaseTodoAction.squash => 'squash',
+  RebaseTodoAction.fixup => 'fixup',
+  RebaseTodoAction.drop => 'drop',
+};

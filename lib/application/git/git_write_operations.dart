@@ -10,19 +10,24 @@ enum PullStrategy { ffOnly, merge, rebase }
 
 enum ResetMode { soft, mixed, hard }
 
-/// A single action in an interactive-rebase todo list. `reword`/`edit` are
-/// intentionally omitted — they require interactive message/commit editing,
-/// which is out of scope for this feature.
-enum RebaseTodoAction { pick, squash, fixup, drop }
+/// A single action in an interactive-rebase todo list. `edit` is
+/// intentionally omitted — pausing for amend stays on the dedicated
+/// edit-at-commit flow.
+enum RebaseTodoAction { pick, reword, squash, fixup, drop }
 
 /// One line of a generated interactive-rebase instruction list: apply
 /// [action] to the commit [sha]. Entries are supplied to
 /// [GitWriteOperations.interactiveRebase] in the desired FINAL order,
 /// OLDEST-FIRST (the same order git writes its instruction sheet).
+///
+/// [message] applies to `reword` (the new commit message) and `squash`
+/// (the combined message of its fold group). `null` keeps what git
+/// proposes.
 final class RebaseTodoEntry {
-  const RebaseTodoEntry(this.sha, this.action);
+  const RebaseTodoEntry(this.sha, this.action, {this.message});
   final CommitSha sha;
   final RebaseTodoAction action;
+  final String? message;
 }
 
 abstract interface class GitWriteOperations {
