@@ -167,8 +167,10 @@ final class GitCliReadOperations implements GitReadOperations {
   Future<List<FileTreeEntry>> getFileTree(
     RepoLocation repo,
     CommitSha sha,
-    String path,
-  ) => _guard(() => _files.getFileTree(repo, sha, path));
+    String path, {
+    bool recursive = false,
+  }) =>
+      _guard(() => _files.getFileTree(repo, sha, path, recursive: recursive));
 
   @override
   Future<List<BlameLine>> getBlame(

@@ -89,10 +89,16 @@ final class GitCliFileReader {
   Future<List<FileTreeEntry>> getFileTree(
     RepoLocation repo,
     CommitSha sha,
-    String path,
-  ) async {
+    String path, {
+    bool recursive = false,
+  }) async {
     final ref = path.isEmpty ? sha.value : '${sha.value}:$path';
-    final stdout = await _runner.run(repo.path, ['ls-tree', '-l', ref]);
+    final stdout = await _runner.run(repo.path, [
+      'ls-tree',
+      '-l',
+      if (recursive) '-r',
+      ref,
+    ]);
     final entries = <FileTreeEntry>[];
     for (final line in stdout.split('\n')) {
       if (line.isEmpty) continue;

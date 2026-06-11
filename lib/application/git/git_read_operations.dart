@@ -113,11 +113,15 @@ abstract interface class GitReadOperations {
     bool ignoreWhitespace = false,
   });
 
+  /// Entries of [sha]'s tree at [path] (`git ls-tree -l`). With [recursive]
+  /// every blob under [path] is listed with its full relative path and tree
+  /// rows are omitted (`ls-tree -r`) — the shape `buildFileTree` folds.
   Future<List<FileTreeEntry>> getFileTree(
     RepoLocation repo,
     CommitSha sha,
-    String path,
-  );
+    String path, {
+    bool recursive = false,
+  });
 
   /// Commits that touched [path], newest first, following renames
   /// (`git log --follow`).  [take] caps the number of commits returned
