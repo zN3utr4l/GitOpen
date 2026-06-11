@@ -8,6 +8,8 @@ import 'package:gitopen/domain/commits/commit_info.dart';
 import 'package:gitopen/domain/commits/commit_sha.dart';
 import 'package:gitopen/domain/diff/diff_result.dart';
 import 'package:gitopen/domain/diff/diff_spec.dart';
+import 'package:gitopen/domain/files/file_content.dart';
+import 'package:gitopen/domain/files/file_revision.dart';
 import 'package:gitopen/domain/files/file_tree_entry.dart';
 import 'package:gitopen/domain/refs/branch.dart';
 import 'package:gitopen/domain/refs/reflog_entry.dart';
@@ -85,6 +87,13 @@ final class GitCliReadOperations implements GitReadOperations {
   @override
   Future<String?> getCommitFullMessage(RepoLocation repo, CommitSha sha) =>
       _guard(() => _log.getCommitFullMessage(repo, sha));
+
+  @override
+  Future<({int left, int right})> countDivergence(
+    RepoLocation repo,
+    CommitSha a,
+    CommitSha b,
+  ) => _guard(() => _log.countDivergence(repo, a, b));
 
   @override
   Future<List<CommitInfo>> getFileHistory(
@@ -167,8 +176,9 @@ final class GitCliReadOperations implements GitReadOperations {
   Future<List<FileTreeEntry>> getFileTree(
     RepoLocation repo,
     CommitSha sha,
-    String path,
-  ) => _guard(() => _files.getFileTree(repo, sha, path));
+    String path, {
+    bool recursive = false,
+  }) => _guard(() => _files.getFileTree(repo, sha, path, recursive: recursive));
 
   @override
   Future<List<BlameLine>> getBlame(
@@ -176,6 +186,16 @@ final class GitCliReadOperations implements GitReadOperations {
     String path, {
     CommitSha? at,
   }) => _guard(() => _files.getBlame(repo, path, at: at));
+
+  @override
+  Future<FileContent> getFileBytes(
+    RepoLocation repo,
+    FileRevision revision,
+    String path, {
+    int maxBytes = kFilePreviewMaxBytes,
+  }) => _guard(
+    () => _files.getFileBytes(repo, revision, path, maxBytes: maxBytes),
+  );
 
   @override
   Future<String> readWorkingFile(RepoLocation repo, String relativePath) =>

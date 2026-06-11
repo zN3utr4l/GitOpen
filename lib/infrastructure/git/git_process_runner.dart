@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:gitopen/infrastructure/logging/app_logger.dart';
 
@@ -14,8 +15,7 @@ const Map<String, String> kGitLocaleEnv = {'LC_ALL': 'C', 'LANG': 'C'};
 /// the forced C locale. Locale keys are applied last so they always win.
 Map<String, String> buildGitEnvironment([
   Map<String, String> extra = const {},
-]) =>
-    {...extra, ...kGitLocaleEnv};
+]) => {...extra, ...kGitLocaleEnv};
 
 final class GitProcessException implements Exception {
   GitProcessException(this.args, this.exitCode, this.stderr);
@@ -27,9 +27,11 @@ final class GitProcessException implements Exception {
   /// so the exception message (and any logs derived from it) never leaks the
   /// in-app credential.
   List<String> get _safeArgs => args
-      .map((a) => a.startsWith('http.extraheader=Authorization:')
-          ? 'http.extraheader=Authorization: <redacted>'
-          : a)
+      .map(
+        (a) => a.startsWith('http.extraheader=Authorization:')
+            ? 'http.extraheader=Authorization: <redacted>'
+            : a,
+      )
       .toList(growable: false);
 
   @override
@@ -81,16 +83,44 @@ class GitProcessRunner {
     }
     final out = await stdoutF;
     final err = await stderrF;
-    appLog.d('git[$tag] done in ${sw.elapsedMilliseconds}ms '
-        '(exit=$exitCode, stdout=${out.length}B)');
+    appLog.d(
+      'git[$tag] done in ${sw.elapsedMilliseconds}ms '
+      '(exit=$exitCode, stdout=${out.length}B)',
+    );
     if (exitCode != 0) throw GitProcessException(args, exitCode, err);
     return out;
   }
 
+  /// Like [run] but returns raw stdout bytes (no UTF-8 decode) — blob
+  /// content such as images would be corrupted by text decoding.
+  Future<Uint8List> runBytes(String workingDir, List<String> args) async {
+    final proc = await Process.start(
+      executable,
+      args,
+      workingDirectory: workingDir,
+      environment: buildGitEnvironment(),
+    );
+    final builder = BytesBuilder(copy: false);
+    final stdoutF = proc.stdout.forEach(builder.add);
+    final stderrF = proc.stderr.transform(utf8.decoder).join();
+    final exitCode = await proc.exitCode;
+    await stdoutF;
+    final err = await stderrF;
+    if (exitCode != 0) throw GitProcessException(args, exitCode, err);
+    return builder.takeBytes();
+  }
+
   Future<String> runWithStdin(
-      String workingDir, List<String> args, String input) async {
-    final proc = await Process.start(executable, args,
-        workingDirectory: workingDir, environment: buildGitEnvironment());
+    String workingDir,
+    List<String> args,
+    String input,
+  ) async {
+    final proc = await Process.start(
+      executable,
+      args,
+      workingDirectory: workingDir,
+      environment: buildGitEnvironment(),
+    );
     proc.stdin.add(utf8.encode(input));
     await proc.stdin.close();
     final outBuf = StringBuffer();

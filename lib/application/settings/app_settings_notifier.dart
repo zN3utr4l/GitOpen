@@ -51,6 +51,7 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
       githubClientId: all['github_client_id'] as String?,
       autoUpdateCheck: (all['auto_update_check'] as bool?) ?? true,
       autoRefresh: (all['auto_refresh'] as bool?) ?? true,
+      fileListsAsTree: (all['file_lists_as_tree'] as bool?) ?? false,
       keybindings: _decodeBindings(all['keybindings']) ?? state.keybindings,
       gitIdentities: _decodeIdentities(all['git_identities']),
       authRepoBindings: _decodeStringMap(all['auth_repo_bindings']),
@@ -106,6 +107,14 @@ class AppSettingsNotifier extends StateNotifier<AppSettingsState> {
   Future<void> setAutoRefresh(bool v) async {
     state = state.copyWith(autoRefresh: v);
     await _repo.put('auto_refresh', v);
+  }
+
+  // Positional bool retained so the method can be used as a void Function(bool)
+  // tear-off for a Switch's onChanged callback in the settings UI.
+  // ignore: avoid_positional_boolean_parameters
+  Future<void> setFileListsAsTree(bool v) async {
+    state = state.copyWith(fileListsAsTree: v);
+    await _repo.put('file_lists_as_tree', v);
   }
 
   // Positional bool retained so the method can be used as a void Function(bool)

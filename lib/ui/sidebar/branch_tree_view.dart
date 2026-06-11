@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gitopen/application/branch_visibility_provider.dart';
+import 'package:gitopen/application/providers.dart';
 import 'package:gitopen/domain/repositories/repo_location.dart';
 import 'package:gitopen/ui/checkout/safe_checkout.dart';
 import 'package:gitopen/ui/common/app_context_menu.dart';
 import 'package:gitopen/ui/dialogs/app_dialog.dart';
+import 'package:gitopen/ui/dialogs/compare_refs_dialog.dart';
 import 'package:gitopen/ui/dialogs/confirm_dialog.dart';
 import 'package:gitopen/ui/dialogs/interactive_rebase_dialog.dart';
 import 'package:gitopen/ui/dialogs/merge_dialog.dart';
@@ -12,6 +14,7 @@ import 'package:gitopen/ui/git/git_actions_controller.dart';
 import 'package:gitopen/ui/sidebar/branch_tree.dart';
 import 'package:gitopen/ui/sidebar/sidebar_shared.dart';
 import 'package:gitopen/ui/theme/app_palette.dart';
+import 'package:gitopen/ui/toolbar/branch_picker_dialog.dart';
 
 /// Renders a [BranchTreeNode] forest with collapsible folders, the
 /// current-branch marker, per-ref visibility toggles and the branch context
@@ -86,8 +89,19 @@ class _BranchTreeViewState extends ConsumerState<BranchTreeView> {
           label: 'Interactive rebase onto this…',
           icon: Icons.playlist_play,
         ),
+        AppMenuItem(
+          value: 'compare_current',
+          label: 'Compare with current…',
+          icon: Icons.compare,
+        ),
         AppMenuDivider(),
       ],
+      const AppMenuItem(
+        value: 'compare_with',
+        label: 'Compare with…',
+        icon: Icons.compare_arrows,
+      ),
+      const AppMenuDivider(),
       if (isLocal) ...const [
         AppMenuItem(
           value: 'rename',
@@ -173,6 +187,45 @@ class _BranchTreeViewState extends ConsumerState<BranchTreeView> {
             .read(gitActionsControllerProvider)
             .interactiveRebase(context, widget.repo, tip, plan);
         _refresh();
+
+      case 'compare_current':
+        final tip = branch.tipSha;
+        if (tip == null) return;
+        final locals = await ref.read(
+          localBranchesProvider(widget.repo).future,
+        );
+        final currents = locals.where((b) => b.isCurrent && b.tipSha != null);
+        if (currents.isEmpty || !context.mounted) return;
+        await CompareRefsDialog.show(
+          context,
+          repo: widget.repo,
+          from: currents.first,
+          to: branch,
+        );
+
+      case 'compare_with':
+        if (branch.tipSha == null) return;
+        final all = await ref.read(branchesProvider(widget.repo).future);
+        final candidates = {
+          for (final b in all)
+            if (b.fullName != branch.fullName && b.tipSha != null) b.name: b,
+        };
+        if (!context.mounted) return;
+        final picked = await showDialog<String>(
+          context: context,
+          builder: (_) => BranchPickerDialog(
+            title: 'Compare "$branchName" with…',
+            branches: candidates.keys.toList(),
+          ),
+        );
+        final other = candidates[picked];
+        if (other == null || !context.mounted) return;
+        await CompareRefsDialog.show(
+          context,
+          repo: widget.repo,
+          from: branch,
+          to: other,
+        );
 
       case 'rename':
         final newName = await _promptText(

@@ -4,6 +4,8 @@ import 'package:gitopen/domain/commits/commit_info.dart';
 import 'package:gitopen/domain/commits/commit_sha.dart';
 import 'package:gitopen/domain/diff/diff_result.dart';
 import 'package:gitopen/domain/diff/diff_spec.dart';
+import 'package:gitopen/domain/files/file_content.dart';
+import 'package:gitopen/domain/files/file_revision.dart';
 import 'package:gitopen/domain/files/file_tree_entry.dart';
 import 'package:gitopen/domain/refs/branch.dart';
 import 'package:gitopen/domain/refs/reflog_entry.dart';
@@ -14,6 +16,10 @@ import 'package:gitopen/domain/refs/tag.dart';
 import 'package:gitopen/domain/refs/worktree.dart';
 import 'package:gitopen/domain/repositories/repo_location.dart';
 import 'package:gitopen/domain/status/repo_status.dart';
+
+/// Default byte cap for [GitReadOperations.getFileBytes] — image previews
+/// above this render an explicit "too large" state instead of loading.
+const int kFilePreviewMaxBytes = 20 * 1024 * 1024;
 
 /// Typed failure surfaced by [GitReadOperations]: a classified [kind] plus
 /// git's own message. Implementations translate their transport errors into
@@ -113,10 +119,23 @@ abstract interface class GitReadOperations {
     bool ignoreWhitespace = false,
   });
 
+  /// Entries of [sha]'s tree at [path] (`git ls-tree -l`). With [recursive]
+  /// every blob under [path] is listed with its full relative path and tree
+  /// rows are omitted (`ls-tree -r`) — the shape `buildFileTree` folds.
   Future<List<FileTreeEntry>> getFileTree(
     RepoLocation repo,
     CommitSha sha,
-    String path,
+    String path, {
+    bool recursive = false,
+  });
+
+  /// Symmetric divergence between two commits
+  /// (`git rev-list --left-right --count a...b`): `left` = commits
+  /// reachable only from [a], `right` = only from [b].
+  Future<({int left, int right})> countDivergence(
+    RepoLocation repo,
+    CommitSha a,
+    CommitSha b,
   );
 
   /// Commits that touched [path], newest first, following renames
@@ -136,6 +155,18 @@ abstract interface class GitReadOperations {
     RepoLocation repo,
     String path, {
     CommitSha? at,
+  });
+
+  /// Raw bytes of [path] at [revision]. Files larger than [maxBytes] return
+  /// `exists`+size with null bytes (render an explicit "too large" state).
+  /// A path with no blob at [revision] — added/deleted diff sides, a root
+  /// commit's parent, unborn HEAD — returns [FileContent.missing], not an
+  /// error.
+  Future<FileContent> getFileBytes(
+    RepoLocation repo,
+    FileRevision revision,
+    String path, {
+    int maxBytes = kFilePreviewMaxBytes,
   });
 
   /// Reads the raw working-tree contents of [relativePath] (relative to
