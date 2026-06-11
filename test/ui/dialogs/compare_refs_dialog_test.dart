@@ -55,31 +55,33 @@ final class _FakeReadOps implements GitReadOperations {
     bool ignoreWhitespace = false,
   }) async {
     expect(spec, DiffSpecCommitVsCommit(_fromSha, _toSha));
-    return const DiffResult(files: [
-      FileDiff(
-        path: 'lib/x.dart',
-        changeKind: FileChangeKind.modified,
-        isBinary: false,
-        linesAdded: 1,
-        linesDeleted: 0,
-        hunks: [
-          DiffHunk(
-            oldStart: 1,
-            oldCount: 0,
-            newStart: 1,
-            newCount: 1,
-            header: '@@ -1,0 +1,1 @@',
-            lines: [
-              DiffLine(
-                kind: DiffLineKind.addition,
-                content: 'hello',
-                newLine: 1,
-              ),
-            ],
-          ),
-        ],
-      ),
-    ]);
+    return const DiffResult(
+      files: [
+        FileDiff(
+          path: 'lib/x.dart',
+          changeKind: FileChangeKind.modified,
+          isBinary: false,
+          linesAdded: 1,
+          linesDeleted: 0,
+          hunks: [
+            DiffHunk(
+              oldStart: 1,
+              oldCount: 0,
+              newStart: 1,
+              newCount: 1,
+              header: '@@ -1,0 +1,1 @@',
+              lines: [
+                DiffLine(
+                  kind: DiffLineKind.addition,
+                  content: 'hello',
+                  newLine: 1,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
+    );
   }
 
   @override
@@ -88,8 +90,9 @@ final class _FakeReadOps implements GitReadOperations {
 }
 
 void main() {
-  testWidgets('shows counts, both commit lists and the combined diff',
-      (tester) async {
+  testWidgets('shows counts, both commit lists and the combined diff', (
+    tester,
+  ) async {
     final repo = RepoLocation(RepoId.newId(), 'unused', 'repo');
     final from = Branch(
       name: 'main',

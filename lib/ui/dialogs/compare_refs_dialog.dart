@@ -21,17 +21,16 @@ import 'package:intl/intl.dart';
 typedef _Key = ({RepoLocation repo, CommitSha from, CommitSha to});
 
 final AutoDisposeFutureProviderFamily<({int left, int right}), _Key>
-    _divergenceProvider =
-    FutureProvider.family.autoDispose<({int left, int right}), _Key>(
-  (ref, key) => ref
-      .watch(gitReadOperationsProvider)
-      .countDivergence(key.repo, key.from, key.to),
-);
+_divergenceProvider = FutureProvider.family
+    .autoDispose<({int left, int right}), _Key>(
+      (ref, key) => ref
+          .watch(gitReadOperationsProvider)
+          .countDivergence(key.repo, key.from, key.to),
+    );
 
 /// Commits reachable only from `from` (left list). Capped at 100.
 final AutoDisposeFutureProviderFamily<List<CommitInfo>, _Key>
-    _onlyFromProvider =
-    FutureProvider.family.autoDispose<List<CommitInfo>, _Key>(
+_onlyFromProvider = FutureProvider.family.autoDispose<List<CommitInfo>, _Key>(
   (ref, key) => ref
       .watch(gitReadOperationsProvider)
       .getCommits(
@@ -44,21 +43,24 @@ final AutoDisposeFutureProviderFamily<List<CommitInfo>, _Key>
 /// Commits reachable only from `to` (right list). Capped at 100.
 final AutoDisposeFutureProviderFamily<List<CommitInfo>, _Key> _onlyToProvider =
     FutureProvider.family.autoDispose<List<CommitInfo>, _Key>(
-  (ref, key) => ref
-      .watch(gitReadOperationsProvider)
-      .getCommits(
-        key.repo,
-        CommitQuery(refSpec: '${key.from.value}..${key.to.value}', take: 100),
-      )
-      .toList(),
-);
+      (ref, key) => ref
+          .watch(gitReadOperationsProvider)
+          .getCommits(
+            key.repo,
+            CommitQuery(
+              refSpec: '${key.from.value}..${key.to.value}',
+              take: 100,
+            ),
+          )
+          .toList(),
+    );
 
 final AutoDisposeFutureProviderFamily<DiffResult, _Key> _compareDiffProvider =
     FutureProvider.family.autoDispose<DiffResult, _Key>(
-  (ref, key) => ref
-      .watch(gitReadOperationsProvider)
-      .getDiff(key.repo, DiffSpecCommitVsCommit(key.from, key.to)),
-);
+      (ref, key) => ref
+          .watch(gitReadOperationsProvider)
+          .getDiff(key.repo, DiffSpecCommitVsCommit(key.from, key.to)),
+    );
 
 /// Two-ref comparison: divergence counts, the two unique-commit lists and
 /// the combined `from..to` diff.
@@ -106,7 +108,8 @@ class CompareRefsDialog extends ConsumerWidget {
                 children: [
                   Expanded(
                     child: _CommitListColumn(
-                      title: 'Only on ${from.name} '
+                      title:
+                          'Only on ${from.name} '
                           '(${divergence.valueOrNull?.left ?? '…'})',
                       provider: _onlyFromProvider(key),
                     ),
@@ -114,7 +117,8 @@ class CompareRefsDialog extends ConsumerWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: _CommitListColumn(
-                      title: 'Only on ${to.name} '
+                      title:
+                          'Only on ${to.name} '
                           '(${divergence.valueOrNull?.right ?? '…'})',
                       provider: _onlyToProvider(key),
                     ),
@@ -184,8 +188,7 @@ class _CommitListColumn extends ConsumerWidget {
           ),
           Expanded(
             child: async.when(
-              loading: () =>
-                  const Center(child: CircularProgressIndicator()),
+              loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(
                 child: Text(
                   'Error: $e',

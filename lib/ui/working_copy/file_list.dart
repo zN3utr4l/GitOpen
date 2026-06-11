@@ -31,71 +31,80 @@ class _FileListState extends ConsumerState<FileList> {
 
   @override
   Widget build(BuildContext context) {
-    final asTree =
-        ref.watch(appSettingsProvider.select((s) => s.fileListsAsTree));
+    final asTree = ref.watch(
+      appSettingsProvider.select((s) => s.fileListsAsTree),
+    );
     final repo = widget.repo;
     final unstaged = widget.unstaged;
     final staged = widget.staged;
-    return ListView(children: [
-      const Padding(
-        padding: EdgeInsets.fromLTRB(12, 6, 12, 0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [FileListModeToggle()],
+    return ListView(
+      children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(12, 6, 12, 0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [FileListModeToggle()],
+          ),
         ),
-      ),
-      Header(
-        title: 'Unstaged (${unstaged.length})',
-        actions: [
-          HeaderAction(
-            'Discard all',
-            unstaged.isEmpty
-                ? null
-                : () => confirmAndDiscardAll(context, ref, repo, unstaged),
-            danger: true,
-          ),
-          HeaderAction(
-            'Stage all',
-            unstaged.isEmpty
-                ? null
-                : () async {
-                    await ref
-                        .read(gitWriteOperationsProvider)
-                        .stageFiles(repo, unstaged.map((e) => e.path).toList());
-                    ref.invalidate(workingCopyStatusProvider(repo));
-                  },
-          ),
-        ],
-      ),
-      ..._entryRows(
-        unstaged,
-        isStaged: false,
-        asTree: asTree,
-        collapsed: _collapsedUnstaged,
-      ),
-      Header(
-        title: 'Staged (${staged.length})',
-        actions: [
-          HeaderAction(
-            'Unstage all',
-            staged.isEmpty
-                ? null
-                : () async {
-                    await ref
-                        .read(gitWriteOperationsProvider)
-                        .unstageFiles(repo, staged.map((e) => e.path).toList());
-                    ref.invalidate(workingCopyStatusProvider(repo));
-                  },
-          ),
-        ],
-      ),
-      ..._entryRows(
-        staged,
-        isStaged: true,
-        asTree: asTree,
-        collapsed: _collapsedStaged,
-      ),
-    ]);
+        Header(
+          title: 'Unstaged (${unstaged.length})',
+          actions: [
+            HeaderAction(
+              'Discard all',
+              unstaged.isEmpty
+                  ? null
+                  : () => confirmAndDiscardAll(context, ref, repo, unstaged),
+              danger: true,
+            ),
+            HeaderAction(
+              'Stage all',
+              unstaged.isEmpty
+                  ? null
+                  : () async {
+                      await ref
+                          .read(gitWriteOperationsProvider)
+                          .stageFiles(
+                            repo,
+                            unstaged.map((e) => e.path).toList(),
+                          );
+                      ref.invalidate(workingCopyStatusProvider(repo));
+                    },
+            ),
+          ],
+        ),
+        ..._entryRows(
+          unstaged,
+          isStaged: false,
+          asTree: asTree,
+          collapsed: _collapsedUnstaged,
+        ),
+        Header(
+          title: 'Staged (${staged.length})',
+          actions: [
+            HeaderAction(
+              'Unstage all',
+              staged.isEmpty
+                  ? null
+                  : () async {
+                      await ref
+                          .read(gitWriteOperationsProvider)
+                          .unstageFiles(
+                            repo,
+                            staged.map((e) => e.path).toList(),
+                          );
+                      ref.invalidate(workingCopyStatusProvider(repo));
+                    },
+            ),
+          ],
+        ),
+        ..._entryRows(
+          staged,
+          isStaged: true,
+          asTree: asTree,
+          collapsed: _collapsedStaged,
+        ),
+      ],
+    );
   }
 
   List<Widget> _entryRows(
@@ -124,31 +133,37 @@ class _FileListState extends ConsumerState<FileList> {
     for (final node in nodes) {
       final item = node.item;
       if (item != null) {
-        rows.add(FileRow(
-          repo: widget.repo,
-          entry: item,
-          isStaged: isStaged,
-          displayName: node.name,
-          indent: depth * 14.0,
-        ));
+        rows.add(
+          FileRow(
+            repo: widget.repo,
+            entry: item,
+            isStaged: isStaged,
+            displayName: node.name,
+            indent: depth * 14.0,
+          ),
+        );
         continue;
       }
       final isCollapsed = collapsed.contains(node.path);
-      rows.add(_DirRow(
-        name: node.name,
-        depth: depth,
-        collapsed: isCollapsed,
-        onTap: () => setState(() {
-          if (!collapsed.add(node.path)) collapsed.remove(node.path);
-        }),
-      ));
+      rows.add(
+        _DirRow(
+          name: node.name,
+          depth: depth,
+          collapsed: isCollapsed,
+          onTap: () => setState(() {
+            if (!collapsed.add(node.path)) collapsed.remove(node.path);
+          }),
+        ),
+      );
       if (!isCollapsed) {
-        rows.addAll(_nodeRows(
-          node.children,
-          isStaged: isStaged,
-          depth: depth + 1,
-          collapsed: collapsed,
-        ));
+        rows.addAll(
+          _nodeRows(
+            node.children,
+            isStaged: isStaged,
+            depth: depth + 1,
+            collapsed: collapsed,
+          ),
+        );
       }
     }
     return rows;
@@ -226,25 +241,27 @@ class Header extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       color: palette.bg2,
-      child: Row(children: [
-        Text(
-          title,
-          style: TextStyle(
-            color: palette.fg1,
-            fontSize: 11.5,
-            fontWeight: FontWeight.w600,
+      child: Row(
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              color: palette.fg1,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+            ),
           ),
-        ),
-        const Spacer(),
-        for (final a in actions)
-          TextButton(
-            onPressed: a.onPressed,
-            style: a.danger
-                ? TextButton.styleFrom(foregroundColor: palette.accentErr)
-                : null,
-            child: Text(a.label),
-          ),
-      ]),
+          const Spacer(),
+          for (final a in actions)
+            TextButton(
+              onPressed: a.onPressed,
+              style: a.danger
+                  ? TextButton.styleFrom(foregroundColor: palette.accentErr)
+                  : null,
+              child: Text(a.label),
+            ),
+        ],
+      ),
     );
   }
 }

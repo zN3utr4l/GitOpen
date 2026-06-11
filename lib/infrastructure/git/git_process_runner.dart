@@ -15,8 +15,7 @@ const Map<String, String> kGitLocaleEnv = {'LC_ALL': 'C', 'LANG': 'C'};
 /// the forced C locale. Locale keys are applied last so they always win.
 Map<String, String> buildGitEnvironment([
   Map<String, String> extra = const {},
-]) =>
-    {...extra, ...kGitLocaleEnv};
+]) => {...extra, ...kGitLocaleEnv};
 
 final class GitProcessException implements Exception {
   GitProcessException(this.args, this.exitCode, this.stderr);
@@ -28,9 +27,11 @@ final class GitProcessException implements Exception {
   /// so the exception message (and any logs derived from it) never leaks the
   /// in-app credential.
   List<String> get _safeArgs => args
-      .map((a) => a.startsWith('http.extraheader=Authorization:')
-          ? 'http.extraheader=Authorization: <redacted>'
-          : a)
+      .map(
+        (a) => a.startsWith('http.extraheader=Authorization:')
+            ? 'http.extraheader=Authorization: <redacted>'
+            : a,
+      )
       .toList(growable: false);
 
   @override
@@ -82,8 +83,10 @@ class GitProcessRunner {
     }
     final out = await stdoutF;
     final err = await stderrF;
-    appLog.d('git[$tag] done in ${sw.elapsedMilliseconds}ms '
-        '(exit=$exitCode, stdout=${out.length}B)');
+    appLog.d(
+      'git[$tag] done in ${sw.elapsedMilliseconds}ms '
+      '(exit=$exitCode, stdout=${out.length}B)',
+    );
     if (exitCode != 0) throw GitProcessException(args, exitCode, err);
     return out;
   }
@@ -108,9 +111,16 @@ class GitProcessRunner {
   }
 
   Future<String> runWithStdin(
-      String workingDir, List<String> args, String input) async {
-    final proc = await Process.start(executable, args,
-        workingDirectory: workingDir, environment: buildGitEnvironment());
+    String workingDir,
+    List<String> args,
+    String input,
+  ) async {
+    final proc = await Process.start(
+      executable,
+      args,
+      workingDirectory: workingDir,
+      environment: buildGitEnvironment(),
+    );
     proc.stdin.add(utf8.encode(input));
     await proc.stdin.close();
     final outBuf = StringBuffer();

@@ -9,13 +9,18 @@ import 'package:gitopen/ui/bottom_panel/file_history_dialog.dart';
 import 'package:gitopen/ui/common/file_list_mode_toggle.dart';
 import 'package:gitopen/ui/theme/app_palette.dart';
 
-final AutoDisposeFutureProviderFamily<List<FileTreeEntry>,
-        ({RepoLocation repo, CommitSha sha})> _fileTreeProvider =
-    FutureProvider.family.autoDispose<List<FileTreeEntry>,
-        ({RepoLocation repo, CommitSha sha})>((ref, key) async {
-  final git = ref.watch(gitReadOperationsProvider);
-  return git.getFileTree(key.repo, key.sha, '', recursive: true);
-});
+final AutoDisposeFutureProviderFamily<
+  List<FileTreeEntry>,
+  ({RepoLocation repo, CommitSha sha})
+>
+_fileTreeProvider = FutureProvider.family
+    .autoDispose<List<FileTreeEntry>, ({RepoLocation repo, CommitSha sha})>((
+      ref,
+      key,
+    ) async {
+      final git = ref.watch(gitReadOperationsProvider);
+      return git.getFileTree(key.repo, key.sha, '', recursive: true);
+    });
 
 /// The commit's full file listing, rendered as a collapsible folder tree or
 /// a flat full-path list depending on the shared `fileListsAsTree` setting.
@@ -25,8 +30,7 @@ class FileTreeViewWidget extends ConsumerStatefulWidget {
   final CommitSha sha;
 
   @override
-  ConsumerState<FileTreeViewWidget> createState() =>
-      _FileTreeViewWidgetState();
+  ConsumerState<FileTreeViewWidget> createState() => _FileTreeViewWidgetState();
 }
 
 class _FileTreeViewWidgetState extends ConsumerState<FileTreeViewWidget> {
@@ -35,15 +39,17 @@ class _FileTreeViewWidgetState extends ConsumerState<FileTreeViewWidget> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    final asTree =
-        ref.watch(appSettingsProvider.select((s) => s.fileListsAsTree));
+    final asTree = ref.watch(
+      appSettingsProvider.select((s) => s.fileListsAsTree),
+    );
     final async = ref.watch(
       _fileTreeProvider((repo: widget.repo, sha: widget.sha)),
     );
     return async.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Error: $e',
-          style: TextStyle(color: palette.accentErr))),
+      error: (e, _) => Center(
+        child: Text('Error: $e', style: TextStyle(color: palette.accentErr)),
+      ),
       data: (entries) {
         final children = <Widget>[
           const Padding(
@@ -58,8 +64,11 @@ class _FileTreeViewWidgetState extends ConsumerState<FileTreeViewWidget> {
           final nodes = buildFileTree(entries, (e) => e.fullPath);
           children.addAll(_nodeRows(nodes, depth: 0));
         } else {
-          final sorted = [...entries]..sort((a, b) =>
-              a.fullPath.toLowerCase().compareTo(b.fullPath.toLowerCase()));
+          final sorted = [...entries]
+            ..sort(
+              (a, b) =>
+                  a.fullPath.toLowerCase().compareTo(b.fullPath.toLowerCase()),
+            );
           children.addAll([
             for (final e in sorted)
               _FileRow(repo: widget.repo, entry: e, label: e.fullPath),
@@ -73,29 +82,35 @@ class _FileTreeViewWidgetState extends ConsumerState<FileTreeViewWidget> {
     );
   }
 
-  List<Widget> _nodeRows(List<PathTreeNode<FileTreeEntry>> nodes,
-      {required int depth}) {
+  List<Widget> _nodeRows(
+    List<PathTreeNode<FileTreeEntry>> nodes, {
+    required int depth,
+  }) {
     final rows = <Widget>[];
     for (final node in nodes) {
       final item = node.item;
       if (item != null) {
-        rows.add(_FileRow(
-          repo: widget.repo,
-          entry: item,
-          label: node.name,
-          indent: depth * 14.0,
-        ));
+        rows.add(
+          _FileRow(
+            repo: widget.repo,
+            entry: item,
+            label: node.name,
+            indent: depth * 14.0,
+          ),
+        );
         continue;
       }
       final isCollapsed = _collapsed.contains(node.path);
-      rows.add(_FolderRow(
-        name: node.name,
-        depth: depth,
-        collapsed: isCollapsed,
-        onTap: () => setState(() {
-          if (!_collapsed.add(node.path)) _collapsed.remove(node.path);
-        }),
-      ));
+      rows.add(
+        _FolderRow(
+          name: node.name,
+          depth: depth,
+          collapsed: isCollapsed,
+          onTap: () => setState(() {
+            if (!_collapsed.add(node.path)) _collapsed.remove(node.path);
+          }),
+        ),
+      );
       if (!isCollapsed) {
         rows.addAll(_nodeRows(node.children, depth: depth + 1));
       }
@@ -179,10 +194,10 @@ class _FileRowState extends State<_FileRow> {
   bool _hover = false;
 
   Future<void> _openHistory() => FileHistoryDialog.show(
-        context,
-        repo: widget.repo,
-        path: widget.entry.fullPath,
-      );
+    context,
+    repo: widget.repo,
+    path: widget.entry.fullPath,
+  );
 
   Future<void> _showMenu(Offset globalPosition) async {
     final overlay =
@@ -211,8 +226,8 @@ class _FileRowState extends State<_FileRow> {
     final icon = e.kind == FileTreeKind.submodule
         ? Icons.developer_board_outlined
         : e.kind == FileTreeKind.symlink
-            ? Icons.link_outlined
-            : Icons.insert_drive_file_outlined;
+        ? Icons.link_outlined
+        : Icons.insert_drive_file_outlined;
 
     final row = Padding(
       padding: EdgeInsets.only(
@@ -235,12 +250,14 @@ class _FileRowState extends State<_FileRow> {
           if (_hover)
             _HistoryButton(onPressed: _openHistory)
           else if (e.sizeBytes != null)
-            Text('${e.sizeBytes}',
-                style: TextStyle(
-                  color: palette.fg3,
-                  fontSize: 11,
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                )),
+            Text(
+              '${e.sizeBytes}',
+              style: TextStyle(
+                color: palette.fg3,
+                fontSize: 11,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
         ],
       ),
     );

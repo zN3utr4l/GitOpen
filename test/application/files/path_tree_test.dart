@@ -1,8 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gitopen/application/files/path_tree.dart';
 
-List<String> names(List<PathTreeNode<String>> nodes) =>
-    [for (final n in nodes) n.name];
+List<String> names(List<PathTreeNode<String>> nodes) => [
+  for (final n in nodes) n.name,
+];
 
 void main() {
   group('buildFileTree', () {

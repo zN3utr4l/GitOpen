@@ -4,10 +4,10 @@ import 'package:gitopen/application/auth/auth_resolver.dart' show AuthResolver;
 import 'package:gitopen/application/git_identity/git_identity.dart';
 
 enum AppTheme { dark, light }
+
 enum DefaultPullStrategy { ffOnly, merge, rebase }
 
 final class AppSettingsState extends Equatable {
-
   const AppSettingsState({
     this.theme = AppTheme.dark,
     this.externalEditorPath,
@@ -90,9 +90,19 @@ final class AppSettingsState extends Equatable {
 
   @override
   List<Object?> get props => [
-    theme, externalEditorPath, defaultPullStrategy, commitSignoffDefault,
-    gpgSignByDefault, fontSize, fontFamily, githubClientId, autoUpdateCheck,
-    autoRefresh, fileListsAsTree, keybindings, gitIdentities,
+    theme,
+    externalEditorPath,
+    defaultPullStrategy,
+    commitSignoffDefault,
+    gpgSignByDefault,
+    fontSize,
+    fontFamily,
+    githubClientId,
+    autoUpdateCheck,
+    autoRefresh,
+    fileListsAsTree,
+    keybindings,
+    gitIdentities,
     authRepoBindings,
   ];
 }

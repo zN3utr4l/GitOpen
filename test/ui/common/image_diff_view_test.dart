@@ -44,8 +44,11 @@ final class _FakeReadOps implements GitReadOperations {
   }) async {
     return switch (revision) {
       FileRevisionParentOfCommit() => FileContent.missing,
-      FileRevisionAtCommit() =>
-        FileContent(exists: true, sizeBytes: png.length, bytes: png),
+      FileRevisionAtCommit() => FileContent(
+        exists: true,
+        sizeBytes: png.length,
+        bytes: png,
+      ),
       _ => const FileContent(exists: true, sizeBytes: 30 * 1024 * 1024),
     };
   }
@@ -75,8 +78,9 @@ void main() {
   final repo = RepoLocation(RepoId.newId(), 'unused', 'repo');
   final sha = CommitSha('a' * 40);
 
-  testWidgets('renders a missing old side and an image new side',
-      (tester) async {
+  testWidgets('renders a missing old side and an image new side', (
+    tester,
+  ) async {
     await _pump(
       tester,
       ImageDiffView(

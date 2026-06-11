@@ -191,8 +191,9 @@ class _BranchTreeViewState extends ConsumerState<BranchTreeView> {
       case 'compare_current':
         final tip = branch.tipSha;
         if (tip == null) return;
-        final locals =
-            await ref.read(localBranchesProvider(widget.repo).future);
+        final locals = await ref.read(
+          localBranchesProvider(widget.repo).future,
+        );
         final currents = locals.where((b) => b.isCurrent && b.tipSha != null);
         if (currents.isEmpty || !context.mounted) return;
         await CompareRefsDialog.show(

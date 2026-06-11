@@ -20,17 +20,22 @@ import 'package:gitopen/ui/working_copy/working_copy_providers.dart';
 // ---------------------------------------------------------------------------
 
 /// Uncapped single-file working-copy diff for "Load full diff".
-final AutoDisposeFutureProviderFamily<FileDiff?,
-        ({RepoLocation repo, String path, bool staged})>
-    _fullWorkingFileProvider = FutureProvider.family.autoDispose<FileDiff?,
-        ({RepoLocation repo, String path, bool staged})>((ref, key) async {
-  final git = ref.watch(gitReadOperationsProvider);
-  final spec = key.staged
-      ? const DiffSpecIndexVsHead()
-      : const DiffSpecWorkingTreeVsIndex();
-  final result = await git.getDiffForFile(key.repo, spec, key.path);
-  return result.files.isEmpty ? null : result.files.first;
-});
+final AutoDisposeFutureProviderFamily<
+  FileDiff?,
+  ({RepoLocation repo, String path, bool staged})
+>
+_fullWorkingFileProvider = FutureProvider.family
+    .autoDispose<FileDiff?, ({RepoLocation repo, String path, bool staged})>((
+      ref,
+      key,
+    ) async {
+      final git = ref.watch(gitReadOperationsProvider);
+      final spec = key.staged
+          ? const DiffSpecIndexVsHead()
+          : const DiffSpecWorkingTreeVsIndex();
+      final result = await git.getDiffForFile(key.repo, spec, key.path);
+      return result.files.isEmpty ? null : result.files.first;
+    });
 
 class DiffPreviewPane extends ConsumerStatefulWidget {
   const DiffPreviewPane({required this.repo, super.key});
@@ -72,8 +77,10 @@ class _DiffPreviewPaneState extends ConsumerState<DiffPreviewPane> {
       child: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
-          child: Text('Diff error: $e',
-              style: TextStyle(color: palette.accentErr)),
+          child: Text(
+            'Diff error: $e',
+            style: TextStyle(color: palette.accentErr),
+          ),
         ),
         data: (fileDiff) {
           if (fileDiff == null) {
@@ -114,11 +121,17 @@ class _DiffPreviewPaneState extends ConsumerState<DiffPreviewPane> {
               ),
             );
           }
-          final wantFull = _fullFor != null &&
+          final wantFull =
+              _fullFor != null &&
               _fullFor == (path: sel.path, staged: sel.staged);
           final full = wantFull
-              ? ref.watch(_fullWorkingFileProvider(
-                  (repo: repo, path: sel.path, staged: sel.staged)))
+              ? ref.watch(
+                  _fullWorkingFileProvider((
+                    repo: repo,
+                    path: sel.path,
+                    staged: sel.staged,
+                  )),
+                )
               : null;
           final shown = full?.valueOrNull ?? fileDiff;
           final language = languageForPath(sel.path);
@@ -172,9 +185,11 @@ class DiffHeader extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: Text(path,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: palette.fg0, fontSize: 12)),
+            child: Text(
+              path,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: palette.fg0, fontSize: 12),
+            ),
           ),
           Text(
             '+${fileDiff.linesAdded} -${fileDiff.linesDeleted}',
@@ -210,13 +225,15 @@ class HunkBlock extends StatelessWidget {
           Container(
             color: palette.bg2,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            child: Text(hunk.header,
-                style: TextStyle(
-                  color: palette.fg2,
-                  fontSize: 11.5,
-                  fontStyle: FontStyle.italic,
-                  fontFamily: 'monospace',
-                )),
+            child: Text(
+              hunk.header,
+              style: TextStyle(
+                color: palette.fg2,
+                fontSize: 11.5,
+                fontStyle: FontStyle.italic,
+                fontFamily: 'monospace',
+              ),
+            ),
           ),
           HunkLines(
             lines: hunk.lines,

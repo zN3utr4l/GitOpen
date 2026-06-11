@@ -12,8 +12,9 @@ class FileListModeToggle extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = AppPalette.of(context);
-    final asTree =
-        ref.watch(appSettingsProvider.select((s) => s.fileListsAsTree));
+    final asTree = ref.watch(
+      appSettingsProvider.select((s) => s.fileListsAsTree),
+    );
     return Tooltip(
       message: asTree
           ? 'Tree view - click for a flat list'
@@ -21,9 +22,8 @@ class FileListModeToggle extends ConsumerWidget {
       waitDuration: const Duration(milliseconds: 500),
       child: InkWell(
         borderRadius: BorderRadius.circular(3),
-        onTap: () => ref
-            .read(appSettingsProvider.notifier)
-            .setFileListsAsTree(!asTree),
+        onTap: () =>
+            ref.read(appSettingsProvider.notifier).setFileListsAsTree(!asTree),
         child: Padding(
           padding: const EdgeInsets.all(3),
           child: Icon(

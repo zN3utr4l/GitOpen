@@ -22,7 +22,9 @@ void main() {
         final names = entries.map((e) => e.name).toSet();
         expect(names, containsAll(['file_0.txt', 'file_1.txt', 'file_2.txt']));
         expect(entries.first.kind, FileTreeKind.blob);
-      } finally { await f.dispose(); }
+      } finally {
+        await f.dispose();
+      }
     });
 
     test('recursive: true lists every blob with its full path', () async {

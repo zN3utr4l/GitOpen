@@ -38,26 +38,41 @@ void main() {
       final sut = GitCliReadOperations();
       final repo = loc(f);
 
-      final atHead =
-          await sut.getFileBytes(repo, FileRevisionAtCommit(head), 'img.bin');
+      final atHead = await sut.getFileBytes(
+        repo,
+        FileRevisionAtCommit(head),
+        'img.bin',
+      );
       expect(atHead.exists, isTrue);
       expect(atHead.bytes, [2, 0, 254]);
       expect(atHead.sizeBytes, 3);
 
       final parent = await sut.getFileBytes(
-          repo, FileRevisionParentOfCommit(head), 'img.bin');
+        repo,
+        FileRevisionParentOfCommit(head),
+        'img.bin',
+      );
       expect(parent.bytes, [1, 0, 255]);
 
       final index = await sut.getFileBytes(
-          repo, const FileRevisionIndex(), 'img.bin');
+        repo,
+        const FileRevisionIndex(),
+        'img.bin',
+      );
       expect(index.bytes, [3, 0, 253]);
 
       final headRev = await sut.getFileBytes(
-          repo, const FileRevisionHead(), 'img.bin');
+        repo,
+        const FileRevisionHead(),
+        'img.bin',
+      );
       expect(headRev.bytes, [2, 0, 254]);
 
       final worktree = await sut.getFileBytes(
-          repo, const FileRevisionWorkingTree(), 'img.bin');
+        repo,
+        const FileRevisionWorkingTree(),
+        'img.bin',
+      );
       expect(worktree.bytes, [4, 0, 252, 9]);
       expect(worktree.sizeBytes, 4);
     } finally {
@@ -73,16 +88,25 @@ void main() {
       final root = CommitSha(f.headSha);
 
       final unknown = await sut.getFileBytes(
-          repo, FileRevisionAtCommit(root), 'nope.png');
+        repo,
+        FileRevisionAtCommit(root),
+        'nope.png',
+      );
       expect(unknown.exists, isFalse);
       expect(unknown.sizeBytes, 0);
 
       final rootParent = await sut.getFileBytes(
-          repo, FileRevisionParentOfCommit(root), 'file_0.txt');
+        repo,
+        FileRevisionParentOfCommit(root),
+        'file_0.txt',
+      );
       expect(rootParent.exists, isFalse);
 
       final noDisk = await sut.getFileBytes(
-          repo, const FileRevisionWorkingTree(), 'nope.png');
+        repo,
+        const FileRevisionWorkingTree(),
+        'nope.png',
+      );
       expect(noDisk.exists, isFalse);
     } finally {
       await f.dispose();

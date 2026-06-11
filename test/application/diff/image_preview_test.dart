@@ -5,7 +5,12 @@ void main() {
   group('isImagePath', () {
     test('recognises the supported extensions case-insensitively', () {
       for (final p in [
-        'a.png', 'b.jpg', 'c.JPEG', 'd.gif', 'e.webp', 'dir/f.BMP',
+        'a.png',
+        'b.jpg',
+        'c.JPEG',
+        'd.gif',
+        'e.webp',
+        'dir/f.BMP',
       ]) {
         expect(isImagePath(p), isTrue, reason: p);
       }

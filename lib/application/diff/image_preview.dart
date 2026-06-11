@@ -1,5 +1,10 @@
 const Set<String> _imageExtensions = {
-  'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp',
+  'png',
+  'jpg',
+  'jpeg',
+  'gif',
+  'webp',
+  'bmp',
 };
 
 /// True when [path]'s extension is one the in-app image preview can render.
