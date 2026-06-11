@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gitopen/domain/repositories/repo_id.dart';
 import 'package:gitopen/domain/repositories/repo_location.dart';
@@ -20,6 +23,10 @@ class _CannedRunner implements GitProcessRunner {
     Duration? timeout,
   }) async =>
       stdout;
+
+  @override
+  Future<Uint8List> runBytes(String workingDir, List<String> args) async =>
+      Uint8List.fromList(utf8.encode(stdout));
 
   @override
   Future<String> runWithStdin(

@@ -8,6 +8,8 @@ import 'package:gitopen/domain/commits/commit_info.dart';
 import 'package:gitopen/domain/commits/commit_sha.dart';
 import 'package:gitopen/domain/diff/diff_result.dart';
 import 'package:gitopen/domain/diff/diff_spec.dart';
+import 'package:gitopen/domain/files/file_content.dart';
+import 'package:gitopen/domain/files/file_revision.dart';
 import 'package:gitopen/domain/files/file_tree_entry.dart';
 import 'package:gitopen/domain/refs/branch.dart';
 import 'package:gitopen/domain/refs/reflog_entry.dart';
@@ -178,6 +180,16 @@ final class GitCliReadOperations implements GitReadOperations {
     String path, {
     CommitSha? at,
   }) => _guard(() => _files.getBlame(repo, path, at: at));
+
+  @override
+  Future<FileContent> getFileBytes(
+    RepoLocation repo,
+    FileRevision revision,
+    String path, {
+    int maxBytes = kFilePreviewMaxBytes,
+  }) => _guard(
+    () => _files.getFileBytes(repo, revision, path, maxBytes: maxBytes),
+  );
 
   @override
   Future<String> readWorkingFile(RepoLocation repo, String relativePath) =>

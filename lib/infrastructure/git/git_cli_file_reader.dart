@@ -1,10 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:gitopen/application/git/git_read_operations.dart'
+    show kFilePreviewMaxBytes;
 import 'package:gitopen/domain/blame/blame_line.dart';
 import 'package:gitopen/domain/commits/commit_sha.dart';
 import 'package:gitopen/domain/diff/diff_result.dart';
 import 'package:gitopen/domain/diff/diff_spec.dart';
+import 'package:gitopen/domain/files/file_content.dart';
+import 'package:gitopen/domain/files/file_revision.dart';
 import 'package:gitopen/domain/files/file_tree_entry.dart';
 import 'package:gitopen/domain/repositories/repo_location.dart';
 import 'package:gitopen/infrastructure/git/blame_parser.dart';
@@ -142,6 +146,46 @@ final class GitCliFileReader {
 
     final stdout = await _runner.run(repo.path, args);
     return BlameParser(stdout).parse();
+  }
+
+  Future<FileContent> getFileBytes(
+    RepoLocation repo,
+    FileRevision revision,
+    String path, {
+    int maxBytes = kFilePreviewMaxBytes,
+  }) async {
+    if (revision is FileRevisionWorkingTree) {
+      final file = File(p.join(repo.path, path));
+      if (!file.existsSync()) return FileContent.missing;
+      final size = await file.length();
+      if (size > maxBytes) return FileContent(exists: true, sizeBytes: size);
+      return FileContent(
+        exists: true,
+        sizeBytes: size,
+        bytes: await file.readAsBytes(),
+      );
+    }
+    final rev = switch (revision) {
+      FileRevisionAtCommit(:final commitSha) => '${commitSha.value}:$path',
+      FileRevisionParentOfCommit(:final commitSha) =>
+        '${commitSha.value}^:$path',
+      FileRevisionHead() => 'HEAD:$path',
+      FileRevisionIndex() => ':$path',
+      FileRevisionWorkingTree() => throw StateError('handled above'),
+    };
+    final int size;
+    try {
+      final out = await _runner.run(repo.path, ['cat-file', '-s', rev]);
+      size = int.parse(out.trim());
+    } on GitProcessException {
+      // Any failure resolving the rev means "no blob there": unknown path,
+      // root commit's missing parent, unborn HEAD. Callers render an
+      // absent side, so this is a value, not an error.
+      return FileContent.missing;
+    }
+    if (size > maxBytes) return FileContent(exists: true, sizeBytes: size);
+    final bytes = await _runner.runBytes(repo.path, ['cat-file', 'blob', rev]);
+    return FileContent(exists: true, sizeBytes: size, bytes: bytes);
   }
 
   Future<String> readWorkingFile(

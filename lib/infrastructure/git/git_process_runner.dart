@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:gitopen/infrastructure/logging/app_logger.dart';
 
@@ -85,6 +86,25 @@ class GitProcessRunner {
         '(exit=$exitCode, stdout=${out.length}B)');
     if (exitCode != 0) throw GitProcessException(args, exitCode, err);
     return out;
+  }
+
+  /// Like [run] but returns raw stdout bytes (no UTF-8 decode) — blob
+  /// content such as images would be corrupted by text decoding.
+  Future<Uint8List> runBytes(String workingDir, List<String> args) async {
+    final proc = await Process.start(
+      executable,
+      args,
+      workingDirectory: workingDir,
+      environment: buildGitEnvironment(),
+    );
+    final builder = BytesBuilder(copy: false);
+    final stdoutF = proc.stdout.forEach(builder.add);
+    final stderrF = proc.stderr.transform(utf8.decoder).join();
+    final exitCode = await proc.exitCode;
+    await stdoutF;
+    final err = await stderrF;
+    if (exitCode != 0) throw GitProcessException(args, exitCode, err);
+    return builder.takeBytes();
   }
 
   Future<String> runWithStdin(
