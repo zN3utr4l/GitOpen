@@ -19,6 +19,7 @@ final class AppSettingsState extends Equatable {
     this.githubClientId,
     this.autoUpdateCheck = true,
     this.autoRefresh = true,
+    this.fileListsAsTree = false,
     this.keybindings = const {},
     this.gitIdentities = const [],
     this.authRepoBindings = const {},
@@ -40,6 +41,10 @@ final class AppSettingsState extends Equatable {
   /// bookkeeping) and refreshed automatically — plus a refresh whenever the
   /// window regains focus.
   final bool autoRefresh;
+
+  /// When true, the working-copy file list and the commit file list render
+  /// as a folder tree instead of flat paths. Shared by both lists.
+  final bool fileListsAsTree;
   final Map<String, LogicalKeySet> keybindings;
   final List<GitIdentity> gitIdentities;
 
@@ -60,6 +65,7 @@ final class AppSettingsState extends Equatable {
     String? githubClientId,
     bool? autoUpdateCheck,
     bool? autoRefresh,
+    bool? fileListsAsTree,
     Map<String, LogicalKeySet>? keybindings,
     List<GitIdentity>? gitIdentities,
     Map<String, String>? authRepoBindings,
@@ -75,6 +81,7 @@ final class AppSettingsState extends Equatable {
       githubClientId: githubClientId ?? this.githubClientId,
       autoUpdateCheck: autoUpdateCheck ?? this.autoUpdateCheck,
       autoRefresh: autoRefresh ?? this.autoRefresh,
+      fileListsAsTree: fileListsAsTree ?? this.fileListsAsTree,
       keybindings: keybindings ?? this.keybindings,
       gitIdentities: gitIdentities ?? this.gitIdentities,
       authRepoBindings: authRepoBindings ?? this.authRepoBindings,
@@ -85,6 +92,7 @@ final class AppSettingsState extends Equatable {
   List<Object?> get props => [
     theme, externalEditorPath, defaultPullStrategy, commitSignoffDefault,
     gpgSignByDefault, fontSize, fontFamily, githubClientId, autoUpdateCheck,
-    autoRefresh, keybindings, gitIdentities, authRepoBindings,
+    autoRefresh, fileListsAsTree, keybindings, gitIdentities,
+    authRepoBindings,
   ];
 }

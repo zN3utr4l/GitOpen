@@ -34,6 +34,7 @@ void main() {
       expect(state.fontFamily, isNull);
       expect(state.githubClientId, isNull);
       expect(state.autoUpdateCheck, isTrue);
+      expect(state.fileListsAsTree, isFalse);
       expect(state.keybindings, isEmpty);
       expect(state.gitIdentities, isEmpty);
       expect(state.authRepoBindings, isEmpty);
@@ -59,6 +60,14 @@ void main() {
       expect(updated.externalEditorPath, isNull);
       expect(updated.fontFamily, isNull);
       expect(updated.keybindings, isEmpty);
+    });
+
+    test('fileListsAsTree defaults to false and copyWith overrides it', () {
+      const state = AppSettingsState();
+      expect(state.fileListsAsTree, isFalse);
+      expect(state.copyWith(fileListsAsTree: true).fileListsAsTree, isTrue);
+      // Untouched by unrelated copyWith calls.
+      expect(state.copyWith(fontSize: 14).fileListsAsTree, isFalse);
     });
 
     test('copyWith with no arguments is equal by value', () {
@@ -116,9 +125,9 @@ void main() {
       );
     });
 
-    test('props enumerates all thirteen fields', () {
+    test('props enumerates all fourteen fields', () {
       const state = AppSettingsState();
-      expect(state.props, hasLength(13));
+      expect(state.props, hasLength(14));
     });
   });
 
@@ -156,6 +165,20 @@ void main() {
     final fresh = AppSettingsNotifier(SettingsRepository(db));
     await Future<void>.delayed(const Duration(milliseconds: 50));
     expect(fresh.state.theme, AppTheme.light);
+    await db.close();
+  });
+
+  test('setFileListsAsTree persists and re-loads', () async {
+    final db = newInMemoryDb();
+    final notifier = AppSettingsNotifier(SettingsRepository(db));
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    expect(notifier.state.fileListsAsTree, isFalse);
+    await notifier.setFileListsAsTree(true);
+    expect(notifier.state.fileListsAsTree, isTrue);
+    // New notifier on same DB hydrates the saved value.
+    final fresh = AppSettingsNotifier(SettingsRepository(db));
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    expect(fresh.state.fileListsAsTree, isTrue);
     await db.close();
   });
 

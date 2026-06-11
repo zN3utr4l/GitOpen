@@ -49,17 +49,17 @@ final class _Dir<T> {
 List<PathTreeNode<T>> _emit<T>(_Dir<T> dir, String prefix) {
   final out = <PathTreeNode<T>>[];
   for (final entry in dir.dirs.entries) {
-    var name = entry.key;
-    var node = entry.value;
-    var path = prefix.isEmpty ? name : '$prefix/$name';
     // Compress while the directory holds exactly one subdirectory and no
     // files — the chain reads as a single breadcrumb ('src/app').
+    final chain = [entry.key];
+    var node = entry.value;
     while (node.files.isEmpty && node.dirs.length == 1) {
       final only = node.dirs.entries.first;
-      name = '$name/${only.key}';
-      path = '$path/${only.key}';
+      chain.add(only.key);
       node = only.value;
     }
+    final name = chain.join('/');
+    final path = prefix.isEmpty ? name : '$prefix/$name';
     out.add(PathTreeNode(name: name, path: path, children: _emit(node, path)));
   }
   out.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
