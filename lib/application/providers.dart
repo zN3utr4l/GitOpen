@@ -9,6 +9,9 @@ import 'package:gitopen/application/git/git_actions_service.dart';
 import 'package:gitopen/application/git/git_dir_probe.dart';
 import 'package:gitopen/application/git/git_read_operations.dart';
 import 'package:gitopen/application/git/git_write_operations.dart';
+import 'package:gitopen/application/github/github_api.dart';
+import 'package:gitopen/application/github/github_models.dart';
+import 'package:gitopen/application/github/github_slug.dart';
 import 'package:gitopen/application/launcher/folder_picker.dart';
 import 'package:gitopen/application/launcher/repo_launcher.dart';
 import 'package:gitopen/application/operations/operations_notifier.dart';
@@ -34,6 +37,7 @@ import 'package:gitopen/infrastructure/git/git_identity_service.dart';
 import 'package:gitopen/infrastructure/git/git_process_runner.dart';
 import 'package:gitopen/infrastructure/git/git_remote_url_reader.dart';
 import 'package:gitopen/infrastructure/git/io_git_dir_probe.dart';
+import 'package:gitopen/infrastructure/github/github_rest_api.dart';
 import 'package:gitopen/infrastructure/launcher/system_repo_launcher.dart';
 import 'package:gitopen/infrastructure/logging/app_logger.dart';
 import 'package:gitopen/infrastructure/logging/app_logger_port.dart';
@@ -55,6 +59,27 @@ final appDatabaseProvider = Provider<AppDatabase>((ref) {
 final gitProcessRunnerProvider = Provider<GitProcessRunner>((ref) {
   return GitProcessRunner();
 });
+
+/// Reads a repo's remote URL via the git CLI (shared by the auth resolver
+/// and GitHub-ness detection).
+final remoteUrlReaderProvider = Provider<RemoteUrlReader>((ref) {
+  return GitRemoteUrlReader(runner: ref.watch(gitProcessRunnerProvider));
+});
+
+/// GitHub REST client (token passed per call).
+final gitHubApiProvider = Provider<GitHubApi>((ref) => GitHubRestApi());
+
+/// The repo's GitHub `owner/repo` slug, or null when `origin` is missing or
+/// not a github.com URL - null hides the GitHub view.
+final AutoDisposeFutureProviderFamily<RepoSlug?, RepoLocation>
+    githubSlugProvider =
+    FutureProvider.family.autoDispose<RepoSlug?, RepoLocation>(
+  (ref, repo) async {
+    final url =
+        await ref.watch(remoteUrlReaderProvider).remoteUrl(repo, 'origin');
+    return url == null ? null : githubSlugFromRemoteUrl(url);
+  },
+);
 
 final loggerProvider = Provider<LoggerPort>((ref) => const AppLoggerPort());
 
@@ -125,7 +150,7 @@ final authResolverProvider = Provider<AuthResolver>((ref) {
   final store = ref.watch(authProfileStoreProvider);
   return AuthResolver(
     store,
-    remoteUrl: GitRemoteUrlReader(runner: ref.watch(gitProcessRunnerProvider)),
+    remoteUrl: ref.watch(remoteUrlReaderProvider),
     // Always reads the current binding map from settings — closure runs once
     // per resolve, so the provider does not need to rebuild on settings change.
     bindingLookup: (repoId) =>

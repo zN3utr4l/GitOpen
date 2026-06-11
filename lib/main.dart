@@ -22,6 +22,7 @@ import 'package:gitopen/ui/commit_graph/detached_head_banner.dart';
 import 'package:gitopen/ui/common/vertical_splitter.dart';
 import 'package:gitopen/ui/conflicts/conflict_resolution_panel.dart';
 import 'package:gitopen/ui/git/git_actions_controller.dart';
+import 'package:gitopen/ui/github/github_panel.dart';
 import 'package:gitopen/ui/operations/toast_overlay.dart';
 import 'package:gitopen/ui/settings/settings_page.dart';
 import 'package:gitopen/ui/shell/repo_selector.dart';
@@ -301,17 +302,19 @@ class _RepoBody extends ConsumerWidget {
       repo: repo,
       child: Column(
         children: [
-          const ViewSelector(),
+          ViewSelector(repo: repo),
           DetachedHeadBanner(repo: repo),
           Expanded(
             child: hasConflict
                 ? ConflictResolutionPanel(repo: repo)
                 : view == MainView.changes
                     ? WorkingCopyPanel(repo: repo)
-                    : VerticalSplitter(
-                        top: CommitGraphPanel(repo: repo),
-                        bottom: BottomPanel(repo: repo),
-                      ),
+                    : view == MainView.github
+                        ? GitHubPanel(repo: repo)
+                        : VerticalSplitter(
+                            top: CommitGraphPanel(repo: repo),
+                            bottom: BottomPanel(repo: repo),
+                          ),
           ),
           const StatusBar(),
         ],
