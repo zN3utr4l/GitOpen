@@ -1,6 +1,6 @@
 # Phase 5 — S1 Full Interactive Rebase Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Upgrade the existing interactive-rebase feature to full parity: `reword` action, per-commit multiline messages for reword/squash, drag-to-reorder, plan validation, and a branch-context-menu entry point.
 
@@ -33,7 +33,7 @@
 - Create: `lib/application/git/rebase_plan.dart`
 - Test: `test/application/git/rebase_plan_test.dart`
 
-- [ ] **Step 1: Extend the value objects** in `git_write_operations.dart` — replace lines 13-26 with:
+- [x] **Step 1: Extend the value objects** in `git_write_operations.dart` — replace lines 13-26 with:
 
 ```dart
 /// A single action in an interactive-rebase todo list. `edit` is
@@ -57,7 +57,7 @@ final class RebaseTodoEntry {
 }
 ```
 
-- [ ] **Step 2: Write the failing pure tests** at `test/application/git/rebase_plan_test.dart`:
+- [x] **Step 2: Write the failing pure tests** at `test/application/git/rebase_plan_test.dart`:
 
 ```dart
 import 'package:flutter_test/flutter_test.dart';
@@ -179,12 +179,12 @@ void main() {
 }
 ```
 
-- [ ] **Step 3: Run — must fail to compile** (`rebase_plan.dart` missing, `reword` undefined)
+- [x] **Step 3: Run — must fail to compile** (`rebase_plan.dart` missing, `reword` undefined)
 
 Run: `& "C:\Users\g.chirico\flutter\bin\flutter.bat" test test/application/git/rebase_plan_test.dart`
 Expected: compile error.
 
-- [ ] **Step 4: Implement `lib/application/git/rebase_plan.dart`**
+- [x] **Step 4: Implement `lib/application/git/rebase_plan.dart`**
 
 ```dart
 import 'package:gitopen/application/git/git_write_operations.dart';
@@ -242,12 +242,12 @@ List<String?> plannedEditorMessages(List<RebaseTodoEntry> plan) {
 }
 ```
 
-- [ ] **Step 5: Run — pure tests pass; fix fallout from the enum change**
+- [x] **Step 5: Run — pure tests pass; fix fallout from the enum change**
 
 Run: `& "C:\Users\g.chirico\flutter\bin\flutter.bat" test test/application/git/rebase_plan_test.dart`
 Expected: PASS. Then `& "C:\Users\g.chirico\flutter\bin\flutter.bat" analyze` — the new `reword` case breaks exhaustive switches: `git_cli_sequencer_writer.dart` `interactiveRebase` (add `RebaseTodoAction.reword => 'reword'`) and `interactive_rebase_dialog.dart` `_actionLabel` (add `RebaseTodoAction.reword => 'reword'`). Fix those two switches only (full UI work comes in Task 3).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```powershell
 git add lib/application/git/git_write_operations.dart lib/application/git/rebase_plan.dart lib/infrastructure/git/git_cli_sequencer_writer.dart lib/ui/dialogs/interactive_rebase_dialog.dart test/application/git/rebase_plan_test.dart
@@ -262,7 +262,7 @@ git commit -m "feat(phase5): reword todo action + pure rebase-plan helpers"
 - Modify: `lib/infrastructure/git/git_cli_sequencer_writer.dart`
 - Test: `test/infrastructure/git/git_cli_write_operations_interactive_rebase_test.dart`
 
-- [ ] **Step 1: Write the failing real-git tests** — append inside `main()` of the interactive-rebase test file (helpers `loc`, `logSubjects`, `commitCount` already exist there):
+- [x] **Step 1: Write the failing real-git tests** — append inside `main()` of the interactive-rebase test file (helpers `loc`, `logSubjects`, `commitCount` already exist there):
 
 ```dart
   /// Full message (subject + body) of a commit selected by subject.
@@ -369,11 +369,11 @@ git commit -m "feat(phase5): reword todo action + pure rebase-plan helpers"
   });
 ```
 
-- [ ] **Step 2: Run — the reword/squash-message tests FAIL** (messages ignored: squash keeps the combined default, reword keeps the original via `core.editor=true`)
+- [x] **Step 2: Run — the reword/squash-message tests FAIL** (messages ignored: squash keeps the combined default, reword keeps the original via `core.editor=true`)
 
 Run: `& "C:\Users\g.chirico\flutter\bin\flutter.bat" test test/infrastructure/git/git_cli_write_operations_interactive_rebase_test.dart`
 
-- [ ] **Step 3: Implement multi-message support** in `git_cli_sequencer_writer.dart`:
+- [x] **Step 3: Implement multi-message support** in `git_cli_sequencer_writer.dart`:
 
 3a. Add the import `import 'package:gitopen/application/git/rebase_plan.dart';`.
 
@@ -454,12 +454,12 @@ Run: `& "C:\Users\g.chirico\flutter\bin\flutter.bat" test test/infrastructure/gi
 
 The rest of the method (args, env, capture, outcome mapping, cleanup) is unchanged — `'GIT_EDITOR': editor` already points at the variable.
 
-- [ ] **Step 4: Run the infra file — all tests pass (old + new)**
+- [x] **Step 4: Run the infra file — all tests pass (old + new)**
 
 Run: `& "C:\Users\g.chirico\flutter\bin\flutter.bat" test test/infrastructure/git/git_cli_write_operations_interactive_rebase_test.dart`
 Also run the reword regression: `& "C:\Users\g.chirico\flutter\bin\flutter.bat" test test/infrastructure/git/git_cli_write_operations_reword_test.dart` (locate the actual file with `Glob test/infrastructure/git/*reword*` — the rewordCommit tests must keep passing through the new path).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add lib/infrastructure/git/git_cli_sequencer_writer.dart test/infrastructure/git/git_cli_write_operations_interactive_rebase_test.dart
@@ -474,7 +474,7 @@ git commit -m "feat(phase5): multi-stop commit messages in scripted interactive 
 - Modify: `lib/ui/dialogs/interactive_rebase_dialog.dart`
 - Test: `test/ui/dialogs/interactive_rebase_dialog_test.dart`
 
-- [ ] **Step 1: Write the failing widget test** (fake read ops via `noSuchMethod`, same pattern as `test/ui/sidebar/sidebar_data_provider_test.dart`):
+- [x] **Step 1: Write the failing widget test** (fake read ops via `noSuchMethod`, same pattern as `test/ui/sidebar/sidebar_data_provider_test.dart`):
 
 ```dart
 import 'package:flutter/material.dart';
@@ -616,11 +616,11 @@ void main() {
 
 NOTE — if `AppButton.primary` is not `FilledButton`-based, open `lib/ui/dialogs/app_dialog.dart` (or wherever `AppButton` lives, locate with Grep) and adapt the disabled-button assertion to the actual inner widget type. Keep the assertion "onPressed is null".
 
-- [ ] **Step 2: Run — fails** (no message editor, no validation, dropdown lacks reword wiring)
+- [x] **Step 2: Run — fails** (no message editor, no validation, dropdown lacks reword wiring)
 
 Run: `& "C:\Users\g.chirico\flutter\bin\flutter.bat" test test/ui/dialogs/interactive_rebase_dialog_test.dart`
 
-- [ ] **Step 3: Rewrite the dialog internals.** In `interactive_rebase_dialog.dart`:
+- [x] **Step 3: Rewrite the dialog internals.** In `interactive_rebase_dialog.dart`:
 
 3a. `_PlanRow` gains message state:
 
@@ -820,11 +820,11 @@ Also update the subtitle string to mention reword: `'Reorder, reword, squash, fi
 
 NOTE: `ReorderableListView` inside the dialog needs a bounded width — it is already inside `AppDialog(width: 600)`; if the reorderable list misbehaves under `shrinkWrap` during the widget test, wrap it in `SizedBox(height: 360)` instead of `ConstrainedBox(maxHeight:)`.
 
-- [ ] **Step 4: Run widget test + analyze — both clean**
+- [x] **Step 4: Run widget test + analyze — both clean**
 
 Run: `& "C:\Users\g.chirico\flutter\bin\flutter.bat" test test/ui/dialogs/interactive_rebase_dialog_test.dart` then `& "C:\Users\g.chirico\flutter\bin\flutter.bat" analyze`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add lib/ui/dialogs/interactive_rebase_dialog.dart test/ui/dialogs/interactive_rebase_dialog_test.dart
@@ -838,7 +838,7 @@ git commit -m "feat(phase5): rebase dialog - drag reorder, reword + squash messa
 **Files:**
 - Modify: `lib/ui/sidebar/branch_tree_view.dart:78-84` (menu entries) and the `switch (selected)` block
 
-- [ ] **Step 1: Add the menu item** right after the existing `rebase` item (inside the same `if (!isCurrent)` spread — convert the `...const [` to a non-const spread since nothing else changes):
+- [x] **Step 1: Add the menu item** right after the existing `rebase` item (inside the same `if (!isCurrent)` spread — convert the `...const [` to a non-const spread since nothing else changes):
 
 ```dart
         AppMenuItem(
@@ -848,7 +848,7 @@ git commit -m "feat(phase5): rebase dialog - drag reorder, reword + squash messa
         ),
 ```
 
-- [ ] **Step 2: Add the handler case** after `case 'rebase':` (import `package:gitopen/ui/dialogs/interactive_rebase_dialog.dart`):
+- [x] **Step 2: Add the handler case** after `case 'rebase':` (import `package:gitopen/ui/dialogs/interactive_rebase_dialog.dart`):
 
 ```dart
       case 'interactive_rebase':
@@ -867,12 +867,12 @@ git commit -m "feat(phase5): rebase dialog - drag reorder, reword + squash messa
 
 NOTE: check `Branch.tipSha`'s nullability in `lib/domain/refs/branch.dart` first; if nullable, guard with `final tip = branch.tipSha; if (tip == null) return;` and use `tip`.
 
-- [ ] **Step 3: analyze clean; run the sidebar widget tests**
+- [x] **Step 3: analyze clean; run the sidebar widget tests**
 
 Run: `& "C:\Users\g.chirico\flutter\bin\flutter.bat" analyze` and `& "C:\Users\g.chirico\flutter\bin\flutter.bat" test test/ui/sidebar`
 Expected: clean / PASS (the menu is additive).
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```powershell
 git add lib/ui/sidebar/branch_tree_view.dart
@@ -883,9 +883,9 @@ git commit -m "feat(phase5): interactive rebase entry from the branch context me
 
 ### Task 5: Verification and PR
 
-- [ ] **Step 1: Bump version** in `pubspec.yaml`: `0.1.17+18` → `0.1.18+19` (CI version-check needs a new unreleased version — `lib/` changed).
-- [ ] **Step 2: Format touched files only** (`dart.bat format <each touched lib/test file>`) — NEVER blanket-format.
-- [ ] **Step 3: Full verification**
+- [x] **Step 1: Bump version** in `pubspec.yaml`: `0.1.17+18` → `0.1.18+19` (CI version-check needs a new unreleased version — `lib/` changed).
+- [x] **Step 2: Format touched files only** (`dart.bat format <each touched lib/test file>`) — NEVER blanket-format.
+- [x] **Step 3: Full verification**
 
 ```powershell
 & "C:\Users\g.chirico\flutter\bin\flutter.bat" test -j 2
@@ -895,7 +895,7 @@ git diff --check
 
 Expected: suite green (605+ tests), no issues, clean.
 
-- [ ] **Step 4: Commit, push, PR, merge on green** (gh account: `gh auth switch --hostname github.com --user zN3utr4l`)
+- [x] **Step 4: Commit, push, PR, merge on green** (gh account: `gh auth switch --hostname github.com --user zN3utr4l`)
 
 ```powershell
 git add pubspec.yaml docs/superpowers/plans/2026-06-11-phase5-s1-interactive-rebase.md
