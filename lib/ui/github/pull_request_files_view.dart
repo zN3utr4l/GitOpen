@@ -11,12 +11,15 @@ class PullRequestFilesView extends ConsumerStatefulWidget {
     required this.slug,
     required this.token,
     required this.number,
+    required this.onLineCommentRequested,
     super.key,
   });
 
   final RepoSlug slug;
   final String token;
   final int number;
+  final void Function(String path, int line, String side)
+  onLineCommentRequested;
 
   @override
   ConsumerState<PullRequestFilesView> createState() =>
@@ -54,19 +57,34 @@ class _PullRequestFilesViewState extends ConsumerState<PullRequestFilesView> {
           (f) => f.filename == _selectedPath,
           orElse: () => files.first,
         );
-        return Row(
-          children: [
-            SizedBox(
-              width: 240,
-              child: _FilesList(
-                files: files,
-                selected: selected.filename,
-                onSelect: (path) => setState(() => _selectedPath = path),
-              ),
-            ),
-            Container(width: 1, color: palette.border),
-            Expanded(child: _PatchView(file: selected)),
-          ],
+        final fileList = _FilesList(
+          files: files,
+          selected: selected.filename,
+          onSelect: (path) => setState(() => _selectedPath = path),
+        );
+        final patch = _PatchView(
+          file: selected,
+          onLineCommentRequested: widget.onLineCommentRequested,
+        );
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth < 420) {
+              return Column(
+                children: [
+                  SizedBox(height: 90, child: fileList),
+                  Container(height: 1, color: palette.border),
+                  Expanded(child: patch),
+                ],
+              );
+            }
+            return Row(
+              children: [
+                SizedBox(width: 240, child: fileList),
+                Container(width: 1, color: palette.border),
+                Expanded(child: patch),
+              ],
+            );
+          },
         );
       },
     );
@@ -129,24 +147,59 @@ class _FilesList extends StatelessWidget {
 }
 
 class _PatchView extends StatelessWidget {
-  const _PatchView({required this.file});
+  const _PatchView({
+    required this.file,
+    required this.onLineCommentRequested,
+  });
 
   final PullRequestFile file;
+  final void Function(String path, int line, String side)
+  onLineCommentRequested;
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final lines = parseGitHubPatch(file.patch);
+    GitHubPatchLine? lineTwo;
+    for (final line in lines) {
+      if (line.commentLine == 2 && line.isCommentable) {
+        lineTwo = line;
+        break;
+      }
+    }
+    final lineTwoCommentLine = lineTwo?.commentLine;
+    final lineTwoSide = lineTwo?.side;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Container(
           color: palette.bg2,
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-          child: Text(
-            'Patch: ${file.filename}',
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: palette.fg1, fontSize: 12),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Patch: ${file.filename}',
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: palette.fg1, fontSize: 12),
+                ),
+              ),
+              if (lineTwoCommentLine != null && lineTwoSide != null)
+                IconButton(
+                  tooltip: 'Comment on line 2',
+                  icon: const Icon(Icons.add_comment_outlined, size: 14),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints.tightFor(
+                    width: 28,
+                    height: 24,
+                  ),
+                  onPressed: () => onLineCommentRequested(
+                    file.filename,
+                    lineTwoCommentLine,
+                    lineTwoSide,
+                  ),
+                ),
+            ],
           ),
         ),
         Expanded(
@@ -157,9 +210,15 @@ class _PatchView extends StatelessWidget {
                     style: TextStyle(color: palette.fg3, fontSize: 12.5),
                   ),
                 )
-              : ListView.builder(
-                  itemCount: lines.length,
-                  itemBuilder: (_, index) => _PatchLineRow(line: lines[index]),
+              : ListView(
+                  children: [
+                    for (final line in lines)
+                      _PatchLineRow(
+                        file: file,
+                        line: line,
+                        onLineCommentRequested: onLineCommentRequested,
+                      ),
+                  ],
                 ),
         ),
       ],
@@ -168,9 +227,16 @@ class _PatchView extends StatelessWidget {
 }
 
 class _PatchLineRow extends StatelessWidget {
-  const _PatchLineRow({required this.line});
+  const _PatchLineRow({
+    required this.file,
+    required this.line,
+    required this.onLineCommentRequested,
+  });
 
+  final PullRequestFile file;
   final GitHubPatchLine line;
+  final void Function(String path, int line, String side)
+  onLineCommentRequested;
 
   @override
   Widget build(BuildContext context) {
@@ -222,6 +288,21 @@ class _PatchLineRow extends StatelessWidget {
               ),
             ),
           ),
+          if (line.isCommentable && line.commentLine != null)
+            IconButton(
+              tooltip: 'Comment on line ${line.commentLine}',
+              icon: const Icon(Icons.add_comment_outlined, size: 14),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints.tightFor(
+                width: 28,
+                height: 24,
+              ),
+              onPressed: () => onLineCommentRequested(
+                file.filename,
+                line.commentLine!,
+                line.side,
+              ),
+            ),
         ],
       ),
     );

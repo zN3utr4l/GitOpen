@@ -7,6 +7,7 @@ import 'package:gitopen/ui/github/github_api_state.dart';
 import 'package:gitopen/ui/github/github_providers.dart';
 import 'package:gitopen/ui/github/pull_request_files_view.dart';
 import 'package:gitopen/ui/github/pull_request_forms.dart';
+import 'package:gitopen/ui/github/pull_request_review_drawer.dart';
 import 'package:gitopen/ui/theme/app_palette.dart';
 
 class PullRequestDetailView extends ConsumerStatefulWidget {
@@ -30,6 +31,7 @@ class PullRequestDetailView extends ConsumerStatefulWidget {
 
 class _PullRequestDetailViewState extends ConsumerState<PullRequestDetailView> {
   String? _error;
+  final List<QueuedReviewComment> _queuedComments = [];
 
   @override
   Widget build(BuildContext context) {
@@ -64,10 +66,36 @@ class _PullRequestDetailViewState extends ConsumerState<PullRequestDetailView> {
             onMerge: () => _merge(detail),
           ),
           Expanded(
-            child: PullRequestFilesView(
-              slug: widget.slug,
-              token: widget.token,
-              number: widget.number,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final files = PullRequestFilesView(
+                  slug: widget.slug,
+                  token: widget.token,
+                  number: widget.number,
+                  onLineCommentRequested: _queueLineComment,
+                );
+                final drawer = PullRequestReviewDrawer(
+                  slug: widget.slug,
+                  token: widget.token,
+                  number: widget.number,
+                  queuedComments: _queuedComments,
+                  onClearQueuedComments: () => setState(_queuedComments.clear),
+                );
+                if (constraints.maxWidth < 420) {
+                  return Column(
+                    children: [
+                      Expanded(child: files),
+                      SizedBox(height: 160, child: drawer),
+                    ],
+                  );
+                }
+                return Row(
+                  children: [
+                    Expanded(child: files),
+                    drawer,
+                  ],
+                );
+              },
             ),
           ),
         ],
@@ -155,6 +183,17 @@ class _PullRequestDetailViewState extends ConsumerState<PullRequestDetailView> {
       if (!mounted) return;
       setState(() => _error = '$e');
     }
+  }
+
+  Future<void> _queueLineComment(String path, int line, String side) async {
+    final comment = await showLineCommentDialog(
+      context,
+      path: path,
+      line: line,
+      side: side,
+    );
+    if (comment == null || !mounted) return;
+    setState(() => _queuedComments.add(comment));
   }
 }
 
