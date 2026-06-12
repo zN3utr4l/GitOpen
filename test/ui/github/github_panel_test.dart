@@ -92,7 +92,16 @@ final class _FakeApi implements GitHubApi {
     RepoSlug slug,
     int number, {
     required String token,
-  }) async => const [];
+  }) async => const [
+    PullRequestFile(
+      filename: 'lib/widget.dart',
+      status: 'modified',
+      additions: 2,
+      deletions: 1,
+      changes: 3,
+      patch: '@@ -1 +1,2 @@\n-old\n+new\n+line',
+    ),
+  ];
 
   @override
   Future<List<PullRequestReview>> listPullRequestReviews(
@@ -267,6 +276,18 @@ void main() {
     expect(find.text('CI GitOpen'), findsOneWidget);
     expect(find.text('main'), findsOneWidget);
     expect(find.textContaining('3m 30s'), findsOneWidget);
+  });
+
+  testWidgets('selecting a PR shows detail and changed files', (tester) async {
+    await _pump(tester, repo: repo, api: _FakeApi(), profile: profile);
+
+    await tester.tap(find.text('Improve the widget'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Detailed body'), findsOneWidget);
+    expect(find.text('main <- feat/widget'), findsOneWidget);
+    expect(find.text('lib/widget.dart'), findsOneWidget);
+    expect(find.textContaining('+new'), findsOneWidget);
   });
 
   testWidgets('a network error renders inline with a Retry button', (
