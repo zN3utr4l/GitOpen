@@ -23,6 +23,7 @@ import 'package:gitopen/ui/common/vertical_splitter.dart';
 import 'package:gitopen/ui/conflicts/conflict_resolution_panel.dart';
 import 'package:gitopen/ui/git/git_actions_controller.dart';
 import 'package:gitopen/ui/github/github_panel.dart';
+import 'package:gitopen/ui/lfs/lfs_panel.dart';
 import 'package:gitopen/ui/operations/toast_overlay.dart';
 import 'package:gitopen/ui/settings/settings_page.dart';
 import 'package:gitopen/ui/shell/repo_selector.dart';
@@ -328,6 +329,8 @@ class _RepoBody extends ConsumerWidget {
                 ? WorkingCopyPanel(repo: repo)
                 : view == MainView.github
                 ? GitHubPanel(repo: repo)
+                : view == MainView.lfs
+                ? LfsPanel(repo: repo)
                 : VerticalSplitter(
                     top: CommitGraphPanel(repo: repo),
                     bottom: BottomPanel(repo: repo),
