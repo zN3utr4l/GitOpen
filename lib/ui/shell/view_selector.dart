@@ -48,6 +48,14 @@ class ViewSelector extends ConsumerWidget {
                   ref.read(mainViewProvider.notifier).state = MainView.github,
             ),
           ],
+          const SizedBox(width: 4),
+          _SegmentButton(
+            label: 'LFS',
+            icon: Icons.storage_outlined,
+            selected: current == MainView.lfs,
+            onTap: () =>
+                ref.read(mainViewProvider.notifier).state = MainView.lfs,
+          ),
         ],
       ),
     );
