@@ -19,6 +19,7 @@ import 'package:gitopen/ui/auto_refresh/repo_auto_refresh_scope.dart';
 import 'package:gitopen/ui/bottom_panel/bottom_panel.dart';
 import 'package:gitopen/ui/commit_graph/commit_graph_panel.dart';
 import 'package:gitopen/ui/commit_graph/detached_head_banner.dart';
+import 'package:gitopen/ui/common/app_scroll_configuration.dart';
 import 'package:gitopen/ui/common/vertical_splitter.dart';
 import 'package:gitopen/ui/conflicts/conflict_resolution_panel.dart';
 import 'package:gitopen/ui/git/git_actions_controller.dart';
@@ -30,6 +31,7 @@ import 'package:gitopen/ui/shell/repo_selector.dart';
 import 'package:gitopen/ui/shell/view_selector.dart';
 import 'package:gitopen/ui/sidebar/sidebar.dart';
 import 'package:gitopen/ui/status_bar/status_bar.dart';
+import 'package:gitopen/ui/theme/app_design_tokens.dart';
 import 'package:gitopen/ui/theme/app_palette.dart';
 import 'package:gitopen/ui/toolbar/git_toolbar.dart';
 import 'package:gitopen/ui/welcome/welcome_screen.dart';
@@ -155,6 +157,10 @@ class GitOpenApp extends ConsumerWidget {
     final palette = theme == AppTheme.dark
         ? AppPalette.dark()
         : AppPalette.light();
+    const spacing = AppSpacing.desktop();
+    const radii = AppRadii.desktop();
+    const typography = AppTypography.desktop();
+    const motion = AppMotion.standard();
     return MaterialApp(
       title: 'GitOpen',
       debugShowCheckedModeBanner: false,
@@ -162,8 +168,35 @@ class GitOpenApp extends ConsumerWidget {
         useMaterial3: true,
         brightness: theme == AppTheme.dark ? Brightness.dark : Brightness.light,
         scaffoldBackgroundColor: palette.bg1,
-        extensions: [palette],
+        splashFactory: InkSparkle.splashFactory,
+        hoverColor: palette.bg3,
+        focusColor: palette.accentRemote.withValues(alpha: 0.22),
+        tooltipTheme: TooltipThemeData(
+          waitDuration: motion.slow,
+          showDuration: const Duration(seconds: 4),
+          decoration: BoxDecoration(
+            color: palette.bg5,
+            borderRadius: radii.controlRadius,
+            border: Border.all(color: palette.borderStrong),
+          ),
+          textStyle: typography.caption.copyWith(color: palette.fg0),
+        ),
+        scrollbarTheme: ScrollbarThemeData(
+          thumbColor: WidgetStateProperty.resolveWith((states) {
+            return states.contains(WidgetState.hovered)
+                ? palette.fg2
+                : palette.fg3.withValues(alpha: 0.65);
+          }),
+          trackColor: WidgetStateProperty.all(palette.bg2),
+          radius: Radius.circular(radii.pill),
+          thickness: WidgetStateProperty.resolveWith((states) {
+            return states.contains(WidgetState.hovered) ? 8 : 6;
+          }),
+        ),
+        extensions: [palette, spacing, radii, typography, motion],
       ),
+      builder: (context, child) =>
+          AppScrollConfiguration(child: child ?? const SizedBox.shrink()),
       home: const Shell(),
     );
   }
@@ -323,18 +356,26 @@ class _RepoBody extends ConsumerWidget {
           ViewSelector(repo: repo),
           DetachedHeadBanner(repo: repo),
           Expanded(
-            child: hasConflict
-                ? ConflictResolutionPanel(repo: repo)
-                : view == MainView.changes
-                ? WorkingCopyPanel(repo: repo)
-                : view == MainView.github
-                ? GitHubPanel(repo: repo)
-                : view == MainView.lfs
-                ? LfsPanel(repo: repo)
-                : VerticalSplitter(
-                    top: CommitGraphPanel(repo: repo),
-                    bottom: BottomPanel(repo: repo),
-                  ),
+            child: AnimatedSwitcher(
+              duration: AppMotion.of(context).normal,
+              switchInCurve: AppMotion.of(context).curve,
+              switchOutCurve: Curves.easeInCubic,
+              child: KeyedSubtree(
+                key: ValueKey(hasConflict ? 'conflict' : view.name),
+                child: hasConflict
+                    ? ConflictResolutionPanel(repo: repo)
+                    : view == MainView.changes
+                    ? WorkingCopyPanel(repo: repo)
+                    : view == MainView.github
+                    ? GitHubPanel(repo: repo)
+                    : view == MainView.lfs
+                    ? LfsPanel(repo: repo)
+                    : VerticalSplitter(
+                        top: CommitGraphPanel(repo: repo),
+                        bottom: BottomPanel(repo: repo),
+                      ),
+              ),
+            ),
           ),
           const StatusBar(),
         ],

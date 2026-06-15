@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:gitopen/ui/theme/app_design_tokens.dart';
 import 'package:gitopen/ui/theme/app_palette.dart';
 
 /// Plain toolbar action button (icon + label).
@@ -22,38 +23,38 @@ class ToolbarButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
     final tip = tooltip;
     if (tip != null) {
       return Tooltip(
         message: tip,
         waitDuration: const Duration(milliseconds: 500),
-        child: _body(palette),
+        child: _body(context),
       );
     }
-    return _body(palette);
+    return _body(context);
   }
 
-  Widget _body(AppPalette palette) {
+  Widget _body(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final spacing = AppSpacing.of(context);
+    final radii = AppRadii.of(context);
+    final typography = AppTypography.of(context);
     return Opacity(
       opacity: enabled ? 1.0 : 0.4,
       child: InkWell(
         onTap: enabled ? onTap : null,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: radii.controlRadius,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          padding: EdgeInsets.symmetric(
+            horizontal: spacing.md - 2,
+            vertical: spacing.xs,
+          ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(icon, size: 14, color: palette.fg1),
               const SizedBox(width: 5),
-              Text(
-                label,
-                style: TextStyle(
-                  color: palette.fg0,
-                  fontSize: 12,
-                ),
-              ),
+              Text(label, style: typography.body.copyWith(color: palette.fg0)),
             ],
           ),
         ),
@@ -80,25 +81,25 @@ class ToolbarDropdownButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final spacing = AppSpacing.of(context);
+    final radii = AppRadii.of(context);
+    final typography = AppTypography.of(context);
     return Opacity(
       opacity: enabled ? 1.0 : 0.4,
       child: InkWell(
         onTap: enabled ? onTap : null,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: radii.controlRadius,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          padding: EdgeInsets.symmetric(
+            horizontal: spacing.md - 2,
+            vertical: spacing.xs,
+          ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(icon, size: 14, color: palette.fg1),
               const SizedBox(width: 5),
-              Text(
-                label,
-                style: TextStyle(
-                  color: palette.fg0,
-                  fontSize: 12,
-                ),
-              ),
+              Text(label, style: typography.body.copyWith(color: palette.fg0)),
               const SizedBox(width: 3),
               Icon(Icons.expand_more, size: 12, color: palette.fg2),
             ],

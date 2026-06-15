@@ -6,7 +6,9 @@ import 'package:gitopen/domain/commits/commit_sha.dart';
 import 'package:gitopen/domain/files/file_tree_entry.dart';
 import 'package:gitopen/domain/repositories/repo_location.dart';
 import 'package:gitopen/ui/bottom_panel/file_history_dialog.dart';
+import 'package:gitopen/ui/common/app_icon_button.dart';
 import 'package:gitopen/ui/common/file_list_mode_toggle.dart';
+import 'package:gitopen/ui/theme/app_design_tokens.dart';
 import 'package:gitopen/ui/theme/app_palette.dart';
 
 final AutoDisposeFutureProviderFamily<
@@ -39,6 +41,7 @@ class _FileTreeViewWidgetState extends ConsumerState<FileTreeViewWidget> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final spacing = AppSpacing.of(context);
     final asTree = ref.watch(
       appSettingsProvider.select((s) => s.fileListsAsTree),
     );
@@ -74,10 +77,7 @@ class _FileTreeViewWidgetState extends ConsumerState<FileTreeViewWidget> {
               _FileRow(repo: widget.repo, entry: e, label: e.fullPath),
           ]);
         }
-        return ListView(
-          padding: const EdgeInsets.all(12),
-          children: children,
-        );
+        return ListView(padding: spacing.panel, children: children);
       },
     );
   }
@@ -134,6 +134,7 @@ class _FolderRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final spacing = AppSpacing.of(context);
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -150,9 +151,9 @@ class _FolderRow extends StatelessWidget {
               size: 14,
               color: palette.fg3,
             ),
-            const SizedBox(width: 4),
+            SizedBox(width: spacing.xxs),
             Icon(Icons.folder_outlined, size: 15, color: palette.accentTag),
-            const SizedBox(width: 8),
+            SizedBox(width: spacing.sm),
             Expanded(
               child: Text(
                 name,
@@ -222,6 +223,7 @@ class _FileRowState extends State<_FileRow> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final spacing = AppSpacing.of(context);
     final e = widget.entry;
     final icon = e.kind == FileTreeKind.submodule
         ? Icons.developer_board_outlined
@@ -239,7 +241,7 @@ class _FileRowState extends State<_FileRow> {
       child: Row(
         children: [
           Icon(icon, size: 15, color: palette.fg2),
-          const SizedBox(width: 8),
+          SizedBox(width: spacing.sm),
           Expanded(
             child: Text(
               widget.label,
@@ -282,17 +284,10 @@ class _HistoryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    return Tooltip(
-      message: 'File history',
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(4),
-        child: Padding(
-          padding: const EdgeInsets.all(2),
-          child: Icon(Icons.history, size: 15, color: palette.fg2),
-        ),
-      ),
+    return AppIconButton(
+      icon: Icons.history,
+      tooltip: 'File history',
+      onPressed: onPressed,
     );
   }
 }

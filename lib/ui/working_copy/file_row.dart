@@ -8,6 +8,7 @@ import 'package:gitopen/domain/diff/diff_line.dart';
 import 'package:gitopen/domain/repositories/repo_location.dart';
 import 'package:gitopen/domain/status/working_file_entry.dart';
 import 'package:gitopen/ui/common/app_context_menu.dart';
+import 'package:gitopen/ui/common/app_icon_button.dart';
 import 'package:gitopen/ui/dialogs/confirm_dialog.dart';
 import 'package:gitopen/ui/git/git_actions_controller.dart';
 import 'package:gitopen/ui/theme/app_palette.dart';
@@ -483,24 +484,13 @@ class DiscardIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
     return Padding(
       padding: const EdgeInsets.only(left: 4),
-      child: Tooltip(
-        message: 'Discard changes',
-        waitDuration: const Duration(milliseconds: 400),
-        child: InkWell(
-          onTap: onPressed,
-          borderRadius: BorderRadius.circular(3),
-          child: Padding(
-            padding: const EdgeInsets.all(2),
-            child: Icon(
-              Icons.delete_outline,
-              size: 14,
-              color: isSelected ? Colors.white : palette.accentErr,
-            ),
-          ),
-        ),
+      child: AppIconButton(
+        icon: Icons.delete_outline,
+        tooltip: 'Discard changes',
+        danger: !isSelected,
+        onPressed: onPressed,
       ),
     );
   }
