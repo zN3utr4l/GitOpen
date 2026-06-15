@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:gitopen/application/commit_graph/commit_node.dart';
+import 'package:gitopen/application/commits/co_authors.dart';
 import 'package:gitopen/ui/commit_graph/lane_painter.dart';
 import 'package:gitopen/ui/commit_graph/ref_decoration.dart';
 import 'package:gitopen/ui/commit_graph/ref_pill.dart';
@@ -50,6 +51,10 @@ class CommitRow extends StatelessWidget {
     final refLabel = refs.isEmpty
         ? ''
         : ', refs ${refs.map((r) => r.name).join(', ')}';
+    final authorEmail = node.commit.author.email.toLowerCase();
+    final coAuthors = parseCoAuthors(
+      node.commit.message,
+    ).where((c) => c.email.toLowerCase() != authorEmail).toList();
 
     return AppAnimatedRow(
       selected: isSelected,
@@ -121,11 +126,22 @@ class CommitRow extends StatelessWidget {
             width: 180,
             child: Row(
               children: [
-                AuthorAvatar(
-                  name: node.commit.author.name,
-                  email: node.commit.author.email,
-                  size: 16,
-                ),
+                if (coAuthors.isEmpty)
+                  AuthorAvatar(
+                    name: node.commit.author.name,
+                    email: node.commit.author.email,
+                    size: 16,
+                  )
+                else
+                  _AvatarCluster(
+                    people: [
+                      (
+                        name: node.commit.author.name,
+                        email: node.commit.author.email,
+                      ),
+                      ...coAuthors,
+                    ],
+                  ),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
@@ -151,6 +167,88 @@ class CommitRow extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Overlapping avatar stack for a co-authored commit: the author first, then
+/// each co-author, capped at [_maxAvatars] with a `+N` disc for the rest.
+class _AvatarCluster extends StatelessWidget {
+  const _AvatarCluster({required this.people});
+
+  /// Author first, then co-authors.
+  final List<CoAuthor> people;
+
+  static const double _size = 16;
+  static const double _ring = 1.5;
+  static const double _step = 10;
+  static const int _maxAvatars = 3;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final shown = people.length > _maxAvatars
+        ? people.take(_maxAvatars).toList()
+        : people;
+    final overflow = people.length - shown.length;
+    final slots = shown.length + (overflow > 0 ? 1 : 0);
+    final width = _size + _ring * 2 + (slots - 1) * _step;
+
+    final layers = <Widget>[
+      for (var i = 0; i < shown.length; i++)
+        Positioned(
+          left: i * _step,
+          child: _ringed(
+            palette,
+            AuthorAvatar(
+              name: shown[i].name,
+              email: shown[i].email,
+              size: _size,
+            ),
+          ),
+        ),
+      if (overflow > 0)
+        Positioned(
+          left: shown.length * _step,
+          child: _ringed(palette, _overflowDisc(palette, overflow)),
+        ),
+    ];
+
+    return Tooltip(
+      message: 'Co-authored — ${people.map((p) => p.name).join(', ')}',
+      child: SizedBox(
+        width: width,
+        height: _size + _ring * 2,
+        child: Stack(clipBehavior: Clip.none, children: layers),
+      ),
+    );
+  }
+
+  Widget _ringed(AppPalette palette, Widget child) {
+    return Container(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: palette.bg1, width: _ring),
+      ),
+      child: child,
+    );
+  }
+
+  Widget _overflowDisc(AppPalette palette, int n) {
+    return Container(
+      width: _size,
+      height: _size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(color: palette.bg4, shape: BoxShape.circle),
+      child: Text(
+        '+$n',
+        style: TextStyle(
+          color: palette.fg1,
+          fontSize: _size * 0.38,
+          fontWeight: FontWeight.w700,
+          height: 1,
+        ),
       ),
     );
   }
