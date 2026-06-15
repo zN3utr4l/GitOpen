@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gitopen/application/providers.dart';
-import 'package:gitopen/ui/theme/app_palette.dart';
+import 'package:gitopen/ui/common/app_icon_button.dart';
 
 /// Flat/tree toggle for file lists, backed by the persisted
 /// `fileListsAsTree` setting (shared by the working-copy list and the
@@ -11,28 +11,17 @@ class FileListModeToggle extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final palette = AppPalette.of(context);
     final asTree = ref.watch(
       appSettingsProvider.select((s) => s.fileListsAsTree),
     );
-    return Tooltip(
-      message: asTree
+    return AppIconButton(
+      icon: Icons.account_tree_outlined,
+      tooltip: asTree
           ? 'Tree view - click for a flat list'
           : 'Flat list - click for a tree view',
-      waitDuration: const Duration(milliseconds: 500),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(3),
-        onTap: () =>
-            ref.read(appSettingsProvider.notifier).setFileListsAsTree(!asTree),
-        child: Padding(
-          padding: const EdgeInsets.all(3),
-          child: Icon(
-            Icons.account_tree_outlined,
-            size: 14,
-            color: asTree ? palette.accentCurrent : palette.fg3,
-          ),
-        ),
-      ),
+      selected: asTree,
+      onPressed: () =>
+          ref.read(appSettingsProvider.notifier).setFileListsAsTree(!asTree),
     );
   }
 }

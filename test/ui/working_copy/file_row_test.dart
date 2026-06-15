@@ -83,4 +83,23 @@ void main() {
     expect(write.unstaged, ['lib/app.dart']);
     expect(write.staged, isEmpty);
   });
+
+  testWidgets('discard action keeps its tooltip and button semantics', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(extensions: [AppPalette.dark()]),
+        home: Scaffold(
+          body: DiscardIconButton(isSelected: false, onPressed: () {}),
+        ),
+      ),
+    );
+
+    expect(find.byTooltip('Discard changes'), findsOneWidget);
+    final semantics = tester.getSemantics(
+      find.bySemanticsLabel('Discard changes'),
+    );
+    expect(semantics.flagsCollection.isButton, isTrue);
+  });
 }

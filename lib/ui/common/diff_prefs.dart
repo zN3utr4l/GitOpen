@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:gitopen/ui/theme/app_palette.dart';
+import 'package:gitopen/ui/common/app_icon_button.dart';
 
 /// Whether diff views highlight the changed region inside paired
 /// removed/added lines (intraline "word diff"). Session-scoped.
@@ -9,8 +9,9 @@ final wordDiffEnabledProvider = StateProvider<bool>((_) => false);
 /// How diff hunks are laid out. Session-scoped.
 enum DiffViewMode { unified, sideBySide }
 
-final diffViewModeProvider =
-    StateProvider<DiffViewMode>((_) => DiffViewMode.unified);
+final diffViewModeProvider = StateProvider<DiffViewMode>(
+  (_) => DiffViewMode.unified,
+);
 
 /// Whether the commit diff view passes `-w` to git. Deliberately not applied
 /// to the working-copy preview because its hunks feed patch operations.
@@ -22,26 +23,15 @@ class WordDiffToggle extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final palette = AppPalette.of(context);
     final enabled = ref.watch(wordDiffEnabledProvider);
-    return Tooltip(
-      message: enabled
+    return AppIconButton(
+      icon: Icons.text_fields,
+      tooltip: enabled
           ? 'Word diff on — click to show plain lines'
           : 'Word diff off — click to highlight changed text within lines',
-      waitDuration: const Duration(milliseconds: 500),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(3),
-        onTap: () =>
-            ref.read(wordDiffEnabledProvider.notifier).state = !enabled,
-        child: Padding(
-          padding: const EdgeInsets.all(3),
-          child: Icon(
-            Icons.text_fields,
-            size: 14,
-            color: enabled ? palette.accentCurrent : palette.fg3,
-          ),
-        ),
-      ),
+      selected: enabled,
+      onPressed: () =>
+          ref.read(wordDiffEnabledProvider.notifier).state = !enabled,
     );
   }
 }
@@ -52,27 +42,17 @@ class SplitDiffToggle extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final palette = AppPalette.of(context);
     final mode = ref.watch(diffViewModeProvider);
     final split = mode == DiffViewMode.sideBySide;
-    return Tooltip(
-      message: split
+    return AppIconButton(
+      icon: Icons.vertical_split,
+      tooltip: split
           ? 'Side-by-side - click for unified'
           : 'Unified - click for side-by-side',
-      waitDuration: const Duration(milliseconds: 500),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(3),
-        onTap: () => ref.read(diffViewModeProvider.notifier).state =
-            split ? DiffViewMode.unified : DiffViewMode.sideBySide,
-        child: Padding(
-          padding: const EdgeInsets.all(3),
-          child: Icon(
-            Icons.vertical_split,
-            size: 14,
-            color: split ? palette.accentCurrent : palette.fg3,
-          ),
-        ),
-      ),
+      selected: split,
+      onPressed: () => ref.read(diffViewModeProvider.notifier).state = split
+          ? DiffViewMode.unified
+          : DiffViewMode.sideBySide,
     );
   }
 }
@@ -83,26 +63,15 @@ class IgnoreWhitespaceToggle extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final palette = AppPalette.of(context);
     final enabled = ref.watch(ignoreWhitespaceProvider);
-    return Tooltip(
-      message: enabled
+    return AppIconButton(
+      icon: Icons.space_bar,
+      tooltip: enabled
           ? 'Whitespace ignored (-w) - click to include'
           : 'Whitespace shown - click to ignore (-w)',
-      waitDuration: const Duration(milliseconds: 500),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(3),
-        onTap: () =>
-            ref.read(ignoreWhitespaceProvider.notifier).state = !enabled,
-        child: Padding(
-          padding: const EdgeInsets.all(3),
-          child: Icon(
-            Icons.space_bar,
-            size: 14,
-            color: enabled ? palette.accentCurrent : palette.fg3,
-          ),
-        ),
-      ),
+      selected: enabled,
+      onPressed: () =>
+          ref.read(ignoreWhitespaceProvider.notifier).state = !enabled,
     );
   }
 }

@@ -74,7 +74,7 @@ final class AppSpacing extends ThemeExtension<AppSpacing> {
   }
 
   static AppSpacing of(BuildContext context) =>
-      Theme.of(context).extension<AppSpacing>()!;
+      Theme.of(context).extension<AppSpacing>() ?? _defaultSpacing;
 }
 
 @immutable
@@ -138,7 +138,7 @@ final class AppRadii extends ThemeExtension<AppRadii> {
   }
 
   static AppRadii of(BuildContext context) =>
-      Theme.of(context).extension<AppRadii>()!;
+      Theme.of(context).extension<AppRadii>() ?? _defaultRadii;
 }
 
 @immutable
@@ -214,7 +214,7 @@ final class AppTypography extends ThemeExtension<AppTypography> {
   }
 
   static AppTypography of(BuildContext context) =>
-      Theme.of(context).extension<AppTypography>()!;
+      Theme.of(context).extension<AppTypography>() ?? _defaultTypography;
 }
 
 @immutable
@@ -266,8 +266,15 @@ final class AppMotion extends ThemeExtension<AppMotion> {
   }
 
   static AppMotion of(BuildContext context) =>
-      Theme.of(context).extension<AppMotion>()!;
+      Theme.of(context).extension<AppMotion>() ?? _defaultMotion;
 }
+
+/// Canonical desktop defaults, used by the `of(context)` accessors when a
+/// theme has not registered the extension (e.g. lightweight widget tests).
+const AppSpacing _defaultSpacing = AppSpacing.desktop();
+const AppRadii _defaultRadii = AppRadii.desktop();
+const AppTypography _defaultTypography = AppTypography.desktop();
+const AppMotion _defaultMotion = AppMotion.standard();
 
 double _lerpDouble(double a, double b, double t) => a + (b - a) * t;
 

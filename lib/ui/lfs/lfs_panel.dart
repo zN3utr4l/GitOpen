@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gitopen/application/git_lfs/git_lfs_models.dart';
 import 'package:gitopen/application/providers.dart';
 import 'package:gitopen/domain/repositories/repo_location.dart';
+import 'package:gitopen/ui/common/app_icon_button.dart';
 import 'package:gitopen/ui/lfs/lfs_actions_controller.dart';
 import 'package:gitopen/ui/theme/app_palette.dart';
 
@@ -224,11 +225,9 @@ class _TrackedPatternsSection extends ConsumerWidget {
                 ),
               ),
               const Spacer(),
-              IconButton(
+              AppIconButton(
+                icon: Icons.add,
                 tooltip: 'Add pattern',
-                iconSize: 14,
-                visualDensity: VisualDensity.compact,
-                icon: Icon(Icons.add, color: palette.fg2),
                 onPressed: () => _addPattern(context, ref),
               ),
             ],
@@ -337,11 +336,9 @@ class _PatternRow extends ConsumerWidget {
               ),
             ),
           ),
-          IconButton(
+          AppIconButton(
+            icon: Icons.close,
             tooltip: 'Untrack ${pattern.pattern}',
-            iconSize: 13,
-            visualDensity: VisualDensity.compact,
-            icon: Icon(Icons.close, color: palette.fg3),
             onPressed: () => ref
                 .read(lfsActionsControllerProvider)
                 .untrack(context, repo, pattern.pattern),

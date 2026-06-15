@@ -68,6 +68,7 @@ void main() {
     expect(find.text('*.bin'), findsOneWidget);
     expect(find.text('assets/big.bin'), findsOneWidget);
     expect(find.text('12 MB'), findsOneWidget);
+    expect(find.byTooltip('Add pattern'), findsOneWidget);
   });
 }
 
