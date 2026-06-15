@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:gitopen/ui/theme/app_design_tokens.dart';
 import 'package:gitopen/ui/theme/app_palette.dart';
 
 class GitHubTabsBar extends StatelessWidget {
@@ -53,12 +54,19 @@ class _Tab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final spacing = AppSpacing.of(context);
+    final motion = AppMotion.of(context);
     final isActive = active == value;
     return InkWell(
       onTap: () => onSelect(value),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: spacing.lg,
+          vertical: spacing.sm,
+        ),
+        child: AnimatedContainer(
+          duration: motion.fast,
+          curve: motion.curve,
           decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(

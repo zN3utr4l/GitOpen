@@ -19,6 +19,7 @@ import 'package:gitopen/ui/auto_refresh/repo_auto_refresh_scope.dart';
 import 'package:gitopen/ui/bottom_panel/bottom_panel.dart';
 import 'package:gitopen/ui/commit_graph/commit_graph_panel.dart';
 import 'package:gitopen/ui/commit_graph/detached_head_banner.dart';
+import 'package:gitopen/ui/common/app_scroll_configuration.dart';
 import 'package:gitopen/ui/common/vertical_splitter.dart';
 import 'package:gitopen/ui/conflicts/conflict_resolution_panel.dart';
 import 'package:gitopen/ui/git/git_actions_controller.dart';
@@ -194,6 +195,8 @@ class GitOpenApp extends ConsumerWidget {
         ),
         extensions: [palette, spacing, radii, typography, motion],
       ),
+      builder: (context, child) =>
+          AppScrollConfiguration(child: child ?? const SizedBox.shrink()),
       home: const Shell(),
     );
   }
@@ -353,18 +356,26 @@ class _RepoBody extends ConsumerWidget {
           ViewSelector(repo: repo),
           DetachedHeadBanner(repo: repo),
           Expanded(
-            child: hasConflict
-                ? ConflictResolutionPanel(repo: repo)
-                : view == MainView.changes
-                ? WorkingCopyPanel(repo: repo)
-                : view == MainView.github
-                ? GitHubPanel(repo: repo)
-                : view == MainView.lfs
-                ? LfsPanel(repo: repo)
-                : VerticalSplitter(
-                    top: CommitGraphPanel(repo: repo),
-                    bottom: BottomPanel(repo: repo),
-                  ),
+            child: AnimatedSwitcher(
+              duration: AppMotion.of(context).normal,
+              switchInCurve: AppMotion.of(context).curve,
+              switchOutCurve: Curves.easeInCubic,
+              child: KeyedSubtree(
+                key: ValueKey(hasConflict ? 'conflict' : view.name),
+                child: hasConflict
+                    ? ConflictResolutionPanel(repo: repo)
+                    : view == MainView.changes
+                    ? WorkingCopyPanel(repo: repo)
+                    : view == MainView.github
+                    ? GitHubPanel(repo: repo)
+                    : view == MainView.lfs
+                    ? LfsPanel(repo: repo)
+                    : VerticalSplitter(
+                        top: CommitGraphPanel(repo: repo),
+                        bottom: BottomPanel(repo: repo),
+                      ),
+              ),
+            ),
           ),
           const StatusBar(),
         ],

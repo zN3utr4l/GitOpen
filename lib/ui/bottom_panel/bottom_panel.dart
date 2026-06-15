@@ -7,6 +7,7 @@ import 'package:gitopen/ui/bottom_panel/commit_details_view.dart';
 import 'package:gitopen/ui/bottom_panel/diff_view.dart';
 import 'package:gitopen/ui/bottom_panel/file_tree_view.dart';
 import 'package:gitopen/ui/common/app_empty_state.dart';
+import 'package:gitopen/ui/theme/app_design_tokens.dart';
 import 'package:gitopen/ui/theme/app_palette.dart';
 
 class BottomPanel extends ConsumerStatefulWidget {
@@ -110,12 +111,19 @@ class _Tab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final spacing = AppSpacing.of(context);
+    final motion = AppMotion.of(context);
     final isActive = active == value;
     return InkWell(
       onTap: () => onSelect(value),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: spacing.lg,
+          vertical: spacing.sm,
+        ),
+        child: AnimatedContainer(
+          duration: motion.fast,
+          curve: motion.curve,
           decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(
