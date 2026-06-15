@@ -9,9 +9,10 @@ import 'package:gitopen/domain/commits/commit_sha.dart';
 import 'package:gitopen/domain/commits/commit_signature.dart';
 import 'package:gitopen/ui/commit_graph/commit_row.dart';
 import 'package:gitopen/ui/commit_graph/ref_decoration.dart';
+import 'package:gitopen/ui/common/author_avatar.dart';
 import 'package:gitopen/ui/theme/app_palette.dart';
 
-CommitNode _node({String summary = 'Fix crash'}) {
+CommitNode _node({String summary = 'Fix crash', String? message}) {
   final sig = CommitSignature('Alice', 'a@x.io', DateTime(2026, 6, 10, 12));
   return CommitNode(
     commit: CommitInfo(
@@ -20,7 +21,7 @@ CommitNode _node({String summary = 'Fix crash'}) {
       author: sig,
       committer: sig,
       summary: summary,
-      message: '$summary\n\nbody',
+      message: message ?? '$summary\n\nbody',
     ),
     lane: 0,
     color: 0,
@@ -153,5 +154,41 @@ void main() {
     addTearDown(gesture.removePointer);
     await tester.pumpAndSettle();
     expect(find.textContaining('Fix crash'), findsOneWidget);
+  });
+
+  testWidgets('co-authored commit shows an avatar cluster with a tooltip', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _host(
+        CommitRow(
+          node: _node(message: 'Fix crash\n\nCo-authored-by: Bob <bob@x.io>'),
+          maxLane: 0,
+          refs: const [],
+          isSelected: false,
+          onTap: () {},
+        ),
+      ),
+    );
+
+    // Author + one co-author = two avatars stacked.
+    expect(find.byType(AuthorAvatar), findsNWidgets(2));
+    expect(find.byTooltip('Co-authored — Alice, Bob'), findsOneWidget);
+  });
+
+  testWidgets('a normal commit shows a single author avatar', (tester) async {
+    await tester.pumpWidget(
+      _host(
+        CommitRow(
+          node: _node(),
+          maxLane: 0,
+          refs: const [],
+          isSelected: false,
+          onTap: () {},
+        ),
+      ),
+    );
+
+    expect(find.byType(AuthorAvatar), findsOneWidget);
   });
 }
