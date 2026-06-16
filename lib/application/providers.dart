@@ -16,6 +16,7 @@ import 'package:gitopen/application/github/github_api.dart';
 import 'package:gitopen/application/github/github_models.dart';
 import 'package:gitopen/application/github/github_slug.dart';
 import 'package:gitopen/application/launcher/folder_picker.dart';
+import 'package:gitopen/application/launcher/repo_folder_scanner.dart';
 import 'package:gitopen/application/launcher/repo_launcher.dart';
 import 'package:gitopen/application/operations/operations_notifier.dart';
 import 'package:gitopen/application/operations/running_operation.dart';
@@ -42,6 +43,7 @@ import 'package:gitopen/infrastructure/git/git_remote_url_reader.dart';
 import 'package:gitopen/infrastructure/git/io_git_dir_probe.dart';
 import 'package:gitopen/infrastructure/git_lfs/git_cli_lfs_operations.dart';
 import 'package:gitopen/infrastructure/github/github_rest_api.dart';
+import 'package:gitopen/infrastructure/launcher/io_repo_folder_scanner.dart';
 import 'package:gitopen/infrastructure/launcher/system_repo_launcher.dart';
 import 'package:gitopen/infrastructure/logging/app_logger.dart';
 import 'package:gitopen/infrastructure/logging/app_logger_port.dart';
@@ -107,6 +109,11 @@ final workspaceManagerProvider =
 
 final folderPickerProvider = Provider<FolderPicker>(
   (ref) => const SystemFolderPicker(),
+);
+
+/// Finds git repos directly inside a chosen folder (file-system backed).
+final repoFolderScannerProvider = Provider<RepoFolderScanner>(
+  (ref) => const IoRepoFolderScanner(),
 );
 
 /// Probes `.git` for in-progress-operation markers (file-system backed).
