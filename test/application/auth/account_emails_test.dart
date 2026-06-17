@@ -5,7 +5,10 @@ import 'package:gitopen/application/auth/auth_spec.dart';
 void main() {
   group('githubApiToken', () {
     test('returns the token for PAT and OAuth, null for the rest', () {
-      expect(githubApiToken(const AuthHttpsPat(username: 'a', token: 't')), 't');
+      expect(
+        githubApiToken(const AuthHttpsPat(username: 'a', token: 't')),
+        't',
+      );
       expect(githubApiToken(const AuthGitHubOauth('gho_x')), 'gho_x');
       expect(githubApiToken(const AuthSsh(privateKeyPath: '/k')), isNull);
       expect(

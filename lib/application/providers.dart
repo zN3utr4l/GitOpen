@@ -43,6 +43,7 @@ import 'package:gitopen/infrastructure/git/git_cli_write_operations.dart';
 import 'package:gitopen/infrastructure/git/git_identity_service.dart';
 import 'package:gitopen/infrastructure/git/git_process_runner.dart';
 import 'package:gitopen/infrastructure/git/git_remote_url_reader.dart';
+import 'package:gitopen/infrastructure/git/git_repo_identity_reader.dart';
 import 'package:gitopen/infrastructure/git/io_git_dir_probe.dart';
 import 'package:gitopen/infrastructure/git_lfs/git_cli_lfs_operations.dart';
 import 'package:gitopen/infrastructure/github/github_rest_api.dart';
@@ -213,11 +214,16 @@ final authProfileStoreProvider = Provider<AuthProfileStore>(
   (ref) => SecureAuthProfileStore(),
 );
 
+final repoIdentityReaderProvider = Provider<RepoIdentityReader>((ref) {
+  return GitRepoIdentityReader(identity: ref.watch(gitIdentityServiceProvider));
+});
+
 final authResolverProvider = Provider<AuthResolver>((ref) {
   final store = ref.watch(authProfileStoreProvider);
   return AuthResolver(
     store,
     remoteUrl: ref.watch(remoteUrlReaderProvider),
+    identity: ref.watch(repoIdentityReaderProvider),
     // Always reads the current binding map from settings — closure runs once
     // per resolve, so the provider does not need to rebuild on settings change.
     bindingLookup: (repoId) =>
