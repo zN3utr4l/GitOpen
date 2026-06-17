@@ -28,6 +28,7 @@ import 'package:gitopen/ui/lfs/lfs_panel.dart';
 import 'package:gitopen/ui/operations/toast_overlay.dart';
 import 'package:gitopen/ui/settings/settings_page.dart';
 import 'package:gitopen/ui/shell/repo_selector.dart';
+import 'package:gitopen/ui/shell/shell_body.dart';
 import 'package:gitopen/ui/shell/view_selector.dart';
 import 'package:gitopen/ui/sidebar/sidebar.dart';
 import 'package:gitopen/ui/status_bar/status_bar.dart';
@@ -299,13 +300,20 @@ class _ShellState extends ConsumerState<Shell> {
                                   child: Container(
                                     color: palette.bg1,
                                     alignment: Alignment.center,
-                                    child: workspaces.isEmpty
-                                        ? const WelcomeScreen()
-                                        : active == null
-                                        ? const WelcomeScreen()
-                                        : settingsOpen
-                                        ? const SettingsPage()
-                                        : _RepoBody(repo: active.location),
+                                    // Settings must win over the empty/welcome
+                                    // state, else a catalog with no repos makes
+                                    // the Settings button unreachable.
+                                    child: switch (shellBodyFor(
+                                      settingsOpen: settingsOpen,
+                                      hasActiveRepo: active != null,
+                                    )) {
+                                      ShellBody.settings =>
+                                        const SettingsPage(),
+                                      ShellBody.welcome =>
+                                        const WelcomeScreen(),
+                                      ShellBody.repo =>
+                                        _RepoBody(repo: active!.location),
+                                    },
                                   ),
                                 ),
                               ],
