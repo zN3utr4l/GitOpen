@@ -432,4 +432,47 @@ void main() {
       expect(all.map((p) => p.host), ['github.com']);
     });
   });
+
+  group('emails', () {
+    test('upsert persists and get round-trips the emails set', () async {
+      final created = await sut.upsert(
+        host: 'github.com',
+        username: 'alice',
+        spec: const AuthSystemDefault(),
+        emails: {'alice@personal.dev', 'alice@users.noreply.github.com'},
+      );
+      final fetched = await sut.get(created.id);
+      expect(fetched!.emails,
+          {'alice@personal.dev', 'alice@users.noreply.github.com'});
+    });
+
+    test('a profile blob without an emails key decodes to an empty set',
+        () async {
+      // Simulate a profile written before this feature existed: index entry
+      // plus a blob with no "emails" field.
+      await storage.write(_profileIndexKey, jsonEncode(['legacy-id']));
+      await storage.write(
+        '$_profilePrefix' 'legacy-id',
+        jsonEncode({
+          'host': 'github.com',
+          'username': 'alice',
+          'spec': {'kind': 'pat', 'username': 'alice', 'token': 'tok'},
+        }),
+      );
+      final fetched = await sut.get('legacy-id');
+      expect(fetched!.emails, isEmpty);
+    });
+
+    test('persisted blob carries the emails array', () async {
+      final created = await sut.upsert(
+        host: 'github.com',
+        username: 'alice',
+        spec: const AuthSystemDefault(),
+        emails: {'a@x.com'},
+      );
+      final blob = storage.snapshot['$_profilePrefix${created.id}']!;
+      final json = jsonDecode(blob) as Map<String, dynamic>;
+      expect((json['emails'] as List).cast<String>(), ['a@x.com']);
+    });
+  });
 }

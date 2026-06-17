@@ -37,6 +37,7 @@ class FakeAuthProfileStore implements AuthProfileStore {
     required String username,
     required AuthSpec spec,
     String? id,
+    Set<String> emails = const {},
   }) async {
     final pid = id ?? 'gen-${_byId.length}';
     final profile = AuthProfile(
@@ -44,6 +45,7 @@ class FakeAuthProfileStore implements AuthProfileStore {
       host: host,
       username: username,
       spec: spec,
+      emails: emails,
     );
     _byId[pid] = profile;
     return profile;
