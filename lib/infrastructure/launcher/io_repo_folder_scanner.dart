@@ -3,8 +3,8 @@ import 'dart:io';
 import 'package:gitopen/application/launcher/repo_folder_scanner.dart';
 import 'package:path/path.dart' as p;
 
-/// Filesystem-backed [RepoFolderScanner]. Walks [parentPath] recursively and
-/// reports every directory that is a git repository — one containing a `.git`
+/// Filesystem-backed [RepoFolderScanner]. Walks the chosen folder recursively
+/// and reports every directory that is a git repository — one with a `.git`
 /// entry (a directory for clones, a file for worktrees/submodules).
 ///
 /// Recursion rules keep the walk cheap and the results meaningful:
