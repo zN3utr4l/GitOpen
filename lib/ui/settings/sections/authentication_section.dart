@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gitopen/application/auth/account_emails.dart';
 import 'package:gitopen/application/auth/auth_profile.dart';
 import 'package:gitopen/application/auth/auth_spec.dart';
 import 'package:gitopen/application/providers.dart';
@@ -155,6 +156,8 @@ class _ProfileRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final emailSuffix =
+        profile.emails.isEmpty ? '' : ' · ${profile.emails.length} email(s)';
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12),
       decoration: isLast
@@ -191,12 +194,20 @@ class _ProfileRow extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${profile.host} · ${_kindLabel(profile.spec)}',
+                  '${profile.host} · ${_kindLabel(profile.spec)}$emailSuffix',
                   style: TextStyle(color: palette.fg2, fontSize: 11.5),
                 ),
               ],
             ),
           ),
+          AppButton.secondary(
+            label: 'Emails…',
+            onPressed: () async {
+              await _EmailsDialog.show(context, profile);
+              refreshKey.invalidate(_profilesProvider);
+            },
+          ),
+          const SizedBox(width: 6),
           AppButton.secondary(
             label: 'Test',
             onPressed: () async {
@@ -263,5 +274,138 @@ class _ProfileRow extends StatelessWidget {
       AuthGitHubOauth() => 'GitHub OAuth',
       AuthSystemDefault() => 'System default',
     };
+  }
+}
+
+/// Manage the emails associated with an account: list + remove, add by hand,
+/// or refresh from the GitHub API. Persists via the store on Save.
+class _EmailsDialog extends ConsumerStatefulWidget {
+  const _EmailsDialog({required this.profile});
+  final AuthProfile profile;
+
+  static Future<void> show(BuildContext context, AuthProfile profile) {
+    return showDialog<void>(
+      context: context,
+      builder: (_) => _EmailsDialog(profile: profile),
+    );
+  }
+
+  @override
+  ConsumerState<_EmailsDialog> createState() => _EmailsDialogState();
+}
+
+class _EmailsDialogState extends ConsumerState<_EmailsDialog> {
+  late final Set<String> _emails = {...widget.profile.emails};
+  final _addCtl = TextEditingController();
+  bool _busy = false;
+
+  @override
+  void dispose() {
+    _addCtl.dispose();
+    super.dispose();
+  }
+
+  void _add() {
+    final e = _addCtl.text.trim().toLowerCase();
+    if (e.isEmpty) return;
+    setState(() {
+      _emails.add(e);
+      _addCtl.clear();
+    });
+  }
+
+  Future<void> _refresh() async {
+    setState(() => _busy = true);
+    final fetched = await populatedEmails(
+      host: widget.profile.host,
+      spec: widget.profile.spec,
+      current: _emails,
+      fetch: (token) async =>
+          (await ref.read(gitHubUserServiceProvider).fetchAccount(token))
+              .emails,
+    );
+    if (!mounted) return;
+    setState(() {
+      _emails
+        ..clear()
+        ..addAll(fetched);
+      _busy = false;
+    });
+  }
+
+  Future<void> _save() async {
+    setState(() => _busy = true);
+    await ref.read(authProfileStoreProvider).upsert(
+          id: widget.profile.id,
+          host: widget.profile.host,
+          username: widget.profile.username,
+          spec: widget.profile.spec,
+          emails: _emails,
+        );
+    if (mounted) Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final canRefresh = githubApiToken(widget.profile.spec) != null &&
+        widget.profile.host == 'github.com';
+    return AppDialog(
+      title: 'Emails for ${widget.profile.username}',
+      subtitle: 'Used to auto-select this account for repos whose git '
+          'user.email matches.',
+      busy: _busy,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (_emails.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text('No emails yet.',
+                  style: TextStyle(color: palette.fg2, fontSize: 12)),
+            )
+          else
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final e in _emails)
+                  Chip(
+                    label: Text(e, style: const TextStyle(fontSize: 11.5)),
+                    onDeleted: () => setState(() => _emails.remove(e)),
+                  ),
+              ],
+            ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _addCtl,
+                  style: TextStyle(color: palette.fg0, fontSize: 13),
+                  decoration: appInputDecoration(context, label: 'Add email'),
+                  onSubmitted: (_) => _add(),
+                ),
+              ),
+              const SizedBox(width: 8),
+              AppButton.secondary(label: 'Add', onPressed: _add),
+            ],
+          ),
+        ],
+      ),
+      actions: [
+        if (canRefresh)
+          AppButton.secondary(
+            label: 'Refresh from GitHub',
+            onPressed: _busy ? null : _refresh,
+          ),
+        AppButton.secondary(
+          label: 'Cancel',
+          onPressed: _busy ? null : () => Navigator.pop(context),
+        ),
+        AppButton.primary(label: 'Save', onPressed: _busy ? null : _save),
+      ],
+    );
   }
 }
