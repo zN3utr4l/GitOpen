@@ -5,6 +5,13 @@ All notable changes to GitOpen are documented here. The format is based on
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Each release maps to a
 `v*` Git tag — the same tags the in-app updater checks.
 
+## [1.0.5] — 2026-06-17
+
+### Changed
+- Internal: the reflog dialog no longer rebuilds its `git reflog` future on
+  every widget rebuild (the future is created once), matching the codebase's
+  provider/Future conventions. No user-facing behaviour change.
+
 ## [1.0.4] — 2026-06-17
 
 ### Fixed
