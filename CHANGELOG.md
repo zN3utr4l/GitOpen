@@ -8,10 +8,15 @@ All notable changes to GitOpen are documented here. The format is based on
 ## [1.0.4] — 2026-06-17
 
 ### Fixed
-- The sidebar no longer flickers to a spinner (branches/refs briefly
-  disappearing) when an auto-refresh runs — on every fetch and whenever the
-  window regains focus. The panel now keeps the current refs visible while the
-  reload happens in the background, matching the commit graph's behaviour.
+- Panels no longer flicker to a spinner (content briefly disappearing) when an
+  auto-refresh runs — on every fetch and whenever the window regains focus.
+  Affected the sidebar, status-bar branch name, working-copy change list, file
+  diff preview, commit details/diff, the graph's uncommitted-changes row, and
+  the conflict panel: each now keeps its current content visible while the
+  reload happens in the background (`skipLoadingOnReload`), matching the commit
+  graph. Root cause: `AsyncValue.when()` re-shows its `loading` builder on every
+  dependency-triggered reload, and the auto-refresh invalidates the shared git
+  read layer those panels watch.
 
 ## [1.0.0] — 2026-06-16
 
