@@ -5,6 +5,17 @@ All notable changes to GitOpen are documented here. The format is based on
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Each release maps to a
 `v*` Git tag — the same tags the in-app updater checks.
 
+## [1.2.0] — 2026-06-17
+
+### Added
+- Accounts now record the emails GitHub knows for them, auto-populated on
+  sign-in and refreshable from Settings → Authentication (with manual
+  add/remove). When several accounts share a host, a repository's effective git
+  `user.email` — e.g. set per-folder via `.gitconfig` `includeIf` — automatically
+  selects the matching account for fetch/push, with no per-repo binding needed.
+  Resolution order: explicit per-repo choice → email match → single account per
+  host → prompt.
+
 ## [1.1.2] — 2026-06-17
 
 ### Changed
