@@ -73,6 +73,7 @@ class SecureAuthProfileStore implements AuthProfileStore {
     required String username,
     required AuthSpec spec,
     String? id,
+    Set<String> emails = const {},
   }) async {
     await _ensureMigrated();
     final effectiveId = id ?? _generateId();
@@ -81,6 +82,7 @@ class SecureAuthProfileStore implements AuthProfileStore {
       host: host,
       username: username,
       spec: spec,
+      emails: emails,
     );
     await _storage.write(_profileKey(effectiveId), _encode(profile));
     await _indexAdd(effectiveId);
@@ -194,6 +196,7 @@ class SecureAuthProfileStore implements AuthProfileStore {
       'host': p.host,
       'username': p.username,
       'spec': _encodeSpec(p.spec),
+      'emails': p.emails.toList(),
     });
   }
 
@@ -204,6 +207,8 @@ class SecureAuthProfileStore implements AuthProfileStore {
       host: m['host'] as String,
       username: m['username'] as String,
       spec: _decodeSpec(m['spec'] as Map<String, dynamic>),
+      emails:
+          (m['emails'] as List<dynamic>?)?.cast<String>().toSet() ?? const {},
     );
   }
 

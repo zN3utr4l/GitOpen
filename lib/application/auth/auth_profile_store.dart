@@ -24,6 +24,7 @@ abstract interface class AuthProfileStore {
     required String username,
     required AuthSpec spec,
     String? id,
+    Set<String> emails = const {},
   });
 
   /// Delete the profile with the given id.  No-op if absent.

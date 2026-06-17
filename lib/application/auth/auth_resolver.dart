@@ -11,6 +11,14 @@ abstract interface class RemoteUrlReader {
   Future<String?> remoteUrl(RepoLocation repo, String remote);
 }
 
+/// Reads the effective git `user.email` for a repo (local overrides global),
+/// or null when unset. Implemented over GitIdentityService in infrastructure;
+/// injected so the resolver itself never spawns processes.
+// ignore: one_member_abstracts
+abstract interface class RepoIdentityReader {
+  Future<String?> effectiveEmail(RepoLocation repo);
+}
+
 /// Resolves which credential a git operation should use for a given repo.
 ///
 /// Priority:
@@ -23,13 +31,16 @@ class AuthResolver {
     this._store, {
     required RemoteUrlReader remoteUrl,
     String? Function(String repoId)? bindingLookup,
+    RepoIdentityReader? identity,
     LoggerPort? log,
   })  : _remoteUrl = remoteUrl,
         _bindingLookup = bindingLookup ?? ((_) => null),
+        _identity = identity,
         _log = log;
   final AuthProfileStore _store;
   final RemoteUrlReader _remoteUrl;
   final String? Function(String repoId) _bindingLookup;
+  final RepoIdentityReader? _identity;
   final LoggerPort? _log;
 
   /// Returns the resolved profile (with its `AuthSpec`) for a repo, or null
@@ -50,15 +61,32 @@ class AuthResolver {
       if (bound != null) return bound;
     }
 
-    // 2. Implicit single-profile-per-host fallback.
+    // 2. Resolve the host; everything below is scoped to it.
     final host = await hostFromRepo(repo, remote);
     _log?.d('authResolver: host="$host" (${sw.elapsedMilliseconds}ms)');
     if (host == null) return null;
     final candidates = await _store.forHost(host);
     _log?.d('authResolver: store.forHost done in '
         '${sw.elapsedMilliseconds}ms (candidates=${candidates.length})');
+
+    // 3. Identity (email) match — host-scoped. The repo's effective git
+    // user.email (set per-folder via .gitconfig) selects the owning account.
+    final identity = _identity;
+    if (identity != null) {
+      final email = (await identity.effectiveEmail(repo))?.trim().toLowerCase();
+      _log?.d('authResolver: effectiveEmail="$email" '
+          '(${sw.elapsedMilliseconds}ms)');
+      if (email != null && email.isNotEmpty) {
+        final matches = candidates
+            .where((p) => p.emails.contains(email))
+            .toList(growable: false);
+        if (matches.length == 1) return matches.first;
+      }
+    }
+
+    // 4. Implicit single-profile-per-host fallback.
     if (candidates.length == 1) return candidates.first;
-    // Multiple profiles & no binding → ambiguous; let the caller prompt.
+    // 5. Multiple profiles & no match → ambiguous; let the caller prompt.
     return null;
   }
 

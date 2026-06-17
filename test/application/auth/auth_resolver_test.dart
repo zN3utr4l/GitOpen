@@ -37,6 +37,7 @@ class FakeAuthProfileStore implements AuthProfileStore {
     required String username,
     required AuthSpec spec,
     String? id,
+    Set<String> emails = const {},
   }) async {
     final pid = id ?? 'gen-${_byId.length}';
     final profile = AuthProfile(
@@ -44,6 +45,7 @@ class FakeAuthProfileStore implements AuthProfileStore {
       host: host,
       username: username,
       spec: spec,
+      emails: emails,
     );
     _byId[pid] = profile;
     return profile;
@@ -60,16 +62,34 @@ AuthProfile profile(String id, String host, String username) => AuthProfile(
       spec: AuthHttpsPat(username: username, token: 'tok-$id'),
     );
 
-/// Builds a resolver with the real git-CLI remote reader — these are
-/// integration tests that exercise host extraction against real repos.
+class _FakeRemoteUrl implements RemoteUrlReader {
+  _FakeRemoteUrl(this.url);
+  final String? url;
+  @override
+  Future<String?> remoteUrl(RepoLocation repo, String remote) async => url;
+}
+
+class _FakeIdentity implements RepoIdentityReader {
+  _FakeIdentity(this.email);
+  final String? email;
+  @override
+  Future<String?> effectiveEmail(RepoLocation repo) async => email;
+}
+
+/// Builds a resolver. By default it uses the real git-CLI remote reader (the
+/// host-extraction tests are integration tests against real repos); pass
+/// [remoteUrl]/[identity] fakes for the pure email-match tests.
 AuthResolver resolver(
   AuthProfileStore store, {
   String? Function(String repoId)? bindingLookup,
+  RemoteUrlReader? remoteUrl,
+  RepoIdentityReader? identity,
 }) =>
     AuthResolver(
       store,
-      remoteUrl: GitRemoteUrlReader(),
+      remoteUrl: remoteUrl ?? GitRemoteUrlReader(),
       bindingLookup: bindingLookup,
+      identity: identity,
     );
 
 void main() {
@@ -202,6 +222,120 @@ void main() {
       } finally {
         await f.dispose();
       }
+    });
+  });
+
+  group('AuthResolver identity (email) match', () {
+    AuthProfile withEmails(
+      String id,
+      String host,
+      String user,
+      Set<String> emails,
+    ) =>
+        AuthProfile(
+          id: id,
+          host: host,
+          username: user,
+          spec: AuthHttpsPat(username: user, token: 'tok-$id'),
+          emails: emails,
+        );
+
+    test('email match picks the owning profile among several for the host',
+        () async {
+      final store = FakeAuthProfileStore([
+        withEmails('p1', 'github.com', 'alice', {'alice@personal.dev'}),
+        withEmails('p2', 'github.com', 'work', {'giuseppe@work.com'}),
+      ]);
+      final r = resolver(
+        store,
+        remoteUrl: _FakeRemoteUrl('https://github.com/x/y.git'),
+        identity: _FakeIdentity('giuseppe@work.com'),
+      );
+      final resolved = await r.resolveForRepo(locAt('/any'));
+      expect(resolved?.id, 'p2');
+    });
+
+    test('match is case-insensitive', () async {
+      final store = FakeAuthProfileStore([
+        withEmails('p1', 'github.com', 'alice', {'alice@personal.dev'}),
+        withEmails('p2', 'github.com', 'work', {'giuseppe@work.com'}),
+      ]);
+      final r = resolver(
+        store,
+        remoteUrl: _FakeRemoteUrl('https://github.com/x/y.git'),
+        identity: _FakeIdentity('Alice@Personal.DEV'),
+      );
+      final resolved = await r.resolveForRepo(locAt('/any'));
+      expect(resolved?.id, 'p1');
+    });
+
+    test('explicit binding wins over an email match', () async {
+      final store = FakeAuthProfileStore([
+        withEmails('p1', 'github.com', 'alice', {'shared@x.com'}),
+        withEmails('p2', 'github.com', 'work', {'shared@x.com'}),
+      ]);
+      final r = resolver(
+        store,
+        bindingLookup: (_) => 'p1',
+        remoteUrl: _FakeRemoteUrl('https://github.com/x/y.git'),
+        identity: _FakeIdentity('shared@x.com'),
+      );
+      final resolved = await r.resolveForRepo(locAt('/any'));
+      expect(resolved?.id, 'p1');
+    });
+
+    test('an email matching >1 profile is ambiguous -> falls through to null',
+        () async {
+      final store = FakeAuthProfileStore([
+        withEmails('p1', 'github.com', 'a', {'dup@x.com'}),
+        withEmails('p2', 'github.com', 'b', {'dup@x.com'}),
+      ]);
+      final r = resolver(
+        store,
+        remoteUrl: _FakeRemoteUrl('https://github.com/x/y.git'),
+        identity: _FakeIdentity('dup@x.com'),
+      );
+      expect(await r.resolveForRepo(locAt('/any')), isNull);
+    });
+
+    test('no email match falls back to single-profile-per-host', () async {
+      final store = FakeAuthProfileStore([
+        withEmails('p1', 'github.com', 'alice', {'alice@personal.dev'}),
+      ]);
+      final r = resolver(
+        store,
+        remoteUrl: _FakeRemoteUrl('https://github.com/x/y.git'),
+        identity: _FakeIdentity('nobody@nope.com'),
+      );
+      final resolved = await r.resolveForRepo(locAt('/any'));
+      expect(resolved?.id, 'p1');
+    });
+
+    test('an unset email skips the identity step', () async {
+      final store = FakeAuthProfileStore([
+        withEmails('p1', 'github.com', 'a', {'a@x.com'}),
+        withEmails('p2', 'github.com', 'b', {'b@x.com'}),
+      ]);
+      final r = resolver(
+        store,
+        remoteUrl: _FakeRemoteUrl('https://github.com/x/y.git'),
+        identity: _FakeIdentity(null),
+      );
+      expect(await r.resolveForRepo(locAt('/any')), isNull);
+    });
+
+    test('email match is host-scoped', () async {
+      final store = FakeAuthProfileStore([
+        withEmails('p1', 'github.com', 'alice', {'me@x.com'}),
+        withEmails('p2', 'gitlab.com', 'alice', {'me@x.com'}),
+      ]);
+      final r = resolver(
+        store,
+        remoteUrl: _FakeRemoteUrl('https://gitlab.com/x/y.git'),
+        identity: _FakeIdentity('me@x.com'),
+      );
+      final resolved = await r.resolveForRepo(locAt('/any'));
+      expect(resolved?.id, 'p2');
     });
   });
 

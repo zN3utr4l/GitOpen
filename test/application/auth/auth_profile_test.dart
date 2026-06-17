@@ -36,7 +36,7 @@ void main() {
       expect(base.copyWith(), base);
     });
 
-    test('equality is by id/host/username/spec', () {
+    test('equality is by id/host/username/spec/emails', () {
       const same = AuthProfile(
         id: 'p1',
         host: 'github.com',
@@ -51,7 +51,26 @@ void main() {
       );
       expect(base, same);
       expect(base, isNot(differentId));
-      expect(base.props, ['p1', 'github.com', 'octocat', baseSpec]);
+      expect(base.props, ['p1', 'github.com', 'octocat', baseSpec, <String>{}]);
+    });
+
+    test('profiles differing only by emails are unequal', () {
+      const withEmail = AuthProfile(
+        id: 'p1',
+        host: 'github.com',
+        username: 'octocat',
+        spec: baseSpec,
+        emails: {'octocat@users.noreply.github.com'},
+      );
+      expect(base, isNot(withEmail));
+    });
+
+    test('copyWith overrides emails only, keeping the rest', () {
+      final updated = base.copyWith(emails: {'a@x.com'});
+      expect(updated.emails, {'a@x.com'});
+      expect(updated.id, 'p1');
+      expect(updated.username, 'octocat');
+      expect(updated.spec, same(baseSpec));
     });
   });
 }
