@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gitopen/application/auth/account_emails.dart';
 import 'package:gitopen/application/auth/auth_profile.dart';
 import 'package:gitopen/application/auth/auth_spec.dart';
 import 'package:gitopen/application/providers.dart';
@@ -250,13 +251,22 @@ class _AuthDialogState extends ConsumerState<AuthDialog>
   Future<AuthProfile> _saveProfile({
     required String username,
     required AuthSpec spec,
-  }) {
+  }) async {
     final store = ref.read(authProfileStoreProvider);
+    final emails = await populatedEmails(
+      host: widget.host,
+      spec: spec,
+      current: widget.editing?.emails ?? const {},
+      fetch: (token) async =>
+          (await ref.read(gitHubUserServiceProvider).fetchAccount(token))
+              .emails,
+    );
     return store.upsert(
       id: widget.editing?.id,
       host: widget.host,
       username: username,
       spec: spec,
+      emails: emails,
     );
   }
 
