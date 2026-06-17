@@ -5,6 +5,15 @@ All notable changes to GitOpen are documented here. The format is based on
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Each release maps to a
 `v*` Git tag — the same tags the in-app updater checks.
 
+## [1.2.2] — 2026-06-17
+
+### Fixed
+- Settings is now reachable when no repository is open. With an empty catalog
+  the main area always showed the welcome screen, so the Settings button
+  toggled its state but the page never appeared — leaving no way to reach
+  Settings → Updates (or anything else) without first opening a repo. Settings
+  now takes precedence over the empty/welcome state.
+
 ## [1.2.1] — 2026-06-17
 
 ### Fixed
