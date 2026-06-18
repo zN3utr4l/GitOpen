@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:gitopen/ui/theme/app_design_tokens.dart';
 import 'package:gitopen/ui/theme/app_palette.dart';
 
 /// Palette-aware modal frame used across the app. Replaces bare
@@ -25,11 +26,13 @@ class AppDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final typography = AppTypography.of(context);
+    final radii = AppRadii.of(context);
     return Dialog(
       backgroundColor: palette.bg2,
       elevation: 12,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: radii.dialogRadius,
         side: BorderSide(color: palette.border),
       ),
       child: SizedBox(
@@ -46,9 +49,8 @@ class AppDialog extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: TextStyle(
+                    style: typography.title.copyWith(
                       color: palette.fg0,
-                      fontSize: 14,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -56,7 +58,7 @@ class AppDialog extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       subtitle!,
-                      style: TextStyle(color: palette.fg2, fontSize: 11.5),
+                      style: typography.caption.copyWith(color: palette.fg2),
                     ),
                   ],
                 ],
@@ -186,7 +188,7 @@ class _AppButtonState extends State<AppButton> {
                   ? palette.bg3
                   : (_hover ? bgHover : bg),
               border: Border.all(color: disabled ? palette.border : border),
-              borderRadius: BorderRadius.circular(5),
+              borderRadius: AppRadii.of(context).controlRadius,
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -199,11 +201,10 @@ class _AppButtonState extends State<AppButton> {
                 ],
                 Text(
                   widget.label,
-                  style: TextStyle(
-                    color: disabled ? palette.fg3 : fg,
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w500,
-                  ),
+                  style: AppTypography.of(context).body.copyWith(
+                        color: disabled ? palette.fg3 : fg,
+                        fontWeight: FontWeight.w500,
+                      ),
                 ),
               ],
             ),
@@ -222,26 +223,28 @@ InputDecoration appInputDecoration(
   String? hint,
 }) {
   final palette = AppPalette.of(context);
+  final radii = AppRadii.of(context);
+  final typography = AppTypography.of(context);
   return InputDecoration(
     labelText: label,
     hintText: hint,
     isDense: true,
-    labelStyle: TextStyle(color: palette.fg2, fontSize: 12),
-    hintStyle: TextStyle(color: palette.fg3, fontSize: 12),
+    labelStyle: typography.caption.copyWith(color: palette.fg2),
+    hintStyle: typography.caption.copyWith(color: palette.fg3),
     contentPadding:
         const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
     filled: true,
     fillColor: palette.bg1,
     border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(5),
+      borderRadius: radii.controlRadius,
       borderSide: BorderSide(color: palette.border),
     ),
     enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(5),
+      borderRadius: radii.controlRadius,
       borderSide: BorderSide(color: palette.border),
     ),
     focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(5),
+      borderRadius: radii.controlRadius,
       borderSide: BorderSide(color: palette.accentCurrent, width: 1.2),
     ),
   );

@@ -6,11 +6,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gitopen/application/active_workspace_provider.dart';
 import 'package:gitopen/application/git/commit_request.dart';
 import 'package:gitopen/application/git/git_result.dart';
+import 'package:gitopen/application/operations/running_operation.dart';
 import 'package:gitopen/application/providers.dart';
 import 'package:gitopen/domain/commits/commit_sha.dart';
 import 'package:gitopen/domain/repositories/repo_location.dart';
 import 'package:gitopen/ui/common/author_avatar.dart';
 import 'package:gitopen/ui/dialogs/app_dialog.dart';
+import 'package:gitopen/ui/theme/app_design_tokens.dart';
 import 'package:gitopen/ui/theme/app_palette.dart';
 
 class CommitCompose extends ConsumerStatefulWidget {
@@ -136,6 +138,12 @@ class _CommitComposeState extends ConsumerState<CommitCompose> {
     if (!mounted || _busy) return;
     if (_ctl.text.trim().isEmpty && !_amend) return;
     setState(() => _busy = true);
+    final ops = ref.read(operationsProvider.notifier);
+    final opId = ops.start(
+      OpKind.commit,
+      _amend ? 'Amend commit' : 'Commit',
+      repo: widget.repo,
+    );
     final res = await ref.read(gitWriteOperationsProvider).commit(
           widget.repo,
           CommitRequest(
@@ -145,6 +153,13 @@ class _CommitComposeState extends ConsumerState<CommitCompose> {
             sign: _sign,
           ),
         );
+    // Report through the shared operations/toast system, like fetch/pull/push
+    // — the notifier outlives this widget, so finish the op even if unmounted.
+    if (res is GitSuccess) {
+      ops.finishSuccess(opId);
+    } else if (res is GitFailure<CommitSha>) {
+      ops.finishFailure(opId, res.message);
+    }
     if (!mounted) return;
     setState(() => _busy = false);
     if (res is GitSuccess) {
@@ -155,10 +170,6 @@ class _CommitComposeState extends ConsumerState<CommitCompose> {
         _sign = false;
       });
       ref.invalidate(gitReadOperationsProvider);
-    } else if (res is GitFailure<CommitSha>) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Commit failed: ${res.message}')),
-      );
     }
   }
 }
@@ -208,7 +219,7 @@ class _IdentityStrip extends StatelessWidget {
             decoration: BoxDecoration(
               color: palette.accentWarn.withValues(alpha: 0.18),
               border: Border.all(color: palette.accentWarn),
-              borderRadius: BorderRadius.circular(3),
+              borderRadius: AppRadii.of(context).controlRadius,
             ),
             child: Text(
               'AMEND',
@@ -269,7 +280,7 @@ class _MessageFieldState extends State<_MessageField> {
         border: Border.all(
             color: _focused ? palette.accentCurrent : palette.border,
             width: _focused ? 1.2 : 1),
-        borderRadius: BorderRadius.circular(5),
+        borderRadius: AppRadii.of(context).controlRadius,
       ),
       child: Shortcuts(
         shortcuts: const {
@@ -416,7 +427,7 @@ class _OptionPillState extends State<_OptionPill> {
               border: Border.all(
                 color: active ? palette.bgAccent : palette.border,
               ),
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: AppRadii.of(context).controlRadius,
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,

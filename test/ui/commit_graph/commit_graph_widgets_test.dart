@@ -3,8 +3,8 @@ import 'dart:ui' show Tristate;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gitopen/application/active_workspace_provider.dart';
 import 'package:gitopen/application/commit_graph/commit_node.dart';
-import 'package:gitopen/application/main_view_provider.dart';
 import 'package:gitopen/application/providers.dart';
 import 'package:gitopen/domain/commits/commit_info.dart';
 import 'package:gitopen/domain/commits/commit_sha.dart';
@@ -107,7 +107,9 @@ void main() {
     },
   );
 
-  testWidgets('LocalChangesRow opens the working-copy view', (tester) async {
+  testWidgets('LocalChangesRow selects the working copy inline', (
+    tester,
+  ) async {
     final repo = RepoLocation(RepoId.newId(), 'unused', 'repo');
     const status = RepoStatus(
       isDetached: false,
@@ -128,8 +130,9 @@ void main() {
           children: [
             LocalChangesRow(repo: repo),
             Consumer(
-              builder: (_, ref, _) =>
-                  Text('view:${ref.watch(mainViewProvider).name}'),
+              builder: (_, ref, _) => Text(
+                'selected:${ref.watch(localChangesSelectedProvider)}',
+              ),
             ),
           ],
         ),
@@ -141,12 +144,12 @@ void main() {
     await tester.pump();
 
     expect(find.text('Local Changes (1)'), findsOneWidget);
-    expect(find.text('view:graph'), findsOneWidget);
+    expect(find.text('selected:false'), findsOneWidget);
 
     await tester.tap(find.text('Local Changes (1)'));
     await tester.pump();
 
-    expect(find.text('view:changes'), findsOneWidget);
+    expect(find.text('selected:true'), findsOneWidget);
   });
 
   testWidgets('ref pill preserves branch and remote labels', (tester) async {

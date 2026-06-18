@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gitopen/application/git/remote_web_url.dart';
+import 'package:gitopen/application/git_lfs/git_lfs_models.dart';
+import 'package:gitopen/application/main_view_provider.dart';
 import 'package:gitopen/application/providers.dart';
 import 'package:gitopen/domain/repositories/repo_location.dart';
 import 'package:gitopen/ui/dialogs/app_dialog.dart';
@@ -25,6 +27,7 @@ class RepoInfoDialog extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = AppPalette.of(context);
     final info = ref.watch(repoInfoProvider(repo));
+    final lfsAsync = ref.watch(gitLfsStatusProvider(repo));
     return AppDialog(
       title: 'Repository',
       content: info.when(
@@ -99,6 +102,23 @@ class RepoInfoDialog extends ConsumerWidget {
                   if (identity != null) _CopyButton(value: identity),
                 ],
               ),
+              _InfoRow(
+                label: 'Git LFS',
+                value: _lfsLabel(lfsAsync.valueOrNull),
+                muted:
+                    !(lfsAsync.valueOrNull?.isRepoConfigured ?? false),
+                actions: [
+                  _ActionButton(
+                    icon: Icons.chevron_right,
+                    tooltip: 'Open Git LFS',
+                    onTap: () {
+                      ref.read(mainViewProvider.notifier).state =
+                          MainView.lfs;
+                      Navigator.pop(context);
+                    },
+                  ),
+                ],
+              ),
             ],
           );
         },
@@ -116,6 +136,14 @@ class RepoInfoDialog extends ConsumerWidget {
 void _snack(BuildContext context, String message) {
   ScaffoldMessenger.of(context)
       .showSnackBar(SnackBar(content: Text(message)));
+}
+
+String _lfsLabel(GitLfsStatus? status) {
+  if (status == null) return '…';
+  if (!status.isInstalled) return 'Not installed';
+  if (status.isRepoConfigured) return 'Configured';
+  if (status.hasAttributes) return 'Tracked (not initialized)';
+  return 'Not used';
 }
 
 class _InfoRow extends StatelessWidget {

@@ -118,6 +118,7 @@ void _subscribeRepoSwitch(ProviderContainer container) {
   container.listen(activeWorkspaceIdProvider, (previous, next) {
     if (previous == next) return;
     container.read(selectedCommitShaProvider.notifier).state = null;
+    container.read(localChangesSelectedProvider.notifier).state = false;
   });
 }
 

@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gitopen/application/active_workspace_provider.dart';
 import 'package:gitopen/application/git/git_result.dart';
+import 'package:gitopen/application/operations/running_operation.dart';
 import 'package:gitopen/application/providers.dart';
+import 'package:gitopen/application/workspaces/workspace.dart';
+import 'package:gitopen/ui/dialogs/app_dialog.dart';
 import 'package:gitopen/ui/dialogs/clone_dialog.dart';
+import 'package:gitopen/ui/theme/app_design_tokens.dart';
 import 'package:gitopen/ui/theme/app_palette.dart';
 
 class WelcomeScreen extends ConsumerWidget {
@@ -12,6 +16,7 @@ class WelcomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = AppPalette.of(context);
+    final recents = ref.watch(workspaceManagerProvider);
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -33,30 +38,31 @@ class WelcomeScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 24),
           Row(mainAxisSize: MainAxisSize.min, children: [
-            ElevatedButton.icon(
-              onPressed: () => _openRepo(context, ref),
-              icon: const Icon(Icons.folder_open, size: 16),
-              label: const Text('Open repository'),
+            AppButton.primary(
+              icon: Icons.folder_open,
+              label: 'Open repository',
+              onPressed: () => _openRepo(ref),
             ),
             const SizedBox(width: 12),
-            OutlinedButton.icon(
+            AppButton.secondary(
+              icon: Icons.download,
+              label: 'Clone',
               onPressed: () => CloneDialog.show(context),
-              icon: const Icon(Icons.download, size: 16),
-              label: const Text('Clone'),
             ),
             const SizedBox(width: 12),
-            OutlinedButton.icon(
-              onPressed: () => _initRepo(context, ref),
-              icon: const Icon(Icons.fiber_new_outlined, size: 16),
-              label: const Text('Init'),
+            AppButton.secondary(
+              icon: Icons.fiber_new_outlined,
+              label: 'Init',
+              onPressed: () => _initRepo(ref),
             ),
           ]),
+          if (recents.isNotEmpty) _RecentRepos(recents: recents),
         ],
       ),
     );
   }
 
-  Future<void> _openRepo(BuildContext context, WidgetRef ref) async {
+  Future<void> _openRepo(WidgetRef ref) async {
     final picker = ref.read(folderPickerProvider);
     final path = await picker.pickFolder('Open repository');
     if (path == null) return;
@@ -65,22 +71,119 @@ class WelcomeScreen extends ConsumerWidget {
     ref.read(activeWorkspaceIdProvider.notifier).state = ws.location.id;
   }
 
-  /// `git init` in a picked folder, then open it as a workspace.
-  Future<void> _initRepo(BuildContext context, WidgetRef ref) async {
+  /// `git init` in a picked folder, then open it as a workspace. Failures are
+  /// surfaced through the shared operations/toast system, like every other git
+  /// action — not a one-off SnackBar.
+  Future<void> _initRepo(WidgetRef ref) async {
     final picker = ref.read(folderPickerProvider);
     final path = await picker.pickFolder('Initialize repository');
     if (path == null) return;
+    final ops = ref.read(operationsProvider.notifier);
+    final opId = ops.start(OpKind.other, 'Initialize repository');
     final result = await ref.read(gitWriteOperationsProvider).initRepo(path);
     if (result case GitFailure(:final message)) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Init failed: $message'),
-        backgroundColor: AppPalette.of(context).accentErr,
-      ));
+      ops.finishFailure(opId, message);
       return;
     }
+    ops.finishSuccess(opId);
     final manager = ref.read(workspaceManagerProvider.notifier);
     final ws = await manager.open(path);
     ref.read(activeWorkspaceIdProvider.notifier).state = ws.location.id;
+  }
+}
+
+/// The known-repository catalog, shown beneath the actions so a returning user
+/// can re-open a recent repo in one click instead of re-picking the folder.
+class _RecentRepos extends ConsumerWidget {
+  const _RecentRepos({required this.recents});
+  final List<Workspace> recents;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = AppPalette.of(context);
+    final shown = recents.take(6).toList();
+    return Padding(
+      padding: const EdgeInsets.only(top: 28),
+      child: SizedBox(
+        width: 420,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(left: 4, bottom: 6),
+              child: Text(
+                'RECENT',
+                style: TextStyle(
+                  color: palette.fg3,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.7,
+                ),
+              ),
+            ),
+            for (final w in shown)
+              _RecentTile(
+                workspace: w,
+                onOpen: () => ref
+                    .read(activeWorkspaceIdProvider.notifier)
+                    .state = w.location.id,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RecentTile extends StatelessWidget {
+  const _RecentTile({required this.workspace, required this.onOpen});
+  final Workspace workspace;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final loc = workspace.location;
+    return Material(
+      color: Colors.transparent,
+      borderRadius: AppRadii.of(context).rowRadius,
+      child: InkWell(
+        onTap: onOpen,
+        borderRadius: AppRadii.of(context).rowRadius,
+        hoverColor: palette.bg3,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+          child: Row(
+            children: [
+              Icon(Icons.folder_outlined, size: 15, color: palette.fg2),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      loc.displayName,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: palette.fg0,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Text(
+                      loc.path,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: palette.fg3, fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

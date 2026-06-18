@@ -8,6 +8,7 @@ import 'package:gitopen/ui/settings/sections/git_identity_section.dart';
 import 'package:gitopen/ui/settings/sections/github_section.dart';
 import 'package:gitopen/ui/settings/sections/keybindings_section.dart';
 import 'package:gitopen/ui/settings/sections/updates_section.dart';
+import 'package:gitopen/ui/theme/app_design_tokens.dart';
 import 'package:gitopen/ui/theme/app_palette.dart';
 
 enum SettingsSectionId {
@@ -128,12 +129,11 @@ class _Sidebar extends StatelessWidget {
                     padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
                     child: Text(
                       group.title.toUpperCase(),
-                      style: TextStyle(
-                        color: palette.fg3,
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.7,
-                      ),
+                      style: AppTypography.of(context).caption.copyWith(
+                            color: palette.fg3,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.7,
+                          ),
                     ),
                   ),
                   for (final id in items)
@@ -270,13 +270,12 @@ class _NavItemState extends State<_NavItem> {
               const SizedBox(width: 10),
               Text(
                 label,
-                style: TextStyle(
-                  color: fg,
-                  fontSize: 12.5,
-                  fontWeight: widget.selected
-                      ? FontWeight.w600
-                      : FontWeight.normal,
-                ),
+                style: AppTypography.of(context).body.copyWith(
+                      color: fg,
+                      fontWeight: widget.selected
+                          ? FontWeight.w600
+                          : FontWeight.normal,
+                    ),
               ),
             ],
           ),

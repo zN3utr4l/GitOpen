@@ -78,10 +78,9 @@ class _Tab extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: 4),
           child: Text(
             label,
-            style: TextStyle(
-              color: isActive ? palette.fg0 : palette.fg1,
-              fontSize: 12,
-            ),
+            style: AppTypography.of(context).body.copyWith(
+                  color: isActive ? palette.fg0 : palette.fg1,
+                ),
           ),
         ),
       ),

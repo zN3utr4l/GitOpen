@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gitopen/application/git_lfs/git_lfs_models.dart';
 import 'package:gitopen/application/providers.dart';
 import 'package:gitopen/domain/repositories/repo_id.dart';
 import 'package:gitopen/domain/repositories/repo_location.dart';
@@ -20,6 +21,14 @@ void main() {
             originUrl: 'https://github.com/o/r.git',
             userName: 'Tester',
             userEmail: 't@e.com',
+          ),
+        ),
+        gitLfsStatusProvider(repo).overrideWith(
+          (ref) async => const GitLfsStatus(
+            isInstalled: false,
+            version: null,
+            isRepoConfigured: false,
+            hasAttributes: false,
           ),
         ),
       ],

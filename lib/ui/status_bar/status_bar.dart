@@ -10,6 +10,7 @@ import 'package:gitopen/application/workspaces/workspace.dart';
 import 'package:gitopen/domain/repositories/repo_location.dart';
 import 'package:gitopen/ui/dialogs/account_switcher_dialog.dart';
 import 'package:gitopen/ui/operations/activity_panel.dart';
+import 'package:gitopen/ui/theme/app_design_tokens.dart';
 import 'package:gitopen/ui/theme/app_palette.dart';
 
 class StatusBar extends ConsumerWidget {
@@ -18,6 +19,7 @@ class StatusBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final p = AppPalette.of(context);
+    final t = AppTypography.of(context);
     final activeId = ref.watch(activeWorkspaceIdProvider);
     final workspaces = ref.watch(workspaceManagerProvider);
     final active = workspaces
@@ -47,7 +49,7 @@ class StatusBar extends ConsumerWidget {
           skipLoadingOnReload: true,
           loading: () => Text(
             'loading...',
-            style: TextStyle(color: p.fg2, fontSize: 11),
+            style: t.caption.copyWith(color: p.fg2),
           ),
           // The explicit parameter types document the AsyncValue.when error
           // signature; the closure-parameter-type lint is not useful here.
@@ -62,17 +64,17 @@ class StatusBar extends ConsumerWidget {
             return Row(mainAxisSize: MainAxisSize.min, children: [
               Icon(Icons.fork_right, size: 11, color: p.accentCurrent),
               const SizedBox(width: 4),
-              Text(cur.name, style: TextStyle(color: p.fg0, fontSize: 11)),
+              Text(cur.name, style: t.caption.copyWith(color: p.fg0)),
               // ahead/behind for the current branch comes from RepoStatus
               // (cheap, single `git status` call), NOT from for-each-ref's
               // `upstream:track` atom which becomes O(N×commits) on repos
               // with many local branches that diverge a lot from upstream.
               if ((statusAsync.valueOrNull?.ahead ?? 0) > 0)
                 Text(' ↑${statusAsync.valueOrNull!.ahead}',
-                    style: TextStyle(color: p.accentCurrent, fontSize: 11)),
+                    style: t.caption.copyWith(color: p.accentCurrent)),
               if ((statusAsync.valueOrNull?.behind ?? 0) > 0)
                 Text(' ↓${statusAsync.valueOrNull!.behind}',
-                    style: TextStyle(color: p.accentTag, fontSize: 11)),
+                    style: t.caption.copyWith(color: p.accentTag)),
             ]);
           },
         ),
@@ -83,7 +85,7 @@ class StatusBar extends ConsumerWidget {
             child: Text(
               repo.path,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: p.fg2, fontSize: 11),
+              style: t.caption.copyWith(color: p.fg2),
             ),
           ),
         ),
@@ -93,7 +95,7 @@ class StatusBar extends ConsumerWidget {
           const SizedBox(width: 4),
           Text(
             inProgressAsync.valueOrNull!.name,
-            style: TextStyle(color: p.accentTag, fontSize: 11),
+            style: t.caption.copyWith(color: p.accentTag),
           ),
           const SizedBox(width: 12),
         ],
@@ -109,7 +111,7 @@ class StatusBar extends ConsumerWidget {
             const SizedBox(width: 4),
             Text(
               '$running op${running == 1 ? '' : 's'}',
-              style: TextStyle(color: p.fg2, fontSize: 11),
+              style: t.caption.copyWith(color: p.fg2),
             ),
           ]),
         ),
@@ -133,6 +135,7 @@ class _ActiveAccountChip extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final p = AppPalette.of(context);
+    final t = AppTypography.of(context);
     final async = ref.watch(repoActiveProfileProvider(repo));
     final current = async.valueOrNull;
     final label = current?.username ?? 'no account';
@@ -142,7 +145,7 @@ class _ActiveAccountChip extends ConsumerWidget {
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         Icon(Icons.account_circle_outlined, size: 11, color: color),
         const SizedBox(width: 4),
-        Text(label, style: TextStyle(color: color, fontSize: 11)),
+        Text(label, style: t.caption.copyWith(color: color)),
       ]),
     );
   }

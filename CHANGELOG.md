@@ -5,6 +5,36 @@ All notable changes to GitOpen are documented here. The format is based on
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Each release maps to a
 `v*` Git tag — the same tags the in-app updater checks.
 
+## [1.6.0] — 2026-06-18
+
+### Added
+- **Inline working copy in the commit graph.** Selecting the "Local Changes" row
+  now stages and commits *inline* in the bottom panel, keeping the graph in view,
+  instead of switching away to the full-screen Changes view — which remains
+  available from the view selector for large staging sessions.
+- The welcome screen now lists **recent repositories** for one-click reopen,
+  alongside Open / Clone / Init.
+
+### Changed
+- The **LFS** tab now appears only when the repository actually uses Git LFS
+  (mirroring how the GitHub tab shows only for github.com origins). Setup for a
+  not-yet-LFS repo stays reachable from the repository-info dialog. The view
+  selector also separates the daily Graph/Changes toggle from the GitHub/LFS
+  integrations, which sit apart on the right.
+- Commit and repository-init errors now surface through the shared activity/toast
+  system like every other git action, instead of one-off snackbars; a successful
+  commit also shows a confirmation toast.
+- Design-token pass over the always-on chrome (status bar, sidebar, settings nav,
+  sub-tab bars, commit box) and the shared dialog/button/input primitives, for a
+  consistent type scale and corner radii.
+
+### Fixed
+- The selected view-selector tab was invisible in the light theme (white text on a
+  pale-blue fill); it now uses the adaptive foreground colour and is legible in
+  both themes.
+- Sidebar sections (Remotes, Tags, Stashes, Submodules, Worktrees) now start
+  collapsed — only Local Branches is expanded — instead of all opening on launch.
+
 ## [1.5.2] — 2026-06-18
 
 ### Fixed
