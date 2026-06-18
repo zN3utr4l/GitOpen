@@ -45,6 +45,33 @@ final class GitCliRefReader {
     ];
   }
 
+  /// Ahead/behind of each LOCAL branch vs its upstream, keyed by short name.
+  /// Uses `%(upstream:track)` (kept OUT of the fast [_forEachRef] for perf) and
+  /// a hard timeout — on a huge repo it returns whatever parsed in time, or an
+  /// empty map on error/timeout. Only diverged branches are included.
+  Future<Map<String, ({int ahead, int behind})>> localBranchDivergence(
+    RepoLocation repo,
+  ) async {
+    const fmt = '%(refname:short)%00%(upstream:track)';
+    try {
+      final out = await _runner
+          .run(repo.path, ['for-each-ref', '--format=$fmt', 'refs/heads'])
+          .timeout(const Duration(seconds: 3));
+      final map = <String, ({int ahead, int behind})>{};
+      for (final line in const LineSplitter().convert(out)) {
+        if (line.isEmpty) continue;
+        final parts = line.split('\x00');
+        final name = parts[0];
+        final track = parts.length > 1 ? parts[1] : '';
+        final ab = parseAheadBehind(track);
+        if (ab.ahead != 0 || ab.behind != 0) map[name] = ab;
+      }
+      return map;
+    } on Object {
+      return const {};
+    }
+  }
+
   /// Streamed `for-each-ref` for one scope.
   ///
   /// Note: `upstream:track` is intentionally NOT included.  On repos with

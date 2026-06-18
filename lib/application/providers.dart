@@ -258,6 +258,14 @@ final FutureProviderFamily<List<Branch>, RepoLocation> localBranchesProvider =
       return ref.watch(gitReadOperationsProvider).getLocalBranches(repo);
     });
 
+/// Ahead/behind per local branch — loaded in parallel so it never blocks the
+/// initial branch render; the sidebar badges fill in when it resolves.
+final FutureProviderFamily<Map<String, ({int ahead, int behind})>, RepoLocation>
+    branchDivergenceProvider = FutureProvider.family<
+        Map<String, ({int ahead, int behind})>, RepoLocation>((ref, repo) {
+  return ref.watch(gitReadOperationsProvider).localBranchDivergence(repo);
+});
+
 /// Remote tracking branches — may take seconds (or time out at 3s on
 /// huge monorepos).  Loaded in parallel and consumed without `await` by
 /// UI that wants to render incrementally.
