@@ -107,7 +107,9 @@ void main() {
     },
   );
 
-  testWidgets('LocalChangesRow selects the working copy inline', (tester) async {
+  testWidgets('LocalChangesRow selects the working copy inline', (
+    tester,
+  ) async {
     final repo = RepoLocation(RepoId.newId(), 'unused', 'repo');
     const status = RepoStatus(
       isDetached: false,
