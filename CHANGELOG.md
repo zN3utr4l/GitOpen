@@ -5,6 +5,13 @@ All notable changes to GitOpen are documented here. The format is based on
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Each release maps to a
 `v*` Git tag — the same tags the in-app updater checks.
 
+## [1.6.1] — 2026-06-18
+
+### Changed
+- New application icon — a commit-graph mark (teal lanes + a gold branch node on
+  a dark rounded square) replaces the default Flutter logo on the Windows
+  executable, installer, taskbar and Start-menu tiles.
+
 ## [1.6.0] — 2026-06-18
 
 ### Added
