@@ -11,6 +11,7 @@ import 'package:gitopen/domain/refs/submodule.dart';
 import 'package:gitopen/domain/refs/tag.dart';
 import 'package:gitopen/domain/refs/worktree.dart';
 import 'package:gitopen/domain/repositories/repo_location.dart';
+import 'package:gitopen/infrastructure/git/ahead_behind.dart';
 import 'package:gitopen/infrastructure/git/git_process_runner.dart';
 import 'package:gitopen/infrastructure/logging/app_logger.dart';
 
@@ -271,7 +272,6 @@ final class GitCliRefReader {
     }
 
     if (branchOut.trim().isNotEmpty) {
-      final aheadBehindRe = RegExp(r'(?:ahead (\d+))?(?:.*?behind (\d+))?');
       for (final line in branchOut.split('\n')) {
         if (line.isEmpty) continue;
         final fields = _nulFields(line, 5);
@@ -299,15 +299,9 @@ final class GitCliRefReader {
         // Skip the HEAD symbolic ref (e.g., refs/remotes/origin/HEAD)
         if (withoutPrefix.endsWith('/HEAD')) continue;
 
-        var ahead = 0;
-        var behind = 0;
-        if (track.isNotEmpty) {
-          final m = aheadBehindRe.firstMatch(track);
-          if (m != null) {
-            ahead = int.tryParse(m.group(1) ?? '') ?? 0;
-            behind = int.tryParse(m.group(2) ?? '') ?? 0;
-          }
-        }
+        final ab = parseAheadBehind(track);
+        final ahead = ab.ahead;
+        final behind = ab.behind;
 
         remoteBranches[remoteName]!.add(Branch(
           name: withoutPrefix,
