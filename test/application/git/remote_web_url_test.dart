@@ -11,7 +11,7 @@ void main() {
         'https://github.com/owner/repo');
     expect(remoteWebUrl('https://github.com/owner/repo'),
         'https://github.com/owner/repo');
-    expect(remoteWebUrl(r'/local/path/repo.git'), isNull);
+    expect(remoteWebUrl('/local/path/repo.git'), isNull);
     expect(remoteWebUrl(''), isNull);
   });
 }

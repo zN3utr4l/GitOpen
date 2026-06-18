@@ -350,7 +350,7 @@ typedef RepoInfo = ({
   String? userEmail,
 });
 
-final repoInfoProvider =
+final FutureProviderFamily<RepoInfo, RepoLocation> repoInfoProvider =
     FutureProvider.family<RepoInfo, RepoLocation>((ref, repo) async {
   final originUrl =
       await ref.watch(remoteUrlReaderProvider).remoteUrl(repo, 'origin');
