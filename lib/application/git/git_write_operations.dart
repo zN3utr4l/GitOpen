@@ -170,7 +170,7 @@ abstract interface class GitWriteOperations {
   });
 
   /// `git push <remote> --delete <branch>` — deletes [remoteRef]
-  /// ("<remote>/<branch>") on the server, with progress + auth.
+  /// (`<remote>/<branch>`) on the server, with progress + auth.
   Stream<GitProgress> deleteRemoteBranch(
     RepoLocation r,
     String remoteRef, {

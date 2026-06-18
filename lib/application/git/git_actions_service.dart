@@ -192,7 +192,7 @@ final class GitActionsService {
   }
 
   /// `git push <remote> --delete <branch>` — deletes [remoteRef]
-  /// ("<remote>/<branch>") on the server, with progress + auth-retry.
+  /// (`<remote>/<branch>`) on the server, with progress + auth-retry.
   Future<ActionResult> deleteRemoteBranch(
     RepoLocation repo,
     String remoteRef, {

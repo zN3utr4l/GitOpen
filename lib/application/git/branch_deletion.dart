@@ -14,7 +14,7 @@ class BranchDeletionTargets {
   /// True when the local side is the checked-out branch (cannot be deleted).
   final bool localIsCurrent;
 
-  /// Remote ref as "<remote>/<branch>" (e.g. "origin/feature"), or null.
+  /// Remote ref as `<remote>/<branch>` (e.g. "origin/feature"), or null.
   final String? remoteRef;
 }
 
