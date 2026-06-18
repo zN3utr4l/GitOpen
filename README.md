@@ -41,12 +41,12 @@ A working `git` on `PATH` is required at runtime on both platforms.
 | --- | --- |
 | **Graph & history** | Colour-coded multi-lane commit graph, incremental loading on scroll, co-author avatars, reflog viewer, compare-refs (ahead/behind + combined diff), GPG signature badges |
 | **Diff & viewer** | Unified and side-by-side diffs, intraline word-diff, ignore-whitespace toggle, image diff (old/new preview), large-diff cap with load-full, blame / file history, flat or tree file lists |
-| **Staging & commit** | File-, hunk-, and line-level staging; line/hunk unstage and discard; amend; sign-off; `Ctrl+Enter`; per-file use-ours / use-theirs |
-| **Branches & remotes** | Branch CRUD, tracking-branch checkout, fetch / pull / push with streaming progress, push split-button (force-with-lease, tags, branch picker) |
+| **Staging & commit** | File-, hunk-, and line-level staging; line/hunk unstage and discard; amend; sign-off; `Ctrl+Enter`; per-file use-ours / use-theirs; inline working-copy staging from the graph's "Local Changes" row |
+| **Branches & remotes** | Branch CRUD, tracking-branch checkout, pinned (favourite) branches, fetch / pull / push with streaming progress, push split-button (force-with-lease, tags, branch picker) |
 | **History ops** | Full interactive rebase (reorder, pick/reword/squash/fixup/drop, multiline editor), reword & edit-at-commit, cherry-pick, revert, undo last commit |
 | **Stash & worktrees** | Stash save / apply / pop / list, preview and partial stash, worktree add / list / remove, repo init, annotated tags, Git LFS support |
 | **GitHub** | OAuth Device Flow sign-in, clone public/private, Pull Requests panel (checkout, review comments, PR mutations), Actions workflow-run panel |
-| **Experience** | Light / dark themes, customizable keybindings, status bar (branch + ahead/behind + running ops), activity toasts, auto-refresh `.git` watcher, in-app updater, accessibility passes |
+| **Experience** | Command palette (`Ctrl+P`), light / dark themes, customizable keybindings, recent-repositories welcome screen, skeleton loading placeholders, status bar (branch + ahead/behind + running ops), activity toasts, auto-refresh `.git` watcher, in-app updater, accessibility passes |
 
 ## Build and run
 
