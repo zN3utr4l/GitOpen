@@ -12,6 +12,7 @@ import 'package:gitopen/ui/sidebar/stash_row.dart';
 import 'package:gitopen/ui/sidebar/submodule_row.dart';
 import 'package:gitopen/ui/sidebar/tag_row.dart';
 import 'package:gitopen/ui/sidebar/worktree_row.dart';
+import 'package:gitopen/ui/theme/app_design_tokens.dart';
 import 'package:gitopen/ui/theme/app_palette.dart';
 
 /// The left rail: branches, remotes, tags, stashes and submodules for the
@@ -89,6 +90,7 @@ class _SidebarContent extends ConsumerWidget {
       children: [
         _Section(
           title: 'LOCAL BRANCHES',
+          initiallyOpen: true,
           child: BranchTreeView(nodes: localTree, repo: repo),
         ),
         _Section(
@@ -205,17 +207,23 @@ class _AddWorktreeIconButton extends ConsumerWidget {
 }
 
 class _Section extends StatefulWidget {
-  const _Section({required this.title, required this.child, this.trailing});
+  const _Section({
+    required this.title,
+    required this.child,
+    this.trailing,
+    this.initiallyOpen = false,
+  });
   final String title;
   final Widget child;
   final Widget? trailing;
+  final bool initiallyOpen;
 
   @override
   State<_Section> createState() => _SectionState();
 }
 
 class _SectionState extends State<_Section> {
-  bool _open = true;
+  late bool _open = widget.initiallyOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -242,11 +250,10 @@ class _SectionState extends State<_Section> {
               Expanded(
                 child: Text(
                   widget.title,
-                  style: TextStyle(
-                    color: palette.fg2,
-                    fontSize: 10.5,
-                    letterSpacing: 0.5,
-                  ),
+                  style: AppTypography.of(context).caption.copyWith(
+                        color: palette.fg2,
+                        letterSpacing: 0.5,
+                      ),
                 ),
               ),
               if (widget.trailing != null) widget.trailing!,
@@ -275,9 +282,9 @@ class _EmptyHint extends StatelessWidget {
           bottom: 4,
         ),
         child: Text(text,
-            style: TextStyle(
-                color: AppPalette.of(context).fg3,
-                fontSize: 11.5,
-                fontStyle: FontStyle.italic)),
+            style: AppTypography.of(context).caption.copyWith(
+                  color: AppPalette.of(context).fg3,
+                  fontStyle: FontStyle.italic,
+                )),
       );
 }
