@@ -46,7 +46,8 @@ void main() {
           workingDirectory: seed.path);
       await Process.run('git', ['push', 'origin', 'feature'],
           workingDirectory: seed.path);
-      await Process.run('git', ['fetch', 'origin'], workingDirectory: seed.path);
+      await Process.run('git', ['fetch', 'origin'],
+          workingDirectory: seed.path);
       // Delete it on the remote, then fetch (with prune) from the work repo.
       await Process.run('git', ['-C', bareDir.path, 'branch', '-D', 'feature']);
 

@@ -38,7 +38,7 @@ const _remote = Branch(
   behind: 0,
 );
 
-final _repo = RepoLocation(const RepoId('t'), 'unused', 't');
+const _repo = RepoLocation(RepoId('t'), 'unused', 't');
 
 Widget _host(List<Branch> branches) => ProviderScope(
   overrides: [

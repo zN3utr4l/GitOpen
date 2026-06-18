@@ -20,11 +20,13 @@ class _FakeLogStore implements ActivityLogStore {
 }
 
 void main() {
-  testWidgets('hidden when idle, shown + blocks taps when busy', (tester) async {
+  testWidgets('hidden when idle, shown + blocks taps when busy',
+      (tester) async {
     var tapped = false;
     final container = ProviderContainer(
       overrides: [
-        operationsProvider.overrideWith((ref) => OperationsNotifier(_FakeLogStore())),
+        operationsProvider
+            .overrideWith((ref) => OperationsNotifier(_FakeLogStore())),
       ],
     );
     addTearDown(container.dispose);
