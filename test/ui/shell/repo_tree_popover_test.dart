@@ -1,9 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gitopen/application/launcher/folder_picker.dart';
 import 'package:gitopen/application/providers.dart';
 import 'package:gitopen/application/workspaces/repo_tree_node.dart';
 import 'package:gitopen/application/workspaces/repo_tree_store.dart';
+import 'package:gitopen/application/workspaces/repository_registry.dart';
+import 'package:gitopen/application/workspaces/workspace_manager.dart';
 import 'package:gitopen/domain/repositories/folder.dart';
 import 'package:gitopen/domain/repositories/folder_id.dart';
 import 'package:gitopen/domain/repositories/repo_id.dart';
@@ -53,6 +58,34 @@ class _FakeTreeStore implements RepoTreeStore {
     FolderId? toParent,
   }) =>
       throw UnimplementedError();
+}
+
+/// Folder picker whose result the test completes manually, so the popover can
+/// be dismissed *during* the pick (the exact timing that triggered the bug).
+class _FakePicker implements FolderPicker {
+  final Completer<String?> completer = Completer<String?>();
+  @override
+  Future<String?> pickFolder(String title) => completer.future;
+}
+
+/// Registry that records the paths it was asked to add.
+class _RecordingRegistry implements RepositoryRegistry {
+  final List<String> added = [];
+  @override
+  Future<RepoLocation> add(String path) async {
+    added.add(path);
+    final name = path.split(RegExp(r'[\\/]')).last;
+    return RepoLocation(RepoId('id-$path'), path, name);
+  }
+
+  @override
+  Future<List<RepoLocation>> list() async => const [];
+  @override
+  Future<RepoLocation?> getByPath(String path) async => null;
+  @override
+  Future<void> remove(RepoId id) async {}
+  @override
+  Future<void> touchLastOpened(RepoId id) async {}
 }
 
 Future<ProviderContainer> _pumpPopover(
@@ -183,6 +216,58 @@ void main() {
       await tester.tap(find.text('Work'));
       await tester.pumpAndSettle();
       expect(find.text('alpha'), findsNothing); // child hidden when collapsed
+    });
+  });
+
+  group('open flows survive the popover being dismissed', () {
+    testWidgets('Open repository still adds the repo after onDismiss',
+        (tester) async {
+      // Repro: onDismiss() hides the OverlayPortal (disposing the popover)
+      // BEFORE the folder picker resolves. The continuation must not depend
+      // on the disposed widget's `ref`, or the repo is silently never added.
+      final picker = _FakePicker();
+      final registry = _RecordingRegistry();
+      final store = _FakeTreeStore([], []);
+      final container = ProviderContainer(
+        overrides: [
+          repoTreeStoreProvider.overrideWithValue(store),
+          folderPickerProvider.overrideWithValue(picker),
+          workspaceManagerProvider.overrideWith(
+            (ref) => WorkspaceManager(registry),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      await container.read(repoOrganizerProvider.notifier).refresh();
+
+      var show = true;
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: ThemeData(extensions: [AppPalette.dark()]),
+            home: Scaffold(
+              body: StatefulBuilder(
+                builder: (context, setState) => show
+                    ? RepoTreePopover(
+                        onDismiss: () => setState(() => show = false),
+                      )
+                    : const SizedBox.shrink(),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Open repository...'));
+      // _openRepo ran up to the await; onDismiss fired -> rebuild disposes it.
+      await tester.pump();
+      expect(find.byType(RepoTreePopover), findsNothing); // popover is gone
+      // Now the picker resolves — the continuation must still add the repo.
+      picker.completer.complete(r'C:\repos\demo');
+      await tester.pumpAndSettle();
+
+      expect(registry.added, contains(r'C:\repos\demo'));
     });
   });
 }
