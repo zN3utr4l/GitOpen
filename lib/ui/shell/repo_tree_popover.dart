@@ -324,33 +324,44 @@ class _RepoTreePopoverState extends ConsumerState<RepoTreePopover> {
     await ref.read(repoOrganizerProvider.notifier).removeFolder(id);
   }
 
+  // NOTE: these flows call `widget.onDismiss()`, which hides the OverlayPortal
+  // and DISPOSES this popover. So every provider/notifier must be read BEFORE
+  // the dismiss; using `ref` (or `context`) after the async gap would hit a
+  // disposed widget and throw — and with no try/catch that error is swallowed,
+  // silently doing nothing (the repo never gets added).
+
   Future<void> _openRepo() async {
+    final picker = ref.read(folderPickerProvider);
+    final manager = ref.read(workspaceManagerProvider.notifier);
+    final organizer = ref.read(repoOrganizerProvider.notifier);
+    final activeNotifier = ref.read(activeWorkspaceIdProvider.notifier);
     widget.onDismiss();
-    final path = await ref.read(folderPickerProvider).pickFolder(
-          'Open repository',
-        );
+    final path = await picker.pickFolder('Open repository');
     if (path == null) return;
-    final ws = await ref.read(workspaceManagerProvider.notifier).open(path);
-    await ref.read(repoOrganizerProvider.notifier).refresh();
-    ref.read(activeWorkspaceIdProvider.notifier).state = ws.location.id;
+    final ws = await manager.open(path);
+    await organizer.refresh();
+    activeNotifier.state = ws.location.id;
   }
 
   Future<void> _openReposFolder() async {
+    final picker = ref.read(folderPickerProvider);
+    final scanner = ref.read(repoFolderScannerProvider);
+    final manager = ref.read(workspaceManagerProvider.notifier);
+    final organizer = ref.read(repoOrganizerProvider.notifier);
+    final activeNotifier = ref.read(activeWorkspaceIdProvider.notifier);
+    // The messenger is an ancestor State that outlives this popover, so it is
+    // safe to use after the dismiss below.
+    final messenger = ScaffoldMessenger.of(context);
     widget.onDismiss();
-    final parent = await ref.read(folderPickerProvider).pickFolder(
-          'Open folder of repositories',
-        );
+    final parent = await picker.pickFolder('Open folder of repositories');
     if (parent == null) return;
-    final paths =
-        await ref.read(repoFolderScannerProvider).findRepositories(parent);
-    if (!mounted) return;
+    final paths = await scanner.findRepositories(parent);
     if (paths.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         SnackBar(content: Text('No git repositories found in $parent')),
       );
       return;
     }
-    final manager = ref.read(workspaceManagerProvider.notifier);
     RepoId? firstId;
     for (final path in paths) {
       try {
@@ -360,17 +371,18 @@ class _RepoTreePopoverState extends ConsumerState<RepoTreePopover> {
         // Skip a repo that fails to open; keep opening the rest.
       }
     }
-    await ref.read(repoOrganizerProvider.notifier).refresh();
-    if (firstId != null) {
-      ref.read(activeWorkspaceIdProvider.notifier).state = firstId;
-    }
+    await organizer.refresh();
+    if (firstId != null) activeNotifier.state = firstId;
   }
 
   Future<void> _clone() async {
-    widget.onDismiss();
-    if (!mounted) return;
+    // Read before showing the dialog; dismiss only after it closes so the
+    // dialog's context (this popover) is still valid when it opens.
+    final organizer = ref.read(repoOrganizerProvider.notifier);
+    final dismiss = widget.onDismiss;
     await CloneDialog.show(context);
-    await ref.read(repoOrganizerProvider.notifier).refresh();
+    dismiss();
+    await organizer.refresh();
   }
 }
 
