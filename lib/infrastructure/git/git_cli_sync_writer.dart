@@ -24,7 +24,7 @@ final class GitCliSyncWriter {
     bool all = false,
     AuthSpec? auth,
   }) async* {
-    final args = <String>['fetch', '--progress'];
+    final args = <String>['fetch', '--prune', '--progress'];
     if (all) {
       args.add('--all');
     } else if (remote != null) {
