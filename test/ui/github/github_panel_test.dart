@@ -22,6 +22,12 @@ final class _FakeApi implements GitHubApi {
   String? createdIssueComment;
   String? replyBody;
   bool markedReady = false;
+  List<WorkflowJob> jobs = const [];
+  String jobLog = '';
+  int? rerunRunId;
+  int? rerunFailedRunId;
+  int? cancelRunId;
+  int? loggedJobId;
 
   @override
   Future<List<PullRequestInfo>> listPullRequests(
@@ -62,6 +68,44 @@ final class _FakeApi implements GitHubApi {
         updatedAt: DateTime.utc(2026, 6, 11, 10, 3, 30),
       ),
     ];
+  }
+
+  @override
+  Future<List<WorkflowJob>> listWorkflowJobs(
+    RepoSlug slug,
+    int runId, {
+    required String token,
+  }) async => jobs;
+
+  @override
+  Future<void> rerunWorkflowRun(
+    RepoSlug slug,
+    int runId, {
+    required String token,
+  }) async => rerunRunId = runId;
+
+  @override
+  Future<void> rerunFailedJobs(
+    RepoSlug slug,
+    int runId, {
+    required String token,
+  }) async => rerunFailedRunId = runId;
+
+  @override
+  Future<void> cancelWorkflowRun(
+    RepoSlug slug,
+    int runId, {
+    required String token,
+  }) async => cancelRunId = runId;
+
+  @override
+  Future<String> jobLogs(
+    RepoSlug slug,
+    int jobId, {
+    required String token,
+  }) async {
+    loggedJobId = jobId;
+    return jobLog;
   }
 
   @override
