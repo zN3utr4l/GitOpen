@@ -93,11 +93,17 @@ class DiffView extends ConsumerWidget {
             ),
           ),
           Expanded(
-            child: ListView.builder(
-              padding: spacing.panel,
-              itemCount: d.files.length,
-              itemBuilder: (_, i) =>
-                  _FileDiffBlock(file: d.files[i], repo: repo, sha: sha),
+            // Make the diff selectable like normal text. Line-number gutters,
+            // the +/- prefix and the hunk/file headers are wrapped in
+            // SelectionContainer.disabled (here and in DiffLineRow) so a
+            // drag-copy yields only the code content.
+            child: SelectionArea(
+              child: ListView.builder(
+                padding: spacing.panel,
+                itemCount: d.files.length,
+                itemBuilder: (_, i) =>
+                    _FileDiffBlock(file: d.files[i], repo: repo, sha: sha),
+              ),
             ),
           ),
         ],
@@ -203,7 +209,9 @@ class _FileDiffBlockState extends ConsumerState<_FileDiffBlock> {
     final pathLabel = file.oldPath != null && file.oldPath != file.path
         ? '${file.oldPath} → ${file.path}'
         : file.path;
-    return Container(
+    // The file header is chrome — excluded from text selection.
+    return SelectionContainer.disabled(
+      child: Container(
       decoration: BoxDecoration(
         color: palette.bg3,
         border: Border(bottom: BorderSide(color: palette.border)),
@@ -226,6 +234,7 @@ class _FileDiffBlockState extends ConsumerState<_FileDiffBlock> {
           ),
         ],
       ),
+      ),
     );
   }
 
@@ -237,13 +246,15 @@ class _FileDiffBlockState extends ConsumerState<_FileDiffBlock> {
         Container(
           color: palette.bg2,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          child: Text(
-            h.header,
-            style: TextStyle(
-              color: palette.fg2,
-              fontSize: 11.5,
-              fontStyle: FontStyle.italic,
-              fontFamily: 'monospace',
+          child: SelectionContainer.disabled(
+            child: Text(
+              h.header,
+              style: TextStyle(
+                color: palette.fg2,
+                fontSize: 11.5,
+                fontStyle: FontStyle.italic,
+                fontFamily: 'monospace',
+              ),
             ),
           ),
         ),
