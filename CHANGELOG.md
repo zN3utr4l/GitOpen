@@ -5,6 +5,16 @@ All notable changes to GitOpen are documented here. The format is based on
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Each release maps to a
 `v*` Git tag — the same tags the in-app updater checks.
 
+## [1.8.1] — 2026-06-19
+
+### Changed
+- The **Merge** button in the GitHub pull-request panel now mirrors github.com:
+  it is enabled only when the PR is actually mergeable, and is disabled — with a
+  tooltip explaining why — while branch protection blocks it (required checks
+  still running or failed, merge conflicts, an out-of-date branch, a draft PR,
+  or while GitHub is still computing mergeability). GitHub derives that state
+  from the repository's branch-protection rules, so the button now follows them.
+
 ## [1.7.3] — 2026-06-18
 
 ### Changed
