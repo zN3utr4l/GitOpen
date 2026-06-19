@@ -4,6 +4,7 @@ import 'package:gitopen/application/diff/intraline_diff.dart';
 import 'package:gitopen/application/diff/split_diff.dart';
 import 'package:gitopen/domain/diff/diff_line.dart';
 import 'package:gitopen/ui/bottom_panel/diff_syntax.dart';
+import 'package:gitopen/ui/common/diff_horizontal_scroll.dart';
 import 'package:gitopen/ui/common/diff_prefs.dart';
 import 'package:gitopen/ui/theme/app_palette.dart';
 
@@ -89,16 +90,13 @@ class DiffLineRow extends StatelessWidget {
               ),
             ),
           ),
-          Expanded(
-            child: Text.rich(
-              TextSpan(children: _contentSpans(palette)),
-              style: const TextStyle(
-                fontSize: 12,
-                fontFamily: 'monospace',
-              ),
-              softWrap: false,
-              overflow: TextOverflow.clip,
+          Text.rich(
+            TextSpan(children: _contentSpans(palette)),
+            style: const TextStyle(
+              fontSize: 12,
+              fontFamily: 'monospace',
             ),
+            softWrap: false,
           ),
         ],
       ),
@@ -179,18 +177,22 @@ class HunkLines extends ConsumerWidget {
         ranges[j] = (d.newStart, d.newEnd);
       }
     }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (final (i, line) in lines.indexed)
-          DiffLineRow(
-            line: line,
-            language: language,
-            gutterWidth: gutterWidth,
-            prefixWidth: prefixWidth,
-            changedRange: ranges[i],
-          ),
-      ],
+    return DiffHorizontalScroll(
+      child: IntrinsicWidth(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final (i, line) in lines.indexed)
+              DiffLineRow(
+                line: line,
+                language: language,
+                gutterWidth: gutterWidth,
+                prefixWidth: prefixWidth,
+                changedRange: ranges[i],
+              ),
+          ],
+        ),
+      ),
     );
   }
 }
