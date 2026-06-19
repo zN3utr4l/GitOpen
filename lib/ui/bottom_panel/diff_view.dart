@@ -130,6 +130,9 @@ class _FileDiffBlockState extends ConsumerState<_FileDiffBlock> {
   /// User asked for the uncapped version of this (truncated) file.
   bool _full = false;
 
+  /// File block collapsed to just its header (diff hidden). Session-scoped.
+  bool _collapsed = false;
+
   FileDiff get file => widget.file;
 
   @override
@@ -162,42 +165,44 @@ class _FileDiffBlockState extends ConsumerState<_FileDiffBlock> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _header(context),
-          if (file.isBinary)
-            isImagePath(file.path)
-                ? ImageDiffView(
-                    repo: widget.repo,
-                    oldPath: file.oldPath ?? file.path,
-                    newPath: file.path,
-                    oldRevision: FileRevisionParentOfCommit(widget.sha),
-                    newRevision: FileRevisionAtCommit(widget.sha),
-                  )
-                : Padding(
-                    padding: EdgeInsets.all(spacing.md),
-                    child: Text(
-                      'Binary file (no preview)',
-                      style: TextStyle(
-                        color: palette.fg2,
-                        fontStyle: FontStyle.italic,
+          if (!_collapsed) ...[
+            if (file.isBinary)
+              isImagePath(file.path)
+                  ? ImageDiffView(
+                      repo: widget.repo,
+                      oldPath: file.oldPath ?? file.path,
+                      newPath: file.path,
+                      oldRevision: FileRevisionParentOfCommit(widget.sha),
+                      newRevision: FileRevisionAtCommit(widget.sha),
+                    )
+                  : Padding(
+                      padding: EdgeInsets.all(spacing.md),
+                      child: Text(
+                        'Binary file (no preview)',
+                        style: TextStyle(
+                          color: palette.fg2,
+                          fontStyle: FontStyle.italic,
+                        ),
                       ),
+                    )
+            else ...[
+              for (final h in shown.hunks) _hunk(context, h, language),
+              if (full != null && full.isLoading)
+                const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Center(
+                    child: SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
                     ),
-                  )
-          else ...[
-            for (final h in shown.hunks) _hunk(context, h, language),
-            if (full != null && full.isLoading)
-              const Padding(
-                padding: EdgeInsets.all(12),
-                child: Center(
-                  child: SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
                   ),
                 ),
-              ),
-            if (shown.truncated && !_full)
-              TruncatedDiffBanner(
-                onLoadFull: () => setState(() => _full = true),
-              ),
+              if (shown.truncated && !_full)
+                TruncatedDiffBanner(
+                  onLoadFull: () => setState(() => _full = true),
+                ),
+            ],
           ],
         ],
       ),
@@ -209,9 +214,13 @@ class _FileDiffBlockState extends ConsumerState<_FileDiffBlock> {
     final pathLabel = file.oldPath != null && file.oldPath != file.path
         ? '${file.oldPath} → ${file.path}'
         : file.path;
-    // The file header is chrome — excluded from text selection.
+    // The file header is chrome — excluded from text selection. Tapping it
+    // collapses/expands the file's diff.
     return SelectionContainer.disabled(
-      child: Container(
+      child: InkWell(
+        key: ValueKey('collapse-${file.path}'),
+        onTap: () => setState(() => _collapsed = !_collapsed),
+        child: Container(
       decoration: BoxDecoration(
         color: palette.bg3,
         border: Border(bottom: BorderSide(color: palette.border)),
@@ -219,6 +228,12 @@ class _FileDiffBlockState extends ConsumerState<_FileDiffBlock> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       child: Row(
         children: [
+          Icon(
+            _collapsed ? Icons.chevron_right : Icons.expand_more,
+            size: 16,
+            color: palette.fg3,
+          ),
+          const SizedBox(width: 6),
           _KindBadge(kind: file.changeKind),
           const SizedBox(width: 12),
           Expanded(
@@ -233,6 +248,7 @@ class _FileDiffBlockState extends ConsumerState<_FileDiffBlock> {
             style: TextStyle(color: palette.fg2, fontSize: 11),
           ),
         ],
+      ),
       ),
       ),
     );
