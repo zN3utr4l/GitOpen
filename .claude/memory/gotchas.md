@@ -42,6 +42,10 @@ Durable landmines. Read before editing or shipping.
 - This is a **fork** of `samuu98/GitOpen`. Always pass `--repo zN3utr4l/GitOpen`
   to `gh` (otherwise PRs target the upstream). Never `git pull` without checking
   the tracking branch — `upstream/main` can trigger a large conflicting merge.
+- `git log --format` with `%G?` forces GPG signature verification for every
+  loaded commit. Keep it out of graph/fetch refresh paths unless the caller
+  explicitly needs signatures (`verifySignature: true`). The graph should load
+  without `%G?`; the commit details panel can verify only the selected commit.
 - The PR gate (`flutter analyze` + `flutter test`, ubuntu-only) does **not**
   compile native runners or the Inno Setup installer — those run only in CD after
   merge. A broken `.iss` passes the PR green and fails CD post-merge. In `.iss`,
