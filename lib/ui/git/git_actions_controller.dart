@@ -238,6 +238,8 @@ class GitActionsController {
     context,
     repo,
     () => _ref.read(gitActionsServiceProvider).checkout(repo, ref),
+    busyLabel: 'Checking out $ref…',
+    afterSuccess: () => _waitForCheckoutRefresh(repo),
   );
 
   /// `git checkout --track <remoteRef>` (remote branch → local branch).
@@ -249,6 +251,8 @@ class GitActionsController {
     context,
     repo,
     () => _ref.read(gitActionsServiceProvider).checkoutTrack(repo, remoteRef),
+    busyLabel: 'Checking out $remoteRef…',
+    afterSuccess: () => _waitForCheckoutRefresh(repo),
   );
 
   /// `git branch <name>` (optionally at [at], optionally checked out).
@@ -330,9 +334,14 @@ class GitActionsController {
     }
     var localNeedsForce = false;
     if (localName != null && context.mounted) {
-      final result =
-          await deleteBranch(context, repo, localName, force: forceLocal);
-      localNeedsForce = !forceLocal &&
+      final result = await deleteBranch(
+        context,
+        repo,
+        localName,
+        force: forceLocal,
+      );
+      localNeedsForce =
+          !forceLocal &&
           result.outcome == ActionOutcome.failed &&
           isNotFullyMergedError(result.message ?? '');
     }
@@ -556,12 +565,17 @@ class GitActionsController {
   Future<ActionResult> _runLocal(
     BuildContext context,
     RepoLocation repo,
-    Future<ActionResult> Function() op,
-  ) async {
-    final busy = _ref.read(busyProvider.notifier)..begin();
+    Future<ActionResult> Function() op, {
+    String? busyLabel,
+    Future<void> Function()? afterSuccess,
+  }) async {
+    final busy = _ref.read(busyProvider.notifier)..begin(busyLabel);
     try {
       final result = await op();
       _invalidate(repo, result.invalidate);
+      if (result.outcome == ActionOutcome.success) {
+        await afterSuccess?.call();
+      }
       final message = result.message;
       if (message != null && context.mounted) {
         _showSnack(context, message, result.severity);
@@ -569,6 +583,26 @@ class GitActionsController {
       return result;
     } finally {
       busy.end();
+    }
+  }
+
+  Future<void> _waitForCheckoutRefresh(RepoLocation repo) async {
+    _ref
+      ..invalidate(repoStatusProvider(repo))
+      ..invalidate(localBranchesProvider(repo))
+      ..invalidate(remoteBranchesProvider(repo));
+    await Future.wait<void>([
+      _ignoreRefreshError(_ref.read(repoStatusProvider(repo).future)),
+      _ignoreRefreshError(_ref.read(branchesProvider(repo).future)),
+    ]);
+  }
+
+  Future<void> _ignoreRefreshError<T>(Future<T> future) async {
+    try {
+      await future;
+    } on Object {
+      // The checkout already completed; let the normal consumers render the
+      // provider error instead of keeping the blocking overlay stuck.
     }
   }
 

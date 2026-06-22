@@ -5,6 +5,13 @@ All notable changes to GitOpen are documented here. The format is based on
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Each release maps to a
 `v*` Git tag — the same tags the in-app updater checks.
 
+## [1.9.4] — 2026-06-22
+
+### Fixed
+- **Checkout feedback.** Switching branches now keeps the "Checking out …"
+  overlay up until the working copy and branch list have refreshed, instead of
+  briefly showing the previous branch as if the checkout had already finished.
+
 ## [1.9.3] — 2026-06-19
 
 ### Added
